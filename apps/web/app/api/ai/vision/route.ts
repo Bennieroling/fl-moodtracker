@@ -63,7 +63,10 @@ async function analyzeWithOpenAI(imageUrl: string) {
 
   try {
     console.log('OpenAI content to parse:', content)
-    return JSON.parse(content)
+    // Remove markdown code blocks if present
+    const cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+    console.log('Cleaned OpenAI content:', cleanContent)
+    return JSON.parse(cleanContent)
   } catch (parseError) {
     console.error('Failed to parse OpenAI content as JSON:', content)
     throw new Error(`Failed to parse OpenAI response as JSON: ${parseError}`)
@@ -82,7 +85,7 @@ async function analyzeWithGemini(imageUrl: string) {
   const base64Image = Buffer.from(imageBuffer).toString('base64')
   const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg'
 
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${process.env.GEMINI_API_KEY}`
   console.log('Gemini API URL:', geminiUrl.replace(process.env.GEMINI_API_KEY!, '[REDACTED]'))
   
   const response = await fetch(geminiUrl, {
