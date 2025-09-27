@@ -135,7 +135,13 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
       })
 
       if (!analysisResponse.ok) {
-        throw new Error('Failed to analyze image')
+        const errorText = await analysisResponse.text()
+        console.error('AI Vision API Error:', {
+          status: analysisResponse.status,
+          statusText: analysisResponse.statusText,
+          body: errorText
+        })
+        throw new Error(`Failed to analyze image: ${analysisResponse.status} - ${errorText}`)
       }
 
       const analysisResult = await analysisResponse.json()

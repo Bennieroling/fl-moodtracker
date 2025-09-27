@@ -13,11 +13,11 @@ export const metadata: Metadata = {
   keywords: ["wellness", "mood tracking", "food diary", "AI insights", "health"],
   authors: [{ name: "Sofi Team" }],
   creator: "Festina Lente",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+  metadataBase: new URL(process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"),
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+    url: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000",
     title: "Food & Mood",
     description: "Track your wellness journey with AI-powered insights and personalized recommendations.",
     siteName: "Food & Mood",
