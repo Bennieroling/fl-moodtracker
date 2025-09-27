@@ -161,26 +161,34 @@ export async function POST(request: NextRequest) {
     let aiResponse
     let provider: 'openai' | 'gemini' = 'openai'
 
+    console.log('AI Vision: Starting analysis for image:', validatedRequest.imageUrl)
+    console.log('AI Vision: OpenAI key available:', !!process.env.OPENAI_API_KEY)
+    console.log('AI Vision: Gemini key available:', !!process.env.GEMINI_API_KEY)
+
     try {
       // Try OpenAI first
       if (process.env.OPENAI_API_KEY) {
+        console.log('AI Vision: Trying OpenAI analysis')
         aiResponse = await analyzeWithOpenAI(validatedRequest.imageUrl)
         provider = 'openai'
+        console.log('AI Vision: OpenAI analysis successful')
       } else {
         throw new Error('OpenAI API key not available')
       }
     } catch (openaiError) {
-      console.warn('OpenAI failed, trying Gemini:', openaiError)
+      console.warn('AI Vision: OpenAI failed, trying Gemini:', openaiError)
       
       try {
         if (process.env.GEMINI_API_KEY) {
+          console.log('AI Vision: Trying Gemini analysis')
           aiResponse = await analyzeWithGemini(validatedRequest.imageUrl)
           provider = 'gemini'
+          console.log('AI Vision: Gemini analysis successful')
         } else {
           throw new Error('Gemini API key not available')
         }
       } catch (geminiError) {
-        console.error('Both AI providers failed:', { openaiError, geminiError })
+        console.error('AI Vision: Both AI providers failed:', { openaiError, geminiError })
         return NextResponse.json(
           { error: 'AI analysis failed' },
           { status: 500 }
