@@ -7,20 +7,29 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Storage API: Starting request processing')
+    
     // Parse and validate request
     const body = await request.json()
+    console.log('Storage API: Request body parsed')
     const validatedRequest = SignedURLRequestSchema.parse(body)
+    console.log('Storage API: Request validated')
 
     // Verify authentication
+    console.log('Storage API: Creating Supabase client')
     const supabase = await createServerSupabaseClient()
+    console.log('Storage API: Getting user')
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
+      console.log('Storage API: Auth error', authError)
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
+    
+    console.log('Storage API: User authenticated, generating signed URL')
 
     // Validate bucket name
     const allowedBuckets = ['food-photos', 'voice-notes']
