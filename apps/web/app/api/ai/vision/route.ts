@@ -48,10 +48,13 @@ async function analyzeWithOpenAI(imageUrl: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.status}`)
+    const errorText = await response.text()
+    console.error('OpenAI API error:', response.status, errorText)
+    throw new Error(`OpenAI API error: ${response.status} - ${errorText}`)
   }
 
   const data = await response.json()
+  console.log('OpenAI response data:', JSON.stringify(data, null, 2))
   const content = data.choices[0]?.message?.content
   
   if (!content) {
@@ -59,9 +62,11 @@ async function analyzeWithOpenAI(imageUrl: string) {
   }
 
   try {
+    console.log('OpenAI content to parse:', content)
     return JSON.parse(content)
-  } catch {
-    throw new Error('Failed to parse OpenAI response as JSON')
+  } catch (parseError) {
+    console.error('Failed to parse OpenAI content as JSON:', content)
+    throw new Error(`Failed to parse OpenAI response as JSON: ${parseError}`)
   }
 }
 
@@ -77,7 +82,10 @@ async function analyzeWithGemini(imageUrl: string) {
   const base64Image = Buffer.from(imageBuffer).toString('base64')
   const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg'
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`
+  console.log('Gemini API URL:', geminiUrl.replace(process.env.GEMINI_API_KEY!, '[REDACTED]'))
+  
+  const response = await fetch(geminiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -110,7 +118,9 @@ async function analyzeWithGemini(imageUrl: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`Gemini API error: ${response.status}`)
+    const errorText = await response.text()
+    console.error('Gemini API error:', response.status, errorText)
+    throw new Error(`Gemini API error: ${response.status} - ${errorText}`)
   }
 
   const data = await response.json()
