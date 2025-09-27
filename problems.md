@@ -20,6 +20,8 @@ GEMINI_API_KEY=AIzaSyCM4-lk7PczDGFdnawZ...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIs...
 ```
 
+
+
 **Solution:**
 ```bash
 # 1. IMMEDIATELY revoke all exposed API keys
