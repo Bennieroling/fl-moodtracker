@@ -101,6 +101,13 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
     setAnalysis(null)
     setError(null)
     setIsPlaying(false)
+    setIsRecording(false)
+    
+    // Clear the timer interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
   }, [audioUrl])
 
   // This function is currently unused but kept for potential future use
@@ -198,6 +205,12 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
         
         // Stop all tracks
         stream.getTracks().forEach(track => track.stop())
+        
+        // Clear the timer interval when recording stops
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current)
+          intervalRef.current = null
+        }
       }
 
       mediaRecorderRef.current = mediaRecorder
@@ -254,6 +267,7 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
       
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
+        intervalRef.current = null
       }
     }
   }, [isRecording])
@@ -367,6 +381,12 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
       transcript: analysis.transcript,
       voiceUrl: audioUrl || ''
     })
+
+    // Clear the timer when submitting to prevent it from continuing
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
 
     toast.success('Food entry saved!')
   }, [analysis, onAnalysisComplete, editedMeal, editedCalories, editedProtein, editedCarbs, editedFat, audioUrl])
