@@ -5,6 +5,12 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  const error = requestUrl.searchParams.get('error')
+
+  if (error) {
+    console.error('OAuth error:', error)
+    return NextResponse.redirect(`${requestUrl.origin}/login?error=${error}`)
+  }
 
   if (code) {
     const cookieStore = await cookies()
@@ -21,19 +27,32 @@ export async function GET(request: NextRequest) {
               cookiesToSet.forEach(({ name, value, options }) =>
                 cookieStore.set(name, value, options)
               )
-            } catch {
-              // The `setAll` method was called from a Server Component.
-              // This can be ignored if you have middleware refreshing
-              // user sessions.
+            } catch (error) {
+              console.error('Error setting cookies:', error)
             }
           },
         },
       }
     )
 
-    await supabase.auth.exchangeCodeForSession(code)
+    try {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+
+      if (error) {
+        console.error('Auth exchange error:', error)
+        return NextResponse.redirect(`${requestUrl.origin}/login?error=auth_failed`)
+      }
+
+      if (data.session) {
+        console.log('User authenticated successfully:', data.user?.email)
+        return NextResponse.redirect(`${requestUrl.origin}/dashboard`)
+      }
+    } catch (error) {
+      console.error('Exception during auth exchange:', error)
+      return NextResponse.redirect(`${requestUrl.origin}/login?error=auth_exception`)
+    }
   }
 
-  // URL to redirect to after sign in process completes
-  return NextResponse.redirect(`${requestUrl.origin}/dashboard`)
+  // No code parameter
+  return NextResponse.redirect(`${requestUrl.origin}/login?error=no_code`)
 }
