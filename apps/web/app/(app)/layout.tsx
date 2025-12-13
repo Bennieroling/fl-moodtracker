@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Calendar, BarChart3, User, Settings, LogOut, Apple, History } from 'lucide-react'
+import { Calendar, BarChart3, User, Settings, LogOut, Apple, History, Dumbbell } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Apple },
   { name: 'Historic', href: '/historic', icon: History },
+  { name: 'Exercise', href: '/exercise', icon: Dumbbell },
   { name: 'Calendar', href: '/calendar', icon: Calendar },
   { name: 'Insights', href: '/insights', icon: BarChart3 },
   { name: 'Profile', href: '/profile', icon: User },

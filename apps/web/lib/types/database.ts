@@ -203,6 +203,73 @@ export interface Database {
           updated_at?: string;
         };
       };
+      exercise_daily: {
+        Row: {
+          user_id: string;
+          date: string;
+          exercise_time_minutes: number | null;
+          move_time_minutes: number | null;
+          stand_time_minutes: number | null;
+          active_energy_kcal: number | null;
+          distance_km: number | null;
+          source: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          date: string;
+          exercise_time_minutes?: number | null;
+          move_time_minutes?: number | null;
+          stand_time_minutes?: number | null;
+          active_energy_kcal?: number | null;
+          distance_km?: number | null;
+          source?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          date?: string;
+          exercise_time_minutes?: number | null;
+          move_time_minutes?: number | null;
+          stand_time_minutes?: number | null;
+          active_energy_kcal?: number | null;
+          distance_km?: number | null;
+          source?: string | null;
+          updated_at?: string;
+        };
+      };
+      health_metrics_daily: {
+        Row: {
+          user_id: string;
+          date: string;
+          total_energy_kcal: number | null;
+          active_energy_kcal: number | null;
+          resting_energy_kcal: number | null;
+          steps: number | null;
+          source: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          date: string;
+          total_energy_kcal?: number | null;
+          active_energy_kcal?: number | null;
+          resting_energy_kcal?: number | null;
+          steps?: number | null;
+          source?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          date?: string;
+          total_energy_kcal?: number | null;
+          active_energy_kcal?: number | null;
+          resting_energy_kcal?: number | null;
+          steps?: number | null;
+          source?: string | null;
+          updated_at?: string;
+        };
+      };
     };
     Functions: {
       calculate_weekly_metrics: {
@@ -229,6 +296,8 @@ export type FoodEntry = Database['public']['Tables']['food_entries']['Row'];
 export type Insight = Database['public']['Tables']['insights']['Row'];
 export type Streak = Database['public']['Tables']['streaks']['Row'];
 export type UserPreferences = Database['public']['Tables']['user_preferences']['Row'];
+export type ExerciseDaily = Database['public']['Tables']['exercise_daily']['Row'];
+export type HealthMetricsDaily = Database['public']['Tables']['health_metrics_daily']['Row'];
 
 export type MoodEntryInsert = Database['public']['Tables']['mood_entries']['Insert'];
 export type FoodEntryInsert = Database['public']['Tables']['food_entries']['Insert'];

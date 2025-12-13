@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, addDays, subDays } from 'date-fns'
-import { getMoodEntriesForMonth, getFoodEntriesForDate, getMoodEntryByDate } from '@/lib/database'
+import { getMoodEntriesForMonth, getFoodEntriesForDate, getMoodEntryByDate, getDailyActivityByDate, DailyActivity } from '@/lib/database'
 import { MoodEntry, FoodEntry } from '@/lib/types/database'
 
 const moodEmojis = [
@@ -28,6 +28,11 @@ function getMoodEmoji(score: number | undefined): string {
 function getMoodColor(score: number | undefined): string {
   if (!score) return ''
   return moodEmojis.find(m => m.score === score)?.color || ''
+}
+
+function formatMetric(value: number | null | undefined, options: Intl.NumberFormatOptions = {}) {
+  if (value === null || value === undefined) return '—'
+  return value.toLocaleString(undefined, options)
 }
 
 function calculateCurrentStreak(moodEntries: MoodEntry[]): number {
@@ -117,6 +122,7 @@ export default function CalendarPage() {
   const [dailyMoodEntry, setDailyMoodEntry] = useState<MoodEntry | null>(null)
   const [dailyFoodEntries, setDailyFoodEntries] = useState<FoodEntry[]>([])
   const [dailyLoading, setDailyLoading] = useState(false)
+  const [dailyActivity, setDailyActivity] = useState<DailyActivity | null>(null)
 
   const monthStart = startOfMonth(currentDate)
   const monthEnd = endOfMonth(currentDate)
@@ -159,20 +165,24 @@ export default function CalendarPage() {
     setSelectedDate(dateKey)
     setDailySummaryOpen(true)
     setDailyLoading(true)
+    setDailyActivity(null)
     
     try {
-      // Load mood and food data for the selected day
-      const [moodData, foodData] = await Promise.all([
+      // Load mood, food, and exercise data for the selected day
+      const [moodData, foodData, activityData] = await Promise.all([
         getMoodEntryByDate(user.id, dateKey),
-        getFoodEntriesForDate(user.id, dateKey)
+        getFoodEntriesForDate(user.id, dateKey),
+        getDailyActivityByDate(user.id, dateKey)
       ])
       
       setDailyMoodEntry(moodData as MoodEntry | null)
       setDailyFoodEntries(foodData as FoodEntry[])
+      setDailyActivity(activityData)
     } catch (error) {
       console.error('Failed to load daily summary:', error)
       setDailyMoodEntry(null)
       setDailyFoodEntries([])
+      setDailyActivity(null)
     } finally {
       setDailyLoading(false)
     }
@@ -394,6 +404,45 @@ export default function CalendarPage() {
                       <div className="text-sm text-muted-foreground">Macros</div>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Exercise Summary */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Exercise Summary</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {dailyActivity ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-primary">{formatMetric(dailyActivity.steps)}</div>
+                        <div className="text-sm text-muted-foreground">Steps</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-primary">
+                          {formatMetric(dailyActivity.exercise_time_minutes)} min
+                        </div>
+                        <div className="text-sm text-muted-foreground">Exercise Time</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-primary">
+                          {formatMetric(dailyActivity.active_energy_kcal)} kcal
+                        </div>
+                        <div className="text-sm text-muted-foreground">Active Calories</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-primary">
+                          {formatMetric(dailyActivity.distance_km, { maximumFractionDigits: 2 })} km
+                        </div>
+                        <div className="text-sm text-muted-foreground">Distance</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center">
+                      No exercise data recorded for this day.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 

@@ -6,6 +6,21 @@ import { format } from 'date-fns'
 
 const supabase = createClient()
 
+export interface DailyActivity {
+  user_id: string
+  date: string
+  total_energy_kcal: number | null
+  active_energy_kcal: number | null
+  resting_energy_kcal: number | null
+  steps: number | null
+  exercise_time_minutes: number | null
+  move_time_minutes: number | null
+  stand_time_minutes: number | null
+  distance_km: number | null
+  exercise_kcal: number | null
+  source?: string | null
+}
+
 // Check if we're in demo mode
 const isDemoMode = () => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -224,6 +239,43 @@ export async function deleteFoodEntry(id: string) {
   } catch (error) {
     console.error('Error deleting food entry:', error)
     throw error
+  }
+}
+
+// Daily activity helpers
+export async function getDailyActivity(userId: string, limit: number = 14): Promise<DailyActivity[]> {
+  try {
+    const supabaseAny = supabase as any
+    const { data, error } = await supabaseAny
+      .from('v_daily_activity')
+      .select('*')
+      .eq('user_id', userId)
+      .order('date', { ascending: false })
+      .limit(limit)
+
+    if (error) throw error
+    return (data || []) as DailyActivity[]
+  } catch (error) {
+    console.error('Error fetching daily activity:', error)
+    return []
+  }
+}
+
+export async function getDailyActivityByDate(userId: string, date: string): Promise<DailyActivity | null> {
+  try {
+    const supabaseAny = supabase as any
+    const { data, error } = await supabaseAny
+      .from('v_daily_activity')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('date', date)
+      .maybeSingle()
+
+    if (error && error.code !== 'PGRST116') throw error
+    return (data as DailyActivity) || null
+  } catch (error) {
+    console.error('Error fetching daily activity by date:', error)
+    return null
   }
 }
 
