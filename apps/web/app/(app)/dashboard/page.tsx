@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { format } from 'date-fns'
 import { toast } from '@/hooks/use-toast'
-import { getDashboardSummary, upsertMoodEntry, insertFoodEntry, getRecentEntries, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
+import { getDashboardSummary, upsertMoodEntry, insertFoodEntry, getRecentEntries, updateFoodEntry, deleteFoodEntry, getDailyActivityByDate } from '@/lib/database'
 import { MealType, FoodEntry } from '@/lib/types/database'
 
 // Mood picker component
@@ -93,6 +93,8 @@ export default function DashboardPage() {
     totalCalories: 0,
     mealsLogged: 0,
     macros: { protein: 0, carbs: 0, fat: 0 },
+    burnedCalories: null as number | null,
+    totalEnergy: null as number | null,
   })
   const [recentEntries, setRecentEntries] = useState<FoodEntry[]>([])
   const [loading, setLoading] = useState({
@@ -115,6 +117,18 @@ export default function DashboardPage() {
 
   const today = format(new Date(), 'yyyy-MM-dd')
   const todayFormatted = format(new Date(), 'EEEE, MMMM d')
+  const formatCalories = (value: number | null) => (value === null ? '—' : Math.round(value).toLocaleString())
+  const netCalories = todaysSummary.burnedCalories !== null ? todaysSummary.totalCalories - todaysSummary.burnedCalories : null
+  const balanceDisplay = netCalories === null ? '—' : `${netCalories > 0 ? '+' : ''}${Math.round(netCalories).toLocaleString()}`
+  const balanceLabel = netCalories === null ? 'No data' : netCalories > 0 ? 'Surplus (ate more)' : netCalories < 0 ? 'Deficit (ate less)' : 'Balanced'
+  const balanceClass =
+    netCalories === null
+      ? 'text-muted-foreground'
+      : netCalories > 0
+        ? 'text-red-600'
+        : netCalories < 0
+          ? 'text-emerald-600'
+          : 'text-primary'
 
   // Load dashboard data on mount and when user changes
   useEffect(() => {
@@ -125,16 +139,19 @@ export default function DashboardPage() {
       
       try {
         // Load today's summary and recent entries in parallel
-        const [summaryData, recentData] = await Promise.all([
+        const [summaryData, recentData, activityData] = await Promise.all([
           getDashboardSummary(user.id, today),
-          getRecentEntries(user.id, 5)
+          getRecentEntries(user.id, 5),
+          getDailyActivityByDate(user.id, today)
         ])
         
         setTodaysSummary({
           mood: summaryData.mood,
           totalCalories: summaryData.totalCalories,
           mealsLogged: summaryData.mealsLogged,
-          macros: summaryData.macros
+          macros: summaryData.macros,
+          burnedCalories: activityData?.active_energy_kcal ?? null,
+          totalEnergy: activityData?.total_energy_kcal ?? null
         })
         
         setRecentEntries(recentData)
@@ -492,10 +509,19 @@ export default function DashboardPage() {
           <CardDescription>Your wellness overview for today</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{todaysSummary.totalCalories}</div>
-              <div className="text-sm text-muted-foreground">Calories</div>
+              <div className="text-2xl font-bold text-primary">{todaysSummary.totalCalories.toLocaleString()}</div>
+              <div className="text-sm text-muted-foreground">Calories Consumed</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary">{formatCalories(todaysSummary.burnedCalories)}</div>
+              <div className="text-sm text-muted-foreground">Calories Burned</div>
+            </div>
+            <div className="text-center">
+              <div className={`text-2xl font-bold ${balanceClass}`}>{balanceDisplay}</div>
+              <div className="text-sm text-muted-foreground">Calorie Balance</div>
+              <div className="text-xs text-muted-foreground">{balanceLabel}</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">{todaysSummary.mealsLogged}</div>
@@ -507,7 +533,7 @@ export default function DashboardPage() {
               </div>
               <div className="text-sm text-muted-foreground">Mood</div>
             </div>
-            <div className="text-center">
+            <div className="text-center col-span-2 md:col-span-3 lg:col-span-2">
               <div className="text-xs space-y-1">
                 <div>Protein: {todaysSummary.macros.protein}g</div>
                 <div>Carbs: {todaysSummary.macros.carbs}g</div>
