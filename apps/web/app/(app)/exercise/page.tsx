@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { format, parseISO, startOfYear, subDays } from 'date-fns'
-import { Activity, Flame, Footprints, Timer, TrendingUp, Zap } from 'lucide-react'
+import Link from 'next/link'
+import { Activity, Flame, Footprints, Timer, TrendingUp, Zap, ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import {
   Area,
   AreaChart,
@@ -37,10 +39,25 @@ const RANGE_PRESETS: { label: string; value: RangePreset; days?: number }[] = [
   { label: 'Last 90 days', value: '90d', days: 90 },
   { label: 'Year to date', value: 'ytd' },
 ]
+const STORAGE_KEYS = {
+  range: 'exercise_range_preset',
+  date: 'exercise_selected_date',
+} as const
 
-function formatNumber(value: number | null | undefined, options: Intl.NumberFormatOptions = {}) {
+function formatNumber(
+  value: number | string | null | undefined,
+  opts: { decimals?: number } = {}
+) {
   if (value === null || value === undefined) return '—'
-  return value.toLocaleString(undefined, options)
+  const decimals = opts.decimals ?? 0
+  const numeric = Number(value)
+  if (Number.isNaN(numeric)) return '—'
+  const factor = Math.pow(10, decimals)
+  const rounded = decimals > 0 ? Math.round(numeric * factor) / factor : Math.round(numeric)
+  return rounded.toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })
 }
 
 function computeRange(preset: RangePreset) {
@@ -90,6 +107,14 @@ export default function ExercisePage() {
   }>({ week: [], month: [], year: [] })
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    const storedRange = window.localStorage.getItem(STORAGE_KEYS.range) as RangePreset | null
+    if (storedRange && RANGE_PRESETS.some((preset) => preset.value === storedRange)) {
+      setRangePreset(storedRange)
+    }
+  }, [])
+
+  useEffect(() => {
     const loadData = async () => {
       if (!user?.id) return
       setLoading(true)
@@ -112,7 +137,13 @@ export default function ExercisePage() {
           month: monthlyAgg,
           year: yearlyAgg,
         })
-        setSelectedDate(dailyRange.at(-1)?.date ?? null)
+        const storedDate = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.date) : null
+        const fallbackDate = dailyRange.at(-1)?.date ?? null
+        if (storedDate && dailyRange.some((day) => day.date === storedDate)) {
+          setSelectedDate(storedDate)
+        } else {
+          setSelectedDate(fallbackDate)
+        }
       } catch (err) {
         console.error('Failed to load activity data:', err)
         setError('Unable to load exercise data. Please try again.')
@@ -124,12 +155,30 @@ export default function ExercisePage() {
     loadData()
   }, [user, rangePreset])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(STORAGE_KEYS.range, rangePreset)
+  }, [rangePreset])
+
+  useEffect(() => {
+    if (!selectedDate || typeof window === 'undefined') return
+    window.localStorage.setItem(STORAGE_KEYS.date, selectedDate)
+  }, [selectedDate])
+
   const selectedActivity = useMemo(() => {
     if (!selectedDate) return rangeData.at(-1) ?? null
     return rangeData.find((day) => day.date === selectedDate) ?? rangeData.at(-1) ?? null
   }, [rangeData, selectedDate])
 
   const chartData = useMemo(() => rangeData, [rangeData])
+  const previousEntry = useMemo(() => {
+    if (!selectedActivity) return null
+    const idx = rangeData.findIndex((day) => day.date === selectedActivity.date)
+    if (idx > 0) {
+      return rangeData[idx - 1]
+    }
+    return null
+  }, [rangeData, selectedActivity])
 
   if (!user) {
     return (
@@ -178,9 +227,7 @@ export default function ExercisePage() {
   const renderAggregateTable = (data: DailyActivityAggregate[], bucket: AggregateView) => {
     if (!data.length) {
       return (
-        <div className="text-center text-muted-foreground py-8">
-          No aggregated data available for this period.
-        </div>
+        <EmptyState />
       )
     }
 
@@ -207,7 +254,7 @@ export default function ExercisePage() {
                 <td className="py-2">{formatNumber(row.exercise_time_minutes)}</td>
                 <td className="py-2">{formatNumber(row.move_time_minutes)}</td>
                 <td className="py-2">{formatNumber(row.steps)}</td>
-                <td className="py-2">{formatNumber(row.distance_km, { maximumFractionDigits: 2 })}</td>
+                <td className="py-2">{formatNumber(row.distance_km, { decimals: 2 })}</td>
               </tr>
             ))}
           </tbody>
@@ -228,9 +275,7 @@ export default function ExercisePage() {
       <Card>
         <CardHeader>
           <CardTitle>Data Controls</CardTitle>
-          <CardDescription>
-            Pick a time range for charts and choose a day for the summary tiles below.
-          </CardDescription>
+          <CardDescription>Pick a range for charts and choose which day the summary tiles show.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-2">
@@ -247,7 +292,7 @@ export default function ExercisePage() {
 
           <div className="space-y-2 max-w-xs">
             <Label htmlFor="summary-date">Summary date</Label>
-            <Select value={selectedActivity.date} onValueChange={setSelectedDate}>
+            <Select value={selectedActivity?.date} onValueChange={setSelectedDate}>
               <SelectTrigger id="summary-date">
                 <SelectValue placeholder="Select date" />
               </SelectTrigger>
@@ -267,68 +312,45 @@ export default function ExercisePage() {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Exercise Time</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatNumber(selectedActivity.exercise_time_minutes)} min
-            </div>
-            <p className="text-xs text-muted-foreground">Structured workouts only</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Move Time</CardTitle>
-            <Timer className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatNumber(selectedActivity.move_time_minutes)} min
-            </div>
-            <p className="text-xs text-muted-foreground">All activity including walking</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Calories</CardTitle>
-            <Flame className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatNumber(selectedActivity.active_energy_kcal)} kcal
-            </div>
-            <p className="text-xs text-muted-foreground">Calories burned through movement</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Steps</CardTitle>
-            <Footprints className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(selectedActivity.steps)}</div>
-            <p className="text-xs text-muted-foreground">Daily total steps</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Energy</CardTitle>
-            <Zap className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatNumber(selectedActivity.total_energy_kcal)} kcal
-            </div>
-            <p className="text-xs text-muted-foreground">Resting + active expenditure</p>
-          </CardContent>
-        </Card>
+        <MetricCard
+          label="Exercise Time"
+          icon={<Activity className="h-4 w-4 text-muted-foreground" />}
+          value={selectedActivity?.exercise_time_minutes}
+          previousValue={previousEntry?.exercise_time_minutes}
+          unit="min"
+          description="Structured workouts only"
+        />
+        <MetricCard
+          label="Move Time"
+          icon={<Timer className="h-4 w-4 text-muted-foreground" />}
+          value={selectedActivity?.move_time_minutes}
+          previousValue={previousEntry?.move_time_minutes}
+          unit="min"
+          description="All activity including walking"
+        />
+        <MetricCard
+          label="Active Calories"
+          icon={<Flame className="h-4 w-4 text-muted-foreground" />}
+          value={selectedActivity?.active_energy_kcal}
+          previousValue={previousEntry?.active_energy_kcal}
+          unit="kcal"
+          description="Calories burned through movement"
+        />
+        <MetricCard
+          label="Steps"
+          icon={<Footprints className="h-4 w-4 text-muted-foreground" />}
+          value={selectedActivity?.steps}
+          previousValue={previousEntry?.steps}
+          description="Daily total steps"
+        />
+        <MetricCard
+          label="Total Energy"
+          icon={<Zap className="h-4 w-4 text-muted-foreground" />}
+          value={selectedActivity?.total_energy_kcal}
+          previousValue={previousEntry?.total_energy_kcal}
+          unit="kcal"
+          description="Resting + active expenditure"
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -368,7 +390,7 @@ export default function ExercisePage() {
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-center text-muted-foreground py-8">No data for this range.</div>
+              <EmptyState />
             )}
           </CardContent>
         </Card>
@@ -398,7 +420,7 @@ export default function ExercisePage() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-center text-muted-foreground py-8">No data for this range.</div>
+              <EmptyState />
             )}
           </CardContent>
         </Card>
@@ -450,13 +472,79 @@ export default function ExercisePage() {
                   <td className="py-2">{formatNumber(day.active_energy_kcal)}</td>
                   <td className="py-2">{formatNumber(day.total_energy_kcal)}</td>
                   <td className="py-2">{formatNumber(day.steps)}</td>
-                  <td className="py-2">{formatNumber(day.distance_km, { maximumFractionDigits: 2 })}</td>
+                  <td className="py-2">{formatNumber(day.distance_km, { decimals: 2 })}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+interface MetricCardProps {
+  label: string
+  icon: ReactNode
+  value: number | string | null | undefined
+  previousValue: number | string | null | undefined
+  unit?: string
+  description: string
+}
+
+function MetricCard({ label, icon, value, previousValue, unit, description }: MetricCardProps) {
+  const formattedValue =
+    value === null || value === undefined ? '—' : `${formatNumber(value)}${unit ? ` ${unit}` : ''}`
+  const numericValue = value === null || value === undefined ? null : Number(value)
+  const numericPrev = previousValue === null || previousValue === undefined ? null : Number(previousValue)
+  const delta =
+    numericValue !== null && !Number.isNaN(numericValue) && numericPrev !== null && !Number.isNaN(numericPrev)
+      ? numericValue - numericPrev
+      : null
+  const hasDelta = delta !== null && delta !== 0
+  const TrendIcon = delta && delta > 0 ? ArrowUpRight : ArrowDownRight
+  const deltaText =
+    delta === null
+      ? 'No previous day'
+      : hasDelta
+        ? `${delta > 0 ? '+' : ''}${formatNumber(Math.abs(delta))}${unit ? ` ${unit}` : ''} vs prev day`
+        : 'No change vs prev day'
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{label}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent className="space-y-1">
+        <div className="text-2xl font-bold">{formattedValue}</div>
+        <p className="text-xs text-muted-foreground">{description}</p>
+        <div className="text-xs flex items-center gap-1">
+          {delta !== null ? (
+            <>
+              {hasDelta && (
+                <TrendIcon className={`h-3 w-3 ${delta > 0 ? 'text-emerald-600' : 'text-red-500'}`} />
+              )}
+              <span className={hasDelta ? (delta > 0 ? 'text-emerald-700' : 'text-red-600') : 'text-muted-foreground'}>
+                {deltaText}
+              </span>
+            </>
+          ) : (
+            <span className="text-muted-foreground">No previous day</span>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 py-8 text-center text-muted-foreground">
+      <p>No HealthFit data for this range yet. Import a recent export to unlock trends.</p>
+      <Button asChild variant="outline">
+        <Link href="/seed-data">Import HealthFit data</Link>
+      </Button>
     </div>
   )
 }
