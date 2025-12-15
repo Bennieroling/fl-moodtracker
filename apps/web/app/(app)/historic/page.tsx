@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { PhotoUploader, ManualFoodEntry, VoiceRecorder } from '@/components/upload'
+import { PhotoUploader, ManualFoodEntry, VoiceRecorder, TextAnalyzer } from '@/components/upload'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
@@ -304,6 +304,40 @@ export default function HistoricPage() {
     }
   }
 
+  const handleTextAnalysis = async (result: {
+    meal: string
+    foods: Array<{ label: string; confidence: number; quantity?: string }>
+    nutrition: { calories: number; macros: { protein: number; carbs: number; fat: number } }
+  }) => {
+    if (!user?.id) return
+
+    try {
+      await insertFoodEntry({
+        user_id: user.id,
+        date: selectedDateString,
+        meal: result.meal as MealType,
+        food_labels: result.foods.map((f) => f.label),
+        calories: result.nutrition.calories,
+        macros: result.nutrition.macros,
+        ai_raw: result
+      })
+
+      toast({
+        title: 'Food logged successfully!',
+        description: `${result.foods.map(f => f.label).join(', ')} (${result.nutrition.calories} cal)`
+      })
+
+      await loadSelectedDateData()
+    } catch (error) {
+      console.error('Error saving AI text entry:', error)
+      toast({
+        title: 'Error saving food entry',
+        description: 'There was a problem saving your food entry. Please try again.',
+        variant: 'destructive'
+      })
+    }
+  }
+
   const handleEditEntry = (entry: FoodEntry) => {
     setEditingEntry(entry)
     setEditForm({
@@ -482,9 +516,10 @@ export default function HistoricPage() {
               <h4 className="font-medium">How would you like to log this meal?</h4>
 
               <Tabs defaultValue="photo" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="photo">Photo</TabsTrigger>
                   <TabsTrigger value="voice">Voice</TabsTrigger>
+                  <TabsTrigger value="text">Text</TabsTrigger>
                   <TabsTrigger value="manual">Manual</TabsTrigger>
                 </TabsList>
 
@@ -494,6 +529,10 @@ export default function HistoricPage() {
 
                 <TabsContent value="voice" className="space-y-4">
                   <VoiceRecorder date={selectedDateString} selectedMeal={selectedMeal} onAnalysisComplete={handleVoiceAnalysis} />
+                </TabsContent>
+
+                <TabsContent value="text" className="space-y-4">
+                  <TextAnalyzer selectedMeal={selectedMeal} date={selectedDateString} onAnalysisComplete={handleTextAnalysis} />
                 </TabsContent>
 
                 <TabsContent value="manual" className="space-y-4">

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Calendar as CalendarIcon, Loader2, Edit, Trash2, MoreHorizontal } from 'lucide-react'
-import { PhotoUploader, ManualFoodEntry, VoiceRecorder } from '@/components/upload'
+import { PhotoUploader, ManualFoodEntry, VoiceRecorder, TextAnalyzer } from '@/components/upload'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
@@ -381,6 +381,52 @@ export default function DashboardPage() {
     }
   }
 
+  const handleTextAnalysis = async (result: {
+    meal: string
+    foods: Array<{ label: string; confidence: number; quantity?: string }>
+    nutrition: { calories: number; macros: { protein: number; carbs: number; fat: number } }
+  }) => {
+    if (!user?.id) return
+
+    try {
+      await insertFoodEntry({
+        user_id: user.id,
+        date: today,
+        meal: result.meal as MealType,
+        food_labels: result.foods.map((f) => f.label),
+        calories: result.nutrition.calories,
+        macros: result.nutrition.macros,
+        ai_raw: result,
+      })
+
+      setTodaysSummary((prev) => ({
+        ...prev,
+        totalCalories: prev.totalCalories + result.nutrition.calories,
+        mealsLogged: prev.mealsLogged + 1,
+        macros: {
+          protein: prev.macros.protein + result.nutrition.macros.protein,
+          carbs: prev.macros.carbs + result.nutrition.macros.carbs,
+          fat: prev.macros.fat + result.nutrition.macros.fat,
+        },
+      }))
+
+      toast({
+        title: 'Meal logged!',
+        description: `${result.foods.map((f) => f.label).join(', ')} (${result.nutrition.calories} cal)`,
+      })
+
+      const recentData = await getRecentEntries(user.id, 5)
+      setRecentEntries(recentData)
+    } catch (error) {
+      console.error('Error saving AI text analysis:', error)
+      toast({
+        title: 'Error logging meal',
+        description: 'Unable to log this meal. Please try again.',
+        variant: 'destructive',
+      })
+    }
+  }
+
   const handleEditEntry = (entry: FoodEntry) => {
     setEditingEntry(entry)
     setEditForm({
@@ -582,9 +628,10 @@ export default function DashboardPage() {
               <h4 className="font-medium">How would you like to log this meal?</h4>
               
               <Tabs defaultValue="photo" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="photo">Photo</TabsTrigger>
                   <TabsTrigger value="voice">Voice</TabsTrigger>
+                  <TabsTrigger value="text">Text</TabsTrigger>
                   <TabsTrigger value="manual">Manual</TabsTrigger>
                 </TabsList>
                 
@@ -601,6 +648,14 @@ export default function DashboardPage() {
                     date={today}
                     selectedMeal={selectedMeal}
                     onAnalysisComplete={handleVoiceAnalysis}
+                  />
+                </TabsContent>
+
+                <TabsContent value="text" className="space-y-4">
+                  <TextAnalyzer
+                    selectedMeal={selectedMeal}
+                    date={today}
+                    onAnalysisComplete={handleTextAnalysis}
                   />
                 </TabsContent>
                 

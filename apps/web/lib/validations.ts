@@ -93,6 +93,23 @@ export const AISpeechResponseSchema = z.object({
   raw: z.any(),
 });
 
+// AI Text contracts
+export const AITextRequestSchema = z.object({
+  text: z.string().min(10, 'Please provide a bit more detail.'),
+  userId: z.string().uuid({ message: "Invalid UUID" }),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  meal: MealTypeSchema.optional(),
+});
+
+export const AITextResponseSchema = z.object({
+  meal: MealTypeSchema,
+  foods: z.array(FoodItemSchema),
+  nutrition: NutritionSchema,
+  normalized_text: z.string(),
+  provider: ModelProviderSchema,
+  raw: z.any(),
+});
+
 // AI Insights contracts
 export const AIInsightsRequestSchema = z.object({
   userId: z.string().uuid({ message: "Invalid UUID" }),
@@ -226,6 +243,8 @@ export const validateAIVisionRequest = (data: unknown) => AIVisionRequestSchema.
 export const validateAIVisionResponse = (data: unknown) => AIVisionResponseSchema.parse(data);
 export const validateAISpeechRequest = (data: unknown) => AISpeechRequestSchema.parse(data);
 export const validateAISpeechResponse = (data: unknown) => AISpeechResponseSchema.parse(data);
+export const validateAITextRequest = (data: unknown) => AITextRequestSchema.parse(data);
+export const validateAITextResponse = (data: unknown) => AITextResponseSchema.parse(data);
 export const validateAIInsightsRequest = (data: unknown) => AIInsightsRequestSchema.parse(data);
 export const validateAIInsightsResponse = (data: unknown) => AIInsightsResponseSchema.parse(data);
 export const validateUserPreferences = (data: unknown) => UserPreferencesSchema.parse(data);
@@ -252,6 +271,8 @@ export type AIVisionRequest = z.infer<typeof AIVisionRequestSchema>;
 export type AIVisionResponse = z.infer<typeof AIVisionResponseSchema>;
 export type AISpeechRequest = z.infer<typeof AISpeechRequestSchema>;
 export type AISpeechResponse = z.infer<typeof AISpeechResponseSchema>;
+export type AITextRequest = z.infer<typeof AITextRequestSchema>;
+export type AITextResponse = z.infer<typeof AITextResponseSchema>;
 export type AIInsightsRequest = z.infer<typeof AIInsightsRequestSchema>;
 export type AIInsightsResponse = z.infer<typeof AIInsightsResponseSchema>;
 
