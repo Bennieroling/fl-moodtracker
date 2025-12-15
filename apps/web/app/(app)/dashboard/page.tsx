@@ -171,7 +171,7 @@ export default function DashboardPage() {
       console.error('Missing required data for mood save:', {
         selectedMood,
         userId: user?.id,
-        date: selectedDateString
+        date: todayString
       })
       return
     }
@@ -218,7 +218,7 @@ export default function DashboardPage() {
     try {
       await insertFoodEntry({
         user_id: user.id,
-        date: selectedDateString,
+        date: todayString,
         meal: selectedMeal as MealType,
         photo_url: result.photoUrl,
         food_labels: result.foods.map(f => f.label),
@@ -271,7 +271,7 @@ export default function DashboardPage() {
     try {
       await insertFoodEntry({
         user_id: user.id,
-        date: selectedDateString,
+        date: todayString,
         meal: result.meal as MealType,
         voice_url: result.voiceUrl,
         food_labels: result.foods.map(f => f.label),
@@ -326,7 +326,7 @@ export default function DashboardPage() {
     try {
       await insertFoodEntry({
         user_id: user.id,
-        date: selectedDateString,
+        date: todayString,
         meal: data.meal as MealType,
         food_labels: data.food_labels,
         calories: data.calories,
@@ -380,7 +380,7 @@ export default function DashboardPage() {
     try {
       await insertFoodEntry({
         user_id: user.id,
-        date: selectedDateString,
+        date: todayString,
         meal: result.meal as MealType,
         food_labels: result.foods.map((f) => f.label),
         calories: result.nutrition.calories,
@@ -466,7 +466,7 @@ export default function DashboardPage() {
       )
 
       // Refresh dashboard summary
-      const summaryData = await getDashboardSummary(user.id, selectedDateString)
+      const summaryData = await getDashboardSummary(user.id, todayString)
       setTodaysSummary(prev => ({
         mood: summaryData.mood,
         totalCalories: summaryData.totalCalories,
@@ -504,7 +504,7 @@ export default function DashboardPage() {
       setRecentEntries(prev => prev.filter(e => e.id !== entry.id))
 
       // Refresh dashboard summary
-      const summaryData = await getDashboardSummary(user.id, selectedDateString)
+      const summaryData = await getDashboardSummary(user.id, todayString)
       setTodaysSummary(prev => ({
         mood: summaryData.mood,
         totalCalories: summaryData.totalCalories,
