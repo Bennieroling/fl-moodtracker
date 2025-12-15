@@ -478,12 +478,14 @@ export default function DashboardPage() {
 
       // Refresh dashboard summary
       const summaryData = await getDashboardSummary(user.id, today)
-      setTodaysSummary({
+      setTodaysSummary(prev => ({
         mood: summaryData.mood,
         totalCalories: summaryData.totalCalories,
         mealsLogged: summaryData.mealsLogged,
-        macros: summaryData.macros
-      })
+        macros: summaryData.macros,
+        burnedCalories: prev.burnedCalories,
+        totalEnergy: prev.totalEnergy
+      }))
 
       setEditingEntry(null)
       toast({
@@ -514,12 +516,14 @@ export default function DashboardPage() {
 
       // Refresh dashboard summary
       const summaryData = await getDashboardSummary(user.id, today)
-      setTodaysSummary({
+      setTodaysSummary(prev => ({
         mood: summaryData.mood,
         totalCalories: summaryData.totalCalories,
         mealsLogged: summaryData.mealsLogged,
-        macros: summaryData.macros
-      })
+        macros: summaryData.macros,
+        burnedCalories: prev.burnedCalories,
+        totalEnergy: prev.totalEnergy
+      }))
 
       toast({
         title: 'Entry deleted!',
