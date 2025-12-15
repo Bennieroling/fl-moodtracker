@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from '@/hooks/use-toast'
-import { getDashboardSummary, upsertMoodEntry, insertFoodEntry, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
+import { DailyActivity, getDashboardSummary, upsertMoodEntry, insertFoodEntry, updateFoodEntry, deleteFoodEntry, getDailyActivityByDate } from '@/lib/database'
 import { MealType, FoodEntry } from '@/lib/types/database'
 
 const moodEmojis = [
@@ -100,6 +100,7 @@ export default function HistoricPage() {
     mood: false,
     entries: false,
   })
+  const [dailyActivity, setDailyActivity] = useState<DailyActivity | null>(null)
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null)
   const [editForm, setEditForm] = useState({
     meal: '',
@@ -114,19 +115,37 @@ export default function HistoricPage() {
   const todayString = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
   const selectedDateString = format(selectedDate, 'yyyy-MM-dd')
   const selectedDateLabel = format(selectedDate, 'EEEE, MMMM d')
+  const formatMetric = (value: number | null | undefined) => (value === null || value === undefined ? '—' : Math.round(value).toLocaleString())
+  const dailyBurned = dailyActivity?.active_energy_kcal ?? null
+  const netCalories = dailyBurned !== null ? dailyBurned - selectedDaySummary.totalCalories : null
+  const balanceDisplay = netCalories === null ? '—' : `${netCalories > 0 ? '+' : ''}${Math.round(netCalories)}`
+  const balanceLabel =
+    netCalories === null ? 'No data' : netCalories > 0 ? 'Calorie deficit' : netCalories < 0 ? 'Over target' : 'Balanced'
+  const balanceClass =
+    netCalories === null
+      ? 'text-muted-foreground'
+      : netCalories > 0
+        ? 'text-emerald-600'
+        : netCalories < 0
+          ? 'text-red-600'
+          : 'text-primary'
 
   const loadSelectedDateData = useCallback(async () => {
     if (!user?.id) return
     setLoading((prev) => ({ ...prev, summary: true, entries: true }))
 
     try {
-      const summaryData = await getDashboardSummary(user.id, selectedDateString)
+      const [summaryData, activityData] = await Promise.all([
+        getDashboardSummary(user.id, selectedDateString),
+        getDailyActivityByDate(user.id, selectedDateString)
+      ])
       setSelectedDaySummary({
         mood: summaryData.mood,
         totalCalories: summaryData.totalCalories,
         mealsLogged: summaryData.mealsLogged,
         macros: summaryData.macros,
       })
+      setDailyActivity(activityData)
       setDailyEntries(summaryData.foodEntries || [])
       setSelectedMood(null)
       setSelectedMeal(null)
@@ -456,10 +475,19 @@ export default function HistoricPage() {
           <CardDescription>Your wellness overview for {selectedDateLabel}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">{selectedDaySummary.totalCalories}</div>
-              <div className="text-sm text-muted-foreground">Calories</div>
+              <div className="text-sm text-muted-foreground">Calories Consumed</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary">{formatMetric(dailyBurned)}</div>
+              <div className="text-sm text-muted-foreground">Calories Burned</div>
+            </div>
+            <div className="text-center">
+              <div className={`text-2xl font-bold ${balanceClass}`}>{balanceDisplay}</div>
+              <div className="text-sm text-muted-foreground">Calorie Balance</div>
+              <div className="text-xs text-muted-foreground">{balanceLabel}</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">{selectedDaySummary.mealsLogged}</div>
@@ -471,7 +499,7 @@ export default function HistoricPage() {
               </div>
               <div className="text-sm text-muted-foreground">Mood</div>
             </div>
-            <div className="text-center">
+            <div className="text-center col-span-2 md:col-span-3 lg:col-span-2">
               <div className="text-xs space-y-1">
                 <div>Protein: {selectedDaySummary.macros.protein}g</div>
                 <div>Carbs: {selectedDaySummary.macros.carbs}g</div>

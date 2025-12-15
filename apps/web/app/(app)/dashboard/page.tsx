@@ -115,22 +115,11 @@ export default function DashboardPage() {
     note: ''
   })
 
-  const today = format(new Date(), 'yyyy-MM-dd')
-  const todayFormatted = format(new Date(), 'EEEE, MMMM d')
-  const formatCalories = (value: number | null) => (value === null ? '—' : Math.round(value).toLocaleString())
-  const netCalories = todaysSummary.burnedCalories !== null ? todaysSummary.totalCalories - todaysSummary.burnedCalories : null
-  const balanceDisplay = netCalories === null ? '—' : `${netCalories > 0 ? '+' : ''}${Math.round(netCalories).toLocaleString()}`
-  const balanceLabel = netCalories === null ? 'No data' : netCalories > 0 ? 'Surplus (ate more)' : netCalories < 0 ? 'Deficit (ate less)' : 'Balanced'
-  const balanceClass =
-    netCalories === null
-      ? 'text-muted-foreground'
-      : netCalories > 0
-        ? 'text-red-600'
-        : netCalories < 0
-          ? 'text-emerald-600'
-          : 'text-primary'
+  const today = new Date()
+  const todayString = format(today, 'yyyy-MM-dd')
+  const todayLabel = format(today, 'EEEE, MMMM d')
 
-  // Load dashboard data on mount and when user changes
+  // Load dashboard data on mount and when user/date changes
   useEffect(() => {
     if (!user?.id) return
     
@@ -138,11 +127,11 @@ export default function DashboardPage() {
       setLoading(prev => ({ ...prev, summary: true, recent: true }))
       
       try {
-        // Load today's summary and recent entries in parallel
+        // Load day's summary and recent entries in parallel
         const [summaryData, recentData, activityData] = await Promise.all([
-          getDashboardSummary(user.id, today),
+          getDashboardSummary(user.id, todayString),
           getRecentEntries(user.id, 5),
-          getDailyActivityByDate(user.id, today)
+          getDailyActivityByDate(user.id, todayString)
         ])
         
         setTodaysSummary({
@@ -168,13 +157,13 @@ export default function DashboardPage() {
     }
     
     loadDashboardData()
-  }, [user, today])
+  }, [user, todayString])
 
   const handleMoodSave = async () => {
     console.log('handleMoodSave called with:', {
       selectedMood,
       userId: user?.id,
-      today,
+      date: todayString,
       userObject: user
     })
 
@@ -182,7 +171,7 @@ export default function DashboardPage() {
       console.error('Missing required data for mood save:', {
         selectedMood,
         userId: user?.id,
-        today
+        date: selectedDateString
       })
       return
     }
@@ -191,7 +180,7 @@ export default function DashboardPage() {
     
     const moodEntryData = {
       user_id: user.id,
-      date: today,
+      date: todayString,
       mood_score: selectedMood
     }
 
@@ -229,7 +218,7 @@ export default function DashboardPage() {
     try {
       await insertFoodEntry({
         user_id: user.id,
-        date: today,
+        date: selectedDateString,
         meal: selectedMeal as MealType,
         photo_url: result.photoUrl,
         food_labels: result.foods.map(f => f.label),
@@ -282,7 +271,7 @@ export default function DashboardPage() {
     try {
       await insertFoodEntry({
         user_id: user.id,
-        date: today,
+        date: selectedDateString,
         meal: result.meal as MealType,
         voice_url: result.voiceUrl,
         food_labels: result.foods.map(f => f.label),
@@ -337,7 +326,7 @@ export default function DashboardPage() {
     try {
       await insertFoodEntry({
         user_id: user.id,
-        date: today,
+        date: selectedDateString,
         meal: data.meal as MealType,
         food_labels: data.food_labels,
         calories: data.calories,
@@ -391,7 +380,7 @@ export default function DashboardPage() {
     try {
       await insertFoodEntry({
         user_id: user.id,
-        date: today,
+        date: selectedDateString,
         meal: result.meal as MealType,
         food_labels: result.foods.map((f) => f.label),
         calories: result.nutrition.calories,
@@ -477,7 +466,7 @@ export default function DashboardPage() {
       )
 
       // Refresh dashboard summary
-      const summaryData = await getDashboardSummary(user.id, today)
+      const summaryData = await getDashboardSummary(user.id, selectedDateString)
       setTodaysSummary(prev => ({
         mood: summaryData.mood,
         totalCalories: summaryData.totalCalories,
@@ -515,7 +504,7 @@ export default function DashboardPage() {
       setRecentEntries(prev => prev.filter(e => e.id !== entry.id))
 
       // Refresh dashboard summary
-      const summaryData = await getDashboardSummary(user.id, today)
+      const summaryData = await getDashboardSummary(user.id, selectedDateString)
       setTodaysSummary(prev => ({
         mood: summaryData.mood,
         totalCalories: summaryData.totalCalories,
@@ -547,7 +536,7 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground flex items-center gap-2">
           <CalendarIcon className="h-4 w-4" />
-          {todayFormatted}
+          {todayLabel}
         </p>
       </div>
 
@@ -559,19 +548,10 @@ export default function DashboardPage() {
           <CardDescription>Your wellness overview for today</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">{todaysSummary.totalCalories.toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Calories Consumed</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{formatCalories(todaysSummary.burnedCalories)}</div>
-              <div className="text-sm text-muted-foreground">Calories Burned</div>
-            </div>
-            <div className="text-center">
-              <div className={`text-2xl font-bold ${balanceClass}`}>{balanceDisplay}</div>
-              <div className="text-sm text-muted-foreground">Calorie Balance</div>
-              <div className="text-xs text-muted-foreground">{balanceLabel}</div>
+              <div className="text-sm text-muted-foreground">Calories</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">{todaysSummary.mealsLogged}</div>
@@ -583,7 +563,7 @@ export default function DashboardPage() {
               </div>
               <div className="text-sm text-muted-foreground">Mood</div>
             </div>
-            <div className="text-center col-span-2 md:col-span-3 lg:col-span-2">
+            <div className="text-center">
               <div className="text-xs space-y-1">
                 <div>Protein: {todaysSummary.macros.protein}g</div>
                 <div>Carbs: {todaysSummary.macros.carbs}g</div>
@@ -642,14 +622,14 @@ export default function DashboardPage() {
                 <TabsContent value="photo" className="space-y-4">
                   <PhotoUploader
                     meal={selectedMeal}
-                    date={today}
+                    date={todayString}
                     onAnalysisComplete={handlePhotoAnalysis}
                   />
                 </TabsContent>
                 
                 <TabsContent value="voice" className="space-y-4">
                   <VoiceRecorder
-                    date={today}
+                    date={todayString}
                     selectedMeal={selectedMeal}
                     onAnalysisComplete={handleVoiceAnalysis}
                   />
@@ -658,7 +638,7 @@ export default function DashboardPage() {
                 <TabsContent value="text" className="space-y-4">
                   <TextAnalyzer
                     selectedMeal={selectedMeal}
-                    date={today}
+                    date={todayString}
                     onAnalysisComplete={handleTextAnalysis}
                   />
                 </TabsContent>
