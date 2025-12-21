@@ -4,11 +4,13 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+type MutableRef<T> = React.MutableRefObject<T | null>
+
 interface PopoverContextValue {
   open: boolean
   setOpen: (open: boolean) => void
-  triggerRef: React.RefObject<HTMLElement>
-  contentRef: React.RefObject<HTMLDivElement>
+  triggerRef: MutableRef<HTMLElement>
+  contentRef: MutableRef<HTMLDivElement>
 }
 
 const PopoverContext = React.createContext<PopoverContextValue | null>(null)
