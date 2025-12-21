@@ -1,7 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase-browser'
-import { MoodEntryInsert, FoodEntryInsert, MealType } from '@/lib/types/database'
+import { MoodEntryInsert, FoodEntryInsert, MealType, ExerciseEvent } from '@/lib/types/database'
 import { format } from 'date-fns'
 
 const supabase = createClient()
@@ -20,6 +20,9 @@ export interface DailyActivity {
   stand_time_minutes: number | null
   distance_km: number | null
   exercise_kcal: number | null
+  resting_heart_rate?: number | null
+  hrv?: number | null
+  vo2max?: number | null
   source?: string | null
 }
 
@@ -31,6 +34,115 @@ export interface DailyActivityAggregate {
   move_time_minutes: number | null
   steps: number | null
   distance_km: number | null
+}
+
+type ExerciseEventTotals = {
+  total_minutes: number
+  move_minutes: number
+  active_energy_kcal: number
+  distance_km: number
+}
+
+const numberFromValue = (value: number | string | null | undefined) => {
+  if (value === null || value === undefined) return 0
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+const getWorkoutDateKey = (event: ExerciseEvent) => {
+  if (event.workout_date) return event.workout_date
+  if (event.started_at) return event.started_at.slice(0, 10)
+  return null
+}
+
+const groupExerciseEventsByDate = (events: ExerciseEvent[]) => {
+  const grouped = new Map<string, ExerciseEventTotals>()
+  for (const workout of events) {
+    const dateKey = getWorkoutDateKey(workout)
+    if (!dateKey) continue
+    if (!grouped.has(dateKey)) {
+      grouped.set(dateKey, {
+        total_minutes: 0,
+        move_minutes: 0,
+        active_energy_kcal: 0,
+        distance_km: 0,
+      })
+    }
+    const totals = grouped.get(dateKey)!
+    totals.total_minutes += numberFromValue(workout.total_minutes)
+    totals.move_minutes += numberFromValue(workout.move_minutes)
+    totals.active_energy_kcal += numberFromValue(workout.active_energy_kcal)
+    totals.distance_km += numberFromValue(workout.distance_km)
+  }
+  return grouped
+}
+
+const createDailyActivityFromExercise = (
+  userId: string,
+  date: string,
+  totals: ExerciseEventTotals
+): DailyActivity => ({
+  user_id: userId,
+  date,
+  total_energy_kcal: null,
+  active_energy_kcal: totals.active_energy_kcal,
+  resting_energy_kcal: null,
+  steps: null,
+  exercise_time_minutes: totals.total_minutes,
+  move_time_minutes: totals.move_minutes,
+  stand_time_minutes: null,
+  distance_km: totals.distance_km,
+  exercise_kcal: totals.active_energy_kcal,
+  resting_heart_rate: null,
+  hrv: null,
+  vo2max: null,
+  source: 'exercise_events',
+})
+
+const mergeActivityWithExercise = (
+  userId: string,
+  activityRows: DailyActivity[] = [],
+  workouts: ExerciseEvent[] = []
+) => {
+  if (!workouts.length) {
+    return activityRows || []
+  }
+
+  const grouped = groupExerciseEventsByDate(workouts)
+  const merged = activityRows.map((row) => {
+    const totals = grouped.get(row.date)
+    if (!totals) {
+      return row
+    }
+    return {
+      ...row,
+      exercise_time_minutes: totals.total_minutes,
+      move_time_minutes: totals.move_minutes,
+      active_energy_kcal: totals.active_energy_kcal,
+      distance_km: totals.distance_km,
+      exercise_kcal: totals.active_energy_kcal,
+    }
+  })
+
+  const seenDates = new Set(merged.map((row) => row.date))
+  for (const [date, totals] of grouped.entries()) {
+    if (!seenDates.has(date)) {
+      merged.push(createDailyActivityFromExercise(userId, date, totals))
+    }
+  }
+
+  return merged.sort((a, b) => a.date.localeCompare(b.date))
+}
+
+const getExerciseEventsBetweenDates = async (
+  userId: string,
+  startDate: string,
+  endDate: string
+) => {
+  const start = new Date(`${startDate}T00:00:00`)
+  const exclusiveEnd = new Date(`${endDate}T00:00:00`)
+  exclusiveEnd.setDate(exclusiveEnd.getDate() + 1)
+  return getExerciseEventsForRange(userId, start.toISOString(), exclusiveEnd.toISOString())
 }
 
 // Check if we're in demo mode
@@ -255,7 +367,53 @@ export async function deleteFoodEntry(id: string) {
 }
 
 // Daily activity helpers
-export async function getDailyActivityRange(userId: string, startDate: string, endDate: string): Promise<DailyActivity[]> {
+export async function getExerciseEventsForDate(userId: string, date: string): Promise<ExerciseEvent[]> {
+  try {
+    const supabaseAny = supabase as any
+    const { data, error } = await supabaseAny
+      .from('exercise_events')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('workout_date', date)
+      .order('started_at', { ascending: false })
+
+    if (error) throw error
+    return (data || []) as ExerciseEvent[]
+  } catch (error) {
+    console.error('Error fetching exercise events for date:', error)
+    return []
+  }
+}
+
+export async function getExerciseEventsForRange(
+  userId: string,
+  rangeStartIso: string,
+  rangeEndIso: string
+): Promise<ExerciseEvent[]> {
+  try {
+    const supabaseAny = supabase as any
+    const { data, error } = await supabaseAny
+      .from('exercise_events')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('started_at', rangeStartIso)
+      .lt('started_at', rangeEndIso)
+      .order('started_at', { ascending: false })
+
+    if (error) throw error
+    return (data || []) as ExerciseEvent[]
+  } catch (error) {
+    console.error('Error fetching exercise events for range:', error)
+    return []
+  }
+}
+
+export async function getDailyActivityRange(
+  userId: string,
+  startDate: string,
+  endDate: string,
+  options: { workouts?: ExerciseEvent[] } = {}
+): Promise<DailyActivity[]> {
   try {
     const supabaseAny = supabase as any
     const { data, error } = await supabaseAny
@@ -267,7 +425,12 @@ export async function getDailyActivityRange(userId: string, startDate: string, e
       .order('date', { ascending: true })
 
     if (error) throw error
-    return (data || []) as DailyActivity[]
+
+    const workouts =
+      options.workouts ??
+      (await getExerciseEventsBetweenDates(userId, startDate, endDate))
+
+    return mergeActivityWithExercise(userId, (data || []) as DailyActivity[], workouts)
   } catch (error) {
     console.error('Error fetching daily activity range:', error)
     return []
@@ -276,16 +439,9 @@ export async function getDailyActivityRange(userId: string, startDate: string, e
 
 export async function getDailyActivityByDate(userId: string, date: string): Promise<DailyActivity | null> {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny
-      .from('v_daily_activity')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('date', date)
-      .maybeSingle()
-
-    if (error && error.code !== 'PGRST116') throw error
-    return (data as DailyActivity) || null
+    const workouts = await getExerciseEventsForDate(userId, date)
+    const range = await getDailyActivityRange(userId, date, date, { workouts })
+    return range[0] || null
   } catch (error) {
     console.error('Error fetching daily activity by date:', error)
     return null

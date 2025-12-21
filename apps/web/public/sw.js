@@ -78,9 +78,12 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Handle different types of requests with appropriate strategies
-  if (url.pathname.startsWith('/api/')) {
-    // API requests - Network First with cache fallback
+  if (API_CACHE_URLS.includes(url.pathname)) {
+    // Selected API requests - Network First with cache fallback
     event.respondWith(networkFirstStrategy(request))
+  } else if (url.pathname.startsWith('/api/')) {
+    // Other API requests - let the network handle them directly
+    return
   } else if (STATIC_CACHE_URLS.includes(url.pathname)) {
     // Static pages - Cache First with network fallback
     event.respondWith(cacheFirstStrategy(request))

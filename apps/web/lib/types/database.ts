@@ -238,6 +238,56 @@ export interface Database {
           updated_at?: string;
         };
       };
+      exercise_events: {
+        Row: {
+          id: number;
+          user_id: string;
+          workout_date: string;
+          started_at: string;
+          workout_type: string | null;
+          total_minutes: number | null;
+          move_minutes: number | null;
+          distance_km: number | null;
+          active_energy_kcal: number | null;
+          avg_hr: number | null;
+          min_hr: number | null;
+          max_hr: number | null;
+          source: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          user_id: string;
+          workout_date: string;
+          started_at: string;
+          workout_type?: string | null;
+          total_minutes?: number | null;
+          move_minutes?: number | null;
+          distance_km?: number | null;
+          active_energy_kcal?: number | null;
+          avg_hr?: number | null;
+          min_hr?: number | null;
+          max_hr?: number | null;
+          source?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          user_id?: string;
+          workout_date?: string;
+          started_at?: string;
+          workout_type?: string | null;
+          total_minutes?: number | null;
+          move_minutes?: number | null;
+          distance_km?: number | null;
+          active_energy_kcal?: number | null;
+          avg_hr?: number | null;
+          min_hr?: number | null;
+          max_hr?: number | null;
+          source?: string | null;
+          updated_at?: string;
+        };
+      };
       health_metrics_daily: {
         Row: {
           user_id: string;
@@ -246,6 +296,9 @@ export interface Database {
           active_energy_kcal: number | null;
           resting_energy_kcal: number | null;
           steps: number | null;
+          resting_heart_rate: number | null;
+          hrv: number | null;
+          vo2max: number | null;
           source: string | null;
           updated_at: string;
         };
@@ -256,6 +309,9 @@ export interface Database {
           active_energy_kcal?: number | null;
           resting_energy_kcal?: number | null;
           steps?: number | null;
+          resting_heart_rate?: number | null;
+          hrv?: number | null;
+          vo2max?: number | null;
           source?: string | null;
           updated_at?: string;
         };
@@ -266,6 +322,9 @@ export interface Database {
           active_energy_kcal?: number | null;
           resting_energy_kcal?: number | null;
           steps?: number | null;
+          resting_heart_rate?: number | null;
+          hrv?: number | null;
+          vo2max?: number | null;
           source?: string | null;
           updated_at?: string;
         };
@@ -298,6 +357,7 @@ export type Streak = Database['public']['Tables']['streaks']['Row'];
 export type UserPreferences = Database['public']['Tables']['user_preferences']['Row'];
 export type ExerciseDaily = Database['public']['Tables']['exercise_daily']['Row'];
 export type HealthMetricsDaily = Database['public']['Tables']['health_metrics_daily']['Row'];
+export type ExerciseEvent = Database['public']['Tables']['exercise_events']['Row'];
 
 export type MoodEntryInsert = Database['public']['Tables']['mood_entries']['Insert'];
 export type FoodEntryInsert = Database['public']['Tables']['food_entries']['Insert'];
