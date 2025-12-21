@@ -1,10 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Stable configuration for React 18
-  experimental: {
-    esmExternals: 'loose', // For better compatibility
-  },
+  turbopack: {},
   
   // Webpack configuration to handle chunk loading issues
   webpack: (config, { isServer }) => {
@@ -50,8 +47,15 @@ const nextConfig: NextConfig = {
   
   // Image optimization
   images: {
-    domains: ['localhost'],
     remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: 'localhost',
+      },
       {
         protocol: 'https',
         hostname: '*.supabase.co',
