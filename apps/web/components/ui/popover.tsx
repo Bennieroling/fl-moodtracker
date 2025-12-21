@@ -88,6 +88,9 @@ const PopoverTrigger = React.forwardRef<HTMLElement, PopoverTriggerProps>(
     const { open, setOpen, triggerRef } = usePopoverContext("PopoverTrigger")
 
     const child = asChild ? React.Children.only(children) : children
+    const childWithPossibleRef = child as React.ReactElement & {
+      ref?: React.Ref<HTMLElement>
+    }
 
     const handleClick = (event: React.MouseEvent<HTMLElement>) => {
       event.preventDefault()
@@ -103,10 +106,10 @@ const PopoverTrigger = React.forwardRef<HTMLElement, PopoverTriggerProps>(
         } else if (ref) {
           ;(ref as React.MutableRefObject<HTMLElement | null>).current = node
         }
-        if (typeof child.ref === "function") {
-          child.ref(node)
-        } else if (child.ref) {
-          ;(child.ref as React.MutableRefObject<HTMLElement | null>).current = node
+        if (typeof childWithPossibleRef.ref === "function") {
+          childWithPossibleRef.ref(node)
+        } else if (childWithPossibleRef.ref) {
+          ;(childWithPossibleRef.ref as React.MutableRefObject<HTMLElement | null>).current = node
         }
       },
       onClick: handleClick,
