@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format } from 'date-fns'
 import { toast } from '@/hooks/use-toast'
 import { getDashboardSummary, upsertMoodEntry, insertFoodEntry, getRecentEntries, updateFoodEntry, deleteFoodEntry, getDailyActivityByDate } from '@/lib/database'
+import { getTotalBurnedCalories } from '@/lib/activity'
 import { MealType, FoodEntry } from '@/lib/types/database'
 
 // Mood picker component
@@ -134,13 +135,15 @@ export default function DashboardPage() {
           getDailyActivityByDate(user.id, todayString)
         ])
         
+        const burnedCalories = getTotalBurnedCalories(activityData)
+
         setTodaysSummary({
           mood: summaryData.mood,
           totalCalories: summaryData.totalCalories,
           mealsLogged: summaryData.mealsLogged,
           macros: summaryData.macros,
-          burnedCalories: activityData?.active_energy_kcal ?? null,
-          totalEnergy: activityData?.total_energy_kcal ?? null
+          burnedCalories,
+          totalEnergy: burnedCalories
         })
         
         setRecentEntries(recentData)

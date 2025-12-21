@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from '@/hooks/use-toast'
 import { DailyActivity, getDashboardSummary, upsertMoodEntry, insertFoodEntry, updateFoodEntry, deleteFoodEntry, getDailyActivityByDate } from '@/lib/database'
+import { getTotalBurnedCalories } from '@/lib/activity'
 import { MealType, FoodEntry } from '@/lib/types/database'
 
 const moodEmojis = [
@@ -116,7 +117,7 @@ export default function HistoricPage() {
   const selectedDateString = format(selectedDate, 'yyyy-MM-dd')
   const selectedDateLabel = format(selectedDate, 'EEEE, MMMM d')
   const formatMetric = (value: number | null | undefined) => (value === null || value === undefined ? '—' : Math.round(value).toLocaleString())
-  const dailyBurned = dailyActivity?.active_energy_kcal ?? null
+  const dailyBurned = getTotalBurnedCalories(dailyActivity)
   const netCalories = dailyBurned !== null ? dailyBurned - selectedDaySummary.totalCalories : null
   const balanceDisplay = netCalories === null ? '—' : `${netCalories > 0 ? '+' : ''}${Math.round(netCalories)}`
   const balanceLabel =
