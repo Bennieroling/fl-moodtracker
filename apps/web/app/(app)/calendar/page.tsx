@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useAuth } from '@/lib/auth-context'
+import { useFilters } from '@/lib/filter-context'
+import { useCalendarMonthData, useCalendarDayData } from '@/hooks/useCalendarData'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -9,8 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, addDays, subDays } from 'date-fns'
-import { getMoodEntriesForMonth, getFoodEntriesForDate, getMoodEntryByDate, getDailyActivityByDate, DailyActivity } from '@/lib/database'
-import { MoodEntry, FoodEntry } from '@/lib/types/database'
+import { MoodEntry } from '@/lib/types/database'
 
 const moodEmojis = [
   { score: 1, emoji: '😢', label: 'Very Bad', color: 'bg-red-100 border-red-300 text-red-800' },
@@ -112,17 +113,20 @@ function calculateBestStreak(moodEntries: MoodEntry[]): number {
 
 export default function CalendarPage() {
   const { user } = useAuth()
-  const [currentDate, setCurrentDate] = useState(new Date())
-  const [moodEntries, setMoodEntries] = useState<MoodEntry[]>([])
-  const [loading, setLoading] = useState(false)
-  
-  // Dialog state for daily summary
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const { filters, setCalendarFilters } = useFilters()
+  const calendarFilters = filters.calendar
+  const currentDate = useMemo(() => {
+    const parsed = parseISO(calendarFilters.currentMonth)
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed
+  }, [calendarFilters.currentMonth])
   const [dailySummaryOpen, setDailySummaryOpen] = useState(false)
-  const [dailyMoodEntry, setDailyMoodEntry] = useState<MoodEntry | null>(null)
-  const [dailyFoodEntries, setDailyFoodEntries] = useState<FoodEntry[]>([])
-  const [dailyLoading, setDailyLoading] = useState(false)
-  const [dailyActivity, setDailyActivity] = useState<DailyActivity | null>(null)
+  const { data: monthEntries, loading: monthLoading } = useCalendarMonthData()
+  const { data: dayData, loading: dayLoading } = useCalendarDayData()
+  const moodEntries = monthEntries || []
+  const dailyMoodEntry = dayData?.mood ?? null
+  const dailyFoodEntries = dayData?.foodEntries ?? []
+  const dailyActivity = dayData?.activity ?? null
+  const selectedDate = calendarFilters.selectedDate
 
   const monthStart = startOfMonth(currentDate)
   const monthEnd = endOfMonth(currentDate)
@@ -138,66 +142,26 @@ export default function CalendarPage() {
     return acc
   }, {} as Record<string, number>)
 
-  useEffect(() => {
-    const loadMoodData = async () => {
-      if (!user) return
-      
-      setLoading(true)
-      try {
-        const year = currentDate.getFullYear()
-        const month = currentDate.getMonth() + 1 // getMonth() is 0-based
-        const entries = await getMoodEntriesForMonth(user.id, year, month)
-        setMoodEntries(entries as MoodEntry[])
-      } catch (error) {
-        console.error('Failed to load mood data:', error)
-        setMoodEntries([])
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadMoodData()
-  }, [currentDate, user])
-
   const handleDayClick = async (dateKey: string) => {
     if (!user) return
     
-    setSelectedDate(dateKey)
+    setCalendarFilters((prev) => ({ ...prev, selectedDate: dateKey }))
     setDailySummaryOpen(true)
-    setDailyLoading(true)
-    setDailyActivity(null)
-    
-    try {
-      // Load mood, food, and exercise data for the selected day
-      const [moodData, foodData, activityData] = await Promise.all([
-        getMoodEntryByDate(user.id, dateKey),
-        getFoodEntriesForDate(user.id, dateKey),
-        getDailyActivityByDate(user.id, dateKey)
-      ])
-      
-      setDailyMoodEntry(moodData as MoodEntry | null)
-      setDailyFoodEntries(foodData as FoodEntry[])
-      setDailyActivity(activityData)
-    } catch (error) {
-      console.error('Failed to load daily summary:', error)
-      setDailyMoodEntry(null)
-      setDailyFoodEntries([])
-      setDailyActivity(null)
-    } finally {
-      setDailyLoading(false)
-    }
   }
 
   const navigateMonth = (direction: 'prev' | 'next') => {
-    if (direction === 'prev') {
-      setCurrentDate(subMonths(currentDate, 1))
-    } else {
-      setCurrentDate(addMonths(currentDate, 1))
-    }
+    const nextDate = direction === 'prev' ? subMonths(currentDate, 1) : addMonths(currentDate, 1)
+    setCalendarFilters((prev) => ({
+      ...prev,
+      currentMonth: format(startOfMonth(nextDate), 'yyyy-MM-dd'),
+    }))
   }
 
   const goToToday = () => {
-    setCurrentDate(new Date())
+    setCalendarFilters((prev) => ({
+      ...prev,
+      currentMonth: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
+    }))
   }
 
   return (
@@ -309,7 +273,7 @@ export default function CalendarPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">
-            {loading ? 'Loading...' : `${format(currentDate, 'MMMM yyyy')} Summary`}
+            {monthLoading ? 'Loading...' : `${format(currentDate, 'MMMM yyyy')} Summary`}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -346,7 +310,15 @@ export default function CalendarPage() {
       </Card>
 
       {/* Daily Summary Dialog */}
-      <Dialog open={dailySummaryOpen} onOpenChange={setDailySummaryOpen}>
+      <Dialog
+        open={dailySummaryOpen}
+        onOpenChange={(open) => {
+          setDailySummaryOpen(open)
+          if (!open) {
+            setCalendarFilters((prev) => ({ ...prev, selectedDate: null }))
+          }
+        }}
+      >
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
@@ -354,7 +326,7 @@ export default function CalendarPage() {
             </DialogTitle>
           </DialogHeader>
           
-          {dailyLoading ? (
+          {dayLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>

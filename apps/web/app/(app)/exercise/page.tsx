@@ -1,22 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import type { ReactNode } from 'react'
-import {
-  addDays,
-  addMonths,
-  addWeeks,
-  addYears,
-  endOfMonth,
-  endOfWeek,
-  endOfYear,
-  format,
-  parseISO,
-  startOfDay,
-  startOfMonth,
-  startOfWeek,
-  startOfYear,
-} from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import Link from 'next/link'
 import {
   Activity,
@@ -43,15 +29,10 @@ import {
 } from 'recharts'
 
 import { useAuth } from '@/lib/auth-context'
-import {
-  DailyActivity,
-  DailyActivityAggregate,
-  getActivityAggregates,
-  getDailyActivityRange,
-  getExerciseEventIsoRange,
-  getExerciseEventsForRange,
-} from '@/lib/database'
+import { DailyActivityAggregate } from '@/lib/database'
 import { ExerciseEvent } from '@/lib/types/database'
+import { RangeMode } from '@/lib/range-utils'
+import { useExerciseData } from '@/hooks/useExerciseData'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -59,115 +40,35 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-type RangeMode = 'day' | 'week' | 'month' | 'year'
 type AggregateView = 'week' | 'month' | 'year'
-
-const RANGE_STORAGE_KEYS = {
-  mode: 'exercise_range_mode',
-  anchor: 'exercise_anchor_date',
-} as const
 
 export default function ExercisePage() {
   const { user } = useAuth()
-  const [rangeMode, setRangeMode] = useState<RangeMode>('day')
-  const [anchorDate, setAnchorDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'))
-  const [dailySeries, setDailySeries] = useState<DailyActivity[]>([])
-  const [workouts, setWorkouts] = useState<ExerciseEvent[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    workouts,
+    dailySeries,
+    aggregates,
+    loading,
+    error,
+    healthSummary,
+    exerciseSummary,
+    range,
+    shiftRange,
+    setRangeMode,
+    setAnchorDate,
+  } = useExerciseData()
   const [aggregateView, setAggregateView] = useState<AggregateView>('week')
-  const [aggregates, setAggregates] = useState<{
-    week: DailyActivityAggregate[]
-    month: DailyActivityAggregate[]
-    year: DailyActivityAggregate[]
-  }>({ week: [], month: [], year: [] })
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const storedMode = window.localStorage.getItem(RANGE_STORAGE_KEYS.mode) as RangeMode | null
-    const storedAnchor = window.localStorage.getItem(RANGE_STORAGE_KEYS.anchor)
-    if (storedMode) setRangeMode(storedMode)
-    if (storedAnchor) setAnchorDate(storedAnchor)
-  }, [])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem(RANGE_STORAGE_KEYS.mode, rangeMode)
-    window.localStorage.setItem(RANGE_STORAGE_KEYS.anchor, anchorDate)
-  }, [rangeMode, anchorDate])
-
-  useEffect(() => {
-    setAnchorDate((current) => {
-      const parsed = parseAnchorDate(current)
-      const normalized = format(normalizeDateForMode(parsed, rangeMode), 'yyyy-MM-dd')
-      return normalized === current ? current : normalized
-    })
-  }, [rangeMode])
-
-  const anchorDateObj = useMemo(() => parseAnchorDate(anchorDate), [anchorDate])
-  const rangeBounds = useMemo(() => computeRangeBounds(rangeMode, anchorDateObj), [rangeMode, anchorDateObj])
-  const rangeStartDate = format(rangeBounds.start, 'yyyy-MM-dd')
-  const rangeEndDate = format(rangeBounds.end, 'yyyy-MM-dd')
-  const eventRange = useMemo(() => getExerciseEventIsoRange(rangeStartDate, rangeEndDate), [rangeStartDate, rangeEndDate])
-  const rangeLabel = formatRangeLabel(rangeMode, rangeBounds.start, rangeBounds.end)
-
-  useEffect(() => {
-    const load = async () => {
-      if (!user?.id) return
-      setLoading(true)
-      setError(null)
-      try {
-        const workoutsPromise = getExerciseEventsForRange(user.id, eventRange.startIso, eventRange.endIso)
-        const weeklyAggPromise = getActivityAggregates(user.id, 'week', 12, rangeStartDate, rangeEndDate)
-        const monthlyAggPromise = getActivityAggregates(user.id, 'month', 12, rangeStartDate, rangeEndDate)
-        const yearlyAggPromise = getActivityAggregates(user.id, 'year', 5, rangeStartDate, rangeEndDate)
-
-        const workoutsResult = await workoutsPromise
-        const dailyRangePromise = getDailyActivityRange(user.id, rangeStartDate, rangeEndDate, {
-          workouts: workoutsResult,
-        })
-
-        const [dailyRange, weeklyAgg, monthlyAgg, yearlyAgg] = await Promise.all([
-          dailyRangePromise,
-          weeklyAggPromise,
-          monthlyAggPromise,
-          yearlyAggPromise,
-        ])
-
-        setWorkouts(workoutsResult)
-        setDailySeries(dailyRange)
-        setAggregates({
-          week: weeklyAgg,
-          month: monthlyAgg,
-          year: yearlyAgg,
-        })
-      } catch (err) {
-        console.error('Failed to load exercise data:', err)
-        setError('Unable to load exercise data. Please try again.')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    load()
-  }, [user?.id, eventRange.startIso, eventRange.endIso, rangeStartDate, rangeEndDate])
-
-  const exerciseSummary = useMemo(() => summarizeWorkouts(workouts), [workouts])
-  const healthSummary = useMemo(() => summarizeHealth(dailySeries), [dailySeries])
+  const anchorDateObj = parseISO(range.anchorDate)
+  const rangeStartDate = range.startDate
+  const rangeEndDate = range.endDate
+  const rangeLabel = range.label
   const healthPending = workouts.length > 0 && !healthSummary.hasHealthData
-
-  const chartData = useMemo(() => dailySeries, [dailySeries])
-
-  const handleShiftRange = (direction: number) => {
-    setAnchorDate((current) => {
-      const shifted = shiftAnchor(parseAnchorDate(current), rangeMode, direction)
-      return format(normalizeDateForMode(shifted, rangeMode), 'yyyy-MM-dd')
-    })
-  }
+  const chartData = dailySeries
+  const errorMessage = error?.message ?? null
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return
-    setAnchorDate(format(normalizeDateForMode(date, rangeMode), 'yyyy-MM-dd'))
+    setAnchorDate(date)
   }
 
   if (!user) {
@@ -186,13 +87,13 @@ export default function ExercisePage() {
     )
   }
 
-  if (error) {
+  if (errorMessage) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="max-w-md w-full mx-4">
           <CardHeader>
             <CardTitle className="text-center">Unable to load exercise data</CardTitle>
-            <CardDescription className="text-center">{error}</CardDescription>
+            <CardDescription className="text-center">{errorMessage}</CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -214,7 +115,7 @@ export default function ExercisePage() {
           <CardDescription>Choose the date granularity and anchor date for the dashboard.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Tabs value={rangeMode} onValueChange={(value) => setRangeMode(value as RangeMode)}>
+          <Tabs value={range.mode} onValueChange={(value) => setRangeMode(value as RangeMode)}>
             <TabsList>
               <TabsTrigger value="day">Day</TabsTrigger>
               <TabsTrigger value="week">Week</TabsTrigger>
@@ -223,7 +124,7 @@ export default function ExercisePage() {
             </TabsList>
           </Tabs>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => handleShiftRange(-1)}>
+            <Button variant="outline" size="icon" onClick={() => shiftRange(-1)}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Popover>
@@ -242,7 +143,7 @@ export default function ExercisePage() {
                 />
               </PopoverContent>
             </Popover>
-            <Button variant="outline" size="icon" onClick={() => handleShiftRange(1)}>
+            <Button variant="outline" size="icon" onClick={() => shiftRange(1)}>
               <ChevronRight className="h-4 w-4" />
             </Button>
             <span className="text-sm text-muted-foreground">{rangeLabel}</span>
@@ -668,142 +569,4 @@ function EmptyState() {
       </Button>
     </div>
   )
-}
-
-const parseAnchorDate = (value: string) => {
-  const parsed = parseLocalDate(value)
-  return parsed ?? new Date()
-}
-
-const parseLocalDate = (value: string) => {
-  if (!value) return null
-  const [year, month, day] = value.split('-').map((part) => Number(part))
-  if (!year || !month || !day) return null
-  return new Date(year, month - 1, day)
-}
-
-const normalizeDateForMode = (date: Date, mode: RangeMode) => {
-  switch (mode) {
-    case 'week':
-      return startOfDay(startOfWeek(date, { weekStartsOn: 1 }))
-    case 'month':
-      return startOfDay(startOfMonth(date))
-    case 'year':
-      return startOfDay(startOfYear(date))
-    case 'day':
-    default:
-      return startOfDay(date)
-  }
-}
-
-const computeRangeBounds = (mode: RangeMode, anchor: Date) => {
-  const start = normalizeDateForMode(anchor, mode)
-  let end = start
-  switch (mode) {
-    case 'week':
-      end = startOfDay(endOfWeek(start, { weekStartsOn: 1 }))
-      break
-    case 'month':
-      end = startOfDay(endOfMonth(start))
-      break
-    case 'year':
-      end = startOfDay(endOfYear(start))
-      break
-    case 'day':
-    default:
-      end = start
-      break
-  }
-  return { start, end }
-}
-
-const formatRangeLabel = (mode: RangeMode, start: Date, end: Date) => {
-  if (mode === 'day') {
-    return format(start, 'EEEE, MMM d, yyyy')
-  }
-  if (mode === 'week') {
-    const sameMonth = start.getMonth() === end.getMonth()
-    const startLabel = format(start, 'MMM d')
-    const endLabel = sameMonth ? format(end, 'd, yyyy') : format(end, 'MMM d, yyyy')
-    return `${startLabel} - ${endLabel}`
-  }
-  if (mode === 'month') {
-    return format(start, 'MMMM yyyy')
-  }
-  return format(start, 'yyyy')
-}
-
-const shiftAnchor = (date: Date, mode: RangeMode, direction: number) => {
-  switch (mode) {
-    case 'week':
-      return addWeeks(date, direction)
-    case 'month':
-      return addMonths(date, direction)
-    case 'year':
-      return addYears(date, direction)
-    case 'day':
-    default:
-      return addDays(date, direction)
-  }
-}
-
-const summarizeWorkouts = (events: ExerciseEvent[]) =>
-  events.reduce(
-    (acc, workout) => {
-      acc.minutes += numberFromValue(workout.total_minutes)
-      acc.moveMinutes += numberFromValue(workout.move_minutes)
-      acc.activeEnergy += numberFromValue(workout.active_energy_kcal)
-      acc.distance += numberFromValue(workout.distance_km)
-      return acc
-    },
-    { minutes: 0, moveMinutes: 0, activeEnergy: 0, distance: 0 }
-  )
-
-const summarizeHealth = (series: DailyActivity[]) => {
-  let steps = 0
-  let restingHeartRateTotal = 0
-  let restingHeartRateCount = 0
-  let hrvTotal = 0
-  let hrvCount = 0
-  let vo2Total = 0
-  let vo2Count = 0
-  const hasHealthData = series.some(hasHealthMetrics)
-
-  for (const day of series) {
-    steps += numberFromValue(day.steps)
-    if (day.resting_heart_rate !== null && day.resting_heart_rate !== undefined) {
-      restingHeartRateTotal += Number(day.resting_heart_rate)
-      restingHeartRateCount++
-    }
-    if (day.hrv !== null && day.hrv !== undefined) {
-      hrvTotal += Number(day.hrv)
-      hrvCount++
-    }
-    if (day.vo2max !== null && day.vo2max !== undefined) {
-      vo2Total += Number(day.vo2max)
-      vo2Count++
-    }
-  }
-
-  return {
-    steps,
-    restingHeartRateAvg: restingHeartRateCount ? restingHeartRateTotal / restingHeartRateCount : null,
-    hrvAvg: hrvCount ? hrvTotal / hrvCount : null,
-    vo2maxAvg: vo2Count ? vo2Total / vo2Count : null,
-    hasHealthData,
-  }
-}
-
-const hasHealthMetrics = (day: DailyActivity) =>
-  day.total_energy_kcal !== null ||
-  day.resting_energy_kcal !== null ||
-  day.steps !== null ||
-  day.resting_heart_rate !== null ||
-  day.hrv !== null ||
-  day.vo2max !== null
-
-const numberFromValue = (value: number | string | null | undefined) => {
-  if (value === null || value === undefined) return 0
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : 0
 }

@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
+import { useFilters } from '@/lib/filter-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,11 +14,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { toast } from '@/hooks/use-toast'
-import { getDashboardSummary, upsertMoodEntry, insertFoodEntry, getRecentEntries, updateFoodEntry, deleteFoodEntry, getDailyActivityByDate } from '@/lib/database'
-import { getTotalBurnedCalories } from '@/lib/activity'
+import { upsertMoodEntry, insertFoodEntry, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
 import { MealType, FoodEntry } from '@/lib/types/database'
+import { useDashboardData } from '@/hooks/useDashboardData'
 
 // Mood picker component
 const moodEmojis = [
@@ -62,6 +63,14 @@ const mealTypes = [
   { id: 'snack', label: 'Snack', icon: '🍎' },
 ]
 
+const DEFAULT_DASHBOARD_SUMMARY = {
+  mood: null as number | null,
+  totalCalories: 0,
+  mealsLogged: 0,
+  macros: { protein: 0, carbs: 0, fat: 0 },
+  foodEntries: [] as FoodEntry[],
+}
+
 interface MealSelectorProps {
   selectedMeal: string | null
   onMealSelect: (meal: string) => void
@@ -87,22 +96,17 @@ function MealSelector({ selectedMeal, onMealSelect }: MealSelectorProps) {
 
 export default function DashboardPage() {
   const { user } = useAuth()
+  const { filters } = useFilters()
+  const dashboardDate = useMemo(() => parseISO(filters.dashboard.date), [filters.dashboard.date])
+  const dashboardDateString = filters.dashboard.date
   const [selectedMood, setSelectedMood] = useState<number | null>(null)
   const [selectedMeal, setSelectedMeal] = useState<string | null>(null)
-  const [todaysSummary, setTodaysSummary] = useState({
-    mood: null as number | null,
-    totalCalories: 0,
-    mealsLogged: 0,
-    macros: { protein: 0, carbs: 0, fat: 0 },
-    burnedCalories: null as number | null,
-    totalEnergy: null as number | null,
-  })
-  const [recentEntries, setRecentEntries] = useState<FoodEntry[]>([])
   const [loading, setLoading] = useState({
-    summary: false,
     mood: false,
-    recent: false
   })
+  const { data, loading: dataLoading, refetch } = useDashboardData()
+  const summary = data?.summary ?? DEFAULT_DASHBOARD_SUMMARY
+  const recentEntries = data?.recentEntries ?? []
   
   // Edit entry state
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null)
@@ -116,51 +120,8 @@ export default function DashboardPage() {
     note: ''
   })
 
-  const today = new Date()
-  const todayString = format(today, 'yyyy-MM-dd')
-  const todayLabel = format(today, 'EEEE, MMMM d')
-
-  // Load dashboard data on mount and when user/date changes
-  useEffect(() => {
-    if (!user?.id) return
-    
-    const loadDashboardData = async () => {
-      setLoading(prev => ({ ...prev, summary: true, recent: true }))
-      
-      try {
-        // Load day's summary and recent entries in parallel
-        const [summaryData, recentData, activityData] = await Promise.all([
-          getDashboardSummary(user.id, todayString),
-          getRecentEntries(user.id, 5),
-          getDailyActivityByDate(user.id, todayString)
-        ])
-        
-        const burnedCalories = getTotalBurnedCalories(activityData)
-
-        setTodaysSummary({
-          mood: summaryData.mood,
-          totalCalories: summaryData.totalCalories,
-          mealsLogged: summaryData.mealsLogged,
-          macros: summaryData.macros,
-          burnedCalories,
-          totalEnergy: burnedCalories
-        })
-        
-        setRecentEntries(recentData)
-      } catch (error) {
-        console.error('Error loading dashboard data:', error)
-        toast({
-          title: 'Error loading data',
-          description: 'There was a problem loading your dashboard. Please try again.',
-          variant: 'destructive'
-        })
-      } finally {
-        setLoading(prev => ({ ...prev, summary: false, recent: false }))
-      }
-    }
-    
-    loadDashboardData()
-  }, [user, todayString])
+  const todayLabel = format(dashboardDate, 'EEEE, MMMM d')
+  const todayString = dashboardDateString
 
   const handleMoodSave = async () => {
     console.log('handleMoodSave called with:', {
@@ -192,7 +153,7 @@ export default function DashboardPage() {
     try {
       await upsertMoodEntry(moodEntryData)
       
-      setTodaysSummary(prev => ({ ...prev, mood: selectedMood }))
+      await refetch()
       setSelectedMood(null)
       
       toast({
@@ -230,18 +191,6 @@ export default function DashboardPage() {
         ai_raw: result
       })
       
-      // Update local state
-      setTodaysSummary(prev => ({
-        ...prev,
-        totalCalories: prev.totalCalories + result.nutrition.calories,
-        mealsLogged: prev.mealsLogged + 1,
-        macros: {
-          protein: prev.macros.protein + result.nutrition.macros.protein,
-          carbs: prev.macros.carbs + result.nutrition.macros.carbs,
-          fat: prev.macros.fat + result.nutrition.macros.fat
-        }
-      }))
-      
       setSelectedMeal(null)
       
       toast({
@@ -249,9 +198,7 @@ export default function DashboardPage() {
         description: `${result.foods.map(f => f.label).join(', ')} (${result.nutrition.calories} cal)`
       })
       
-      // Refresh recent entries
-      const recentData = await getRecentEntries(user.id, 5)
-      setRecentEntries(recentData)
+      await refetch()
     } catch (error) {
       console.error('Error saving photo analysis:', error)
       toast({
@@ -284,18 +231,6 @@ export default function DashboardPage() {
         ai_raw: result
       })
       
-      // Update local state
-      setTodaysSummary(prev => ({
-        ...prev,
-        totalCalories: prev.totalCalories + result.nutrition.calories,
-        mealsLogged: prev.mealsLogged + 1,
-        macros: {
-          protein: prev.macros.protein + result.nutrition.macros.protein,
-          carbs: prev.macros.carbs + result.nutrition.macros.carbs,
-          fat: prev.macros.fat + result.nutrition.macros.fat
-        }
-      }))
-      
       setSelectedMeal(result.meal)
       
       toast({
@@ -303,9 +238,7 @@ export default function DashboardPage() {
         description: `${result.foods.map(f => f.label).join(', ')} (${result.nutrition.calories} cal)`
       })
       
-      // Refresh recent entries
-      const recentData = await getRecentEntries(user.id, 5)
-      setRecentEntries(recentData)
+      await refetch()
     } catch (error) {
       console.error('Error saving voice analysis:', error)
       toast({
@@ -338,31 +271,14 @@ export default function DashboardPage() {
         journal_mode: data.journal_mode
       })
       
-      // Update local state
-      const calories = data.calories || 0
-      const macros = data.macros || { protein: 0, carbs: 0, fat: 0 }
-      
-      setTodaysSummary(prev => ({
-        ...prev,
-        totalCalories: prev.totalCalories + calories,
-        mealsLogged: prev.mealsLogged + 1,
-        macros: {
-          protein: prev.macros.protein + macros.protein,
-          carbs: prev.macros.carbs + macros.carbs,
-          fat: prev.macros.fat + macros.fat
-        }
-      }))
-      
       setSelectedMeal(null)
       
       toast({
         title: 'Food logged successfully!',
-        description: `${data.food_labels.join(', ')}${calories ? ` (${calories} cal)` : ''}`
+        description: `${data.food_labels.join(', ')}${data.calories ? ` (${data.calories} cal)` : ''}`
       })
       
-      // Refresh recent entries
-      const recentData = await getRecentEntries(user.id, 5)
-      setRecentEntries(recentData)
+      await refetch()
     } catch (error) {
       console.error('Error saving manual entry:', error)
       toast({
@@ -391,24 +307,12 @@ export default function DashboardPage() {
         ai_raw: result,
       })
 
-      setTodaysSummary((prev) => ({
-        ...prev,
-        totalCalories: prev.totalCalories + result.nutrition.calories,
-        mealsLogged: prev.mealsLogged + 1,
-        macros: {
-          protein: prev.macros.protein + result.nutrition.macros.protein,
-          carbs: prev.macros.carbs + result.nutrition.macros.carbs,
-          fat: prev.macros.fat + result.nutrition.macros.fat,
-        },
-      }))
-
       toast({
         title: 'Meal logged!',
         description: `${result.foods.map((f) => f.label).join(', ')} (${result.nutrition.calories} cal)`,
       })
 
-      const recentData = await getRecentEntries(user.id, 5)
-      setRecentEntries(recentData)
+      await refetch()
     } catch (error) {
       console.error('Error saving AI text analysis:', error)
       toast({
@@ -449,41 +353,12 @@ export default function DashboardPage() {
       })
 
       // Update local state
-      setRecentEntries(prev => 
-        prev.map(entry => 
-          entry.id === editingEntry.id 
-            ? { 
-                ...entry, 
-                meal: editForm.meal as MealType,
-                food_labels: editForm.food_labels,
-                calories: editForm.calories,
-                macros: editForm.calories > 0 ? {
-                  protein: editForm.protein,
-                  carbs: editForm.carbs,
-                  fat: editForm.fat
-                } : null,
-                note: editForm.note
-              }
-            : entry
-        )
-      )
-
-      // Refresh dashboard summary
-      const summaryData = await getDashboardSummary(user.id, todayString)
-      setTodaysSummary(prev => ({
-        mood: summaryData.mood,
-        totalCalories: summaryData.totalCalories,
-        mealsLogged: summaryData.mealsLogged,
-        macros: summaryData.macros,
-        burnedCalories: prev.burnedCalories,
-        totalEnergy: prev.totalEnergy
-      }))
-
       setEditingEntry(null)
       toast({
         title: 'Entry updated!',
         description: 'Your food entry has been successfully updated.'
       })
+      await refetch()
 
     } catch (error) {
       console.error('Error updating entry:', error)
@@ -503,24 +378,11 @@ export default function DashboardPage() {
     try {
       await deleteFoodEntry(entry.id)
 
-      // Update local state
-      setRecentEntries(prev => prev.filter(e => e.id !== entry.id))
-
-      // Refresh dashboard summary
-      const summaryData = await getDashboardSummary(user.id, todayString)
-      setTodaysSummary(prev => ({
-        mood: summaryData.mood,
-        totalCalories: summaryData.totalCalories,
-        mealsLogged: summaryData.mealsLogged,
-        macros: summaryData.macros,
-        burnedCalories: prev.burnedCalories,
-        totalEnergy: prev.totalEnergy
-      }))
-
       toast({
         title: 'Entry deleted!',
         description: 'Your food entry has been successfully deleted.'
       })
+      await refetch()
 
     } catch (error) {
       console.error('Error deleting entry:', error)
@@ -551,30 +413,36 @@ export default function DashboardPage() {
           <CardDescription>Your wellness overview for today</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{todaysSummary.totalCalories.toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Calories</div>
+          {dataLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-6 w-6 animate-spin" />
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{todaysSummary.mealsLogged}</div>
-              <div className="text-sm text-muted-foreground">Meals Logged</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl">
-                {todaysSummary.mood ? moodEmojis.find(m => m.score === todaysSummary.mood)?.emoji : '—'}
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">{summary.totalCalories.toLocaleString()}</div>
+                <div className="text-sm text-muted-foreground">Calories</div>
               </div>
-              <div className="text-sm text-muted-foreground">Mood</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs space-y-1">
-                <div>Protein: {todaysSummary.macros.protein}g</div>
-                <div>Carbs: {todaysSummary.macros.carbs}g</div>
-                <div>Fat: {todaysSummary.macros.fat}g</div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">{summary.mealsLogged}</div>
+                <div className="text-sm text-muted-foreground">Meals Logged</div>
               </div>
-              <div className="text-sm text-muted-foreground">Macros</div>
+              <div className="text-center">
+                <div className="text-2xl">
+                  {summary.mood ? moodEmojis.find(m => m.score === summary.mood)?.emoji : '—'}
+                </div>
+                <div className="text-sm text-muted-foreground">Mood</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs space-y-1">
+                  <div>Protein: {summary.macros.protein}g</div>
+                  <div>Carbs: {summary.macros.carbs}g</div>
+                  <div>Fat: {summary.macros.fat}g</div>
+                </div>
+                <div className="text-sm text-muted-foreground">Macros</div>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
@@ -588,7 +456,8 @@ export default function DashboardPage() {
           <MoodPicker selectedMood={selectedMood} onMoodSelect={setSelectedMood} />
           {selectedMood && (
             <div className="flex justify-center">
-              <Button onClick={handleMoodSave}>
+              <Button onClick={handleMoodSave} disabled={loading.mood}>
+                {loading.mood ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Save Mood
               </Button>
             </div>
@@ -666,7 +535,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {loading.recent ? (
+            {dataLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin" />
                 <span className="ml-2">Loading recent entries...</span>

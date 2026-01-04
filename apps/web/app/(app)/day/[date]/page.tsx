@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
+import { useFilters } from '@/lib/filter-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -12,6 +13,7 @@ import { Separator } from '@/components/ui/separator'
 import { ArrowLeft, Edit2, Trash2, Save, X } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { createClient } from '@/lib/supabase-browser'
+import { useDayDetailData } from '@/hooks/useDayDetailData'
 import { toast } from 'sonner'
 
 interface FoodEntry {
@@ -45,65 +47,35 @@ export default function DayDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { user } = useAuth()
+  const { setDayFilters, filters } = useFilters()
   const dateParam = params.date as string
 
-  const [date, setDate] = useState<Date | null>(null)
-  const [foodEntries, setFoodEntries] = useState<FoodEntry[]>([])
-  const [moodEntry, setMoodEntry] = useState<MoodEntry | null>(null)
+  const { data, loading, refetch } = useDayDetailData()
+  const foodEntries = (data?.foodEntries as FoodEntry[]) || []
+  const moodEntry = (data?.moodEntry as MoodEntry | null) || null
   const [editingMood, setEditingMood] = useState(false)
   const [moodNote, setMoodNote] = useState('')
+  const dayDate = useMemo(() => {
+    const source = filters.day.date ?? dateParam
+    const parsed = parseISO(source)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }, [filters.day.date, dateParam])
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const parsedDate = parseISO(dateParam)
-        setDate(parsedDate)
-        
-        if (!user) return
+    setDayFilters((prev) => (prev.date === dateParam ? prev : { date: dateParam }))
+  }, [dateParam, setDayFilters])
 
-        const supabase = createClient()
-        
-        // Load food entries for this date
-        const { data: foodData, error: foodError } = await supabase
-          .from('food_entries')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('date', dateParam)
-          .order('created_at', { ascending: true })
+  useEffect(() => {
+    setMoodNote((moodEntry as MoodEntry | null)?.note || '')
+  }, [moodEntry])
 
-        if (foodError) {
-          console.error('Error loading food entries:', foodError)
-          toast.error('Failed to load food entries')
-        } else {
-          setFoodEntries(foodData || [])
-        }
-
-        // Load mood entry for this date
-        const { data: moodData, error: moodError } = await supabase
-          .from('mood_entries')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('date', dateParam)
-          .single()
-
-        if (moodError && moodError.code !== 'PGRST116') {
-          console.error('Error loading mood entry:', moodError)
-          toast.error('Failed to load mood entry')
-        } else if (moodData) {
-          setMoodEntry(moodData)
-          setMoodNote((moodData as { note?: string }).note || '')
-        }
-        
-      } catch {
-        console.error('Invalid date:', dateParam)
-        router.push('/calendar')
-      }
+  useEffect(() => {
+    if (!dayDate) {
+      router.push('/calendar')
     }
+  }, [dayDate, router])
 
-    loadData()
-  }, [dateParam, router, user])
-
-  if (!date) {
+  if (!dayDate || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -138,7 +110,7 @@ export default function DayDetailPage() {
         toast.error('Failed to save mood note')
       } else {
         toast.success('Mood note saved!')
-        setMoodEntry({ ...moodEntry, note: moodNote })
+        await refetch()
         setEditingMood(false)
       }
     } catch (error) {
@@ -164,7 +136,7 @@ export default function DayDetailPage() {
         toast.error('Failed to delete food entry')
       } else {
         toast.success('Food entry deleted!')
-        setFoodEntries(prev => prev.filter(entry => entry.id !== entryId))
+        await refetch()
       }
     } catch (error) {
       console.error('Error deleting food entry:', error)
@@ -192,8 +164,8 @@ export default function DayDetailPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">{format(date, 'EEEE, MMMM d')}</h1>
-          <p className="text-muted-foreground">{format(date, 'yyyy')}</p>
+          <h1 className="text-3xl font-bold">{format(dayDate, 'EEEE, MMMM d')}</h1>
+          <p className="text-muted-foreground">{format(dayDate, 'yyyy')}</p>
         </div>
       </div>
 

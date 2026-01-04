@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { format, addDays } from 'date-fns'
 import { Calendar as CalendarIcon, Loader2, Edit, Trash2, MoreHorizontal } from 'lucide-react'
 
 import { useAuth } from '@/lib/auth-context'
+import { useFilters } from '@/lib/filter-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -16,9 +17,10 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from '@/hooks/use-toast'
-import { DailyActivity, getDashboardSummary, upsertMoodEntry, insertFoodEntry, updateFoodEntry, deleteFoodEntry, getDailyActivityByDate } from '@/lib/database'
+import { upsertMoodEntry, insertFoodEntry, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
 import { getTotalBurnedCalories } from '@/lib/activity'
 import { MealType, FoodEntry } from '@/lib/types/database'
+import { useHistoricData } from '@/hooks/useHistoricData'
 
 const moodEmojis = [
   { score: 1, emoji: '😢', label: 'Very Bad' },
@@ -61,6 +63,14 @@ const mealTypes = [
   { id: 'snack', label: 'Snack', icon: '🍎' },
 ]
 
+const DEFAULT_DAY_SUMMARY = {
+  mood: null as number | null,
+  totalCalories: 0,
+  mealsLogged: 0,
+  macros: { protein: 0, carbs: 0, fat: 0 },
+  foodEntries: [] as FoodEntry[],
+}
+
 interface MealSelectorProps {
   selectedMeal: string | null
   onMealSelect: (meal: string) => void
@@ -86,22 +96,18 @@ function MealSelector({ selectedMeal, onMealSelect }: MealSelectorProps) {
 
 export default function HistoricPage() {
   const { user } = useAuth()
-  const [selectedDate, setSelectedDate] = useState(new Date())
+  const { filters, setHistoricFilters } = useFilters()
+  const selectedDate = useMemo(() => parseISO(filters.historic.date), [filters.historic.date])
   const [selectedMood, setSelectedMood] = useState<number | null>(null)
   const [selectedMeal, setSelectedMeal] = useState<string | null>(null)
-  const [selectedDaySummary, setSelectedDaySummary] = useState({
-    mood: null as number | null,
-    totalCalories: 0,
-    mealsLogged: 0,
-    macros: { protein: 0, carbs: 0, fat: 0 },
-  })
-  const [dailyEntries, setDailyEntries] = useState<FoodEntry[]>([])
   const [loading, setLoading] = useState({
-    summary: false,
     mood: false,
     entries: false,
   })
-  const [dailyActivity, setDailyActivity] = useState<DailyActivity | null>(null)
+  const { data: historicData, loading: historyLoading, refetch } = useHistoricData()
+  const selectedDaySummary = historicData?.summary ?? DEFAULT_DAY_SUMMARY
+  const dailyEntries = selectedDaySummary.foodEntries ?? []
+  const dailyActivity = historicData?.activity ?? null
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null)
   const [editForm, setEditForm] = useState({
     meal: '',
@@ -114,7 +120,7 @@ export default function HistoricPage() {
   })
 
   const todayString = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
-  const selectedDateString = format(selectedDate, 'yyyy-MM-dd')
+  const selectedDateString = filters.historic.date
   const selectedDateLabel = format(selectedDate, 'EEEE, MMMM d')
   const formatMetric = (value: number | null | undefined) => (value === null || value === undefined ? '—' : Math.round(value).toLocaleString())
   const dailyBurned = getTotalBurnedCalories(dailyActivity)
@@ -131,55 +137,22 @@ export default function HistoricPage() {
           ? 'text-red-600'
           : 'text-primary'
 
-  const loadSelectedDateData = useCallback(async () => {
-    if (!user?.id) return
-    setLoading((prev) => ({ ...prev, summary: true, entries: true }))
-
-    try {
-      const [summaryData, activityData] = await Promise.all([
-        getDashboardSummary(user.id, selectedDateString),
-        getDailyActivityByDate(user.id, selectedDateString)
-      ])
-      setSelectedDaySummary({
-        mood: summaryData.mood,
-        totalCalories: summaryData.totalCalories,
-        mealsLogged: summaryData.mealsLogged,
-        macros: summaryData.macros,
-      })
-      setDailyActivity(activityData)
-      setDailyEntries(summaryData.foodEntries || [])
-      setSelectedMood(null)
-      setSelectedMeal(null)
-    } catch (error) {
-      console.error('Error loading historic data:', error)
-      toast({
-        title: 'Error loading data',
-        description: 'There was a problem loading this day. Please try again.',
-        variant: 'destructive',
-      })
-    } finally {
-      setLoading((prev) => ({ ...prev, summary: false, entries: false }))
-    }
-  }, [user?.id, selectedDateString])
-
-  useEffect(() => {
-    loadSelectedDateData()
-  }, [loadSelectedDateData])
 
   const handleDateChange = (value: string) => {
     if (!value) return
-    const parsed = new Date(`${value}T00:00:00`)
-    setSelectedDate(parsed)
+    setHistoricFilters((prev) => ({ ...prev, date: value }))
   }
 
   const shiftDate = (days: number) => {
-    setSelectedDate((prev) => {
-      const next = addDays(prev, days)
+    setHistoricFilters((prev) => {
+      const base = parseISO(prev.date)
+      const safeBase = Number.isNaN(base.getTime()) ? new Date() : base
+      const next = addDays(safeBase, days)
       const today = new Date()
       if (days > 0 && next > today) {
         return prev
       }
-      return next
+      return { ...prev, date: format(next, 'yyyy-MM-dd') }
     })
   }
 
@@ -200,7 +173,8 @@ export default function HistoricPage() {
         description: `Your mood for ${selectedDateLabel} has been recorded.`,
       })
 
-      await loadSelectedDateData()
+      await refetch()
+      setSelectedMood(null)
     } catch (error) {
       console.error('Error saving mood:', error)
       toast({
@@ -237,7 +211,8 @@ export default function HistoricPage() {
         description: `${result.foods.map((f) => f.label).join(', ')} (${result.nutrition.calories} cal)`
       })
 
-      await loadSelectedDateData()
+      setSelectedMeal(null)
+      await refetch()
     } catch (error) {
       console.error('Error saving photo analysis:', error)
       toast({
@@ -275,7 +250,8 @@ export default function HistoricPage() {
         description: `${result.foods.map((f) => f.label).join(', ')} (${result.nutrition.calories} cal)`,
       })
 
-      await loadSelectedDateData()
+      setSelectedMeal(null)
+      await refetch()
     } catch (error) {
       console.error('Error saving voice analysis:', error)
       toast({
@@ -313,7 +289,7 @@ export default function HistoricPage() {
         description: `${data.food_labels.join(', ')}${data.calories ? ` (${data.calories} cal)` : ''}`,
       })
 
-      await loadSelectedDateData()
+      await refetch()
     } catch (error) {
       console.error('Error saving manual entry:', error)
       toast({
@@ -347,7 +323,8 @@ export default function HistoricPage() {
         description: `${result.foods.map(f => f.label).join(', ')} (${result.nutrition.calories} cal)`
       })
 
-      await loadSelectedDateData()
+      setSelectedMeal(null)
+      await refetch()
     } catch (error) {
       console.error('Error saving AI text entry:', error)
       toast({
@@ -396,7 +373,7 @@ export default function HistoricPage() {
       })
 
       setEditingEntry(null)
-      await loadSelectedDateData()
+      await refetch()
     } catch (error) {
       console.error('Error updating entry:', error)
       toast({
@@ -419,7 +396,7 @@ export default function HistoricPage() {
         description: 'Your food entry has been successfully deleted.',
       })
 
-      await loadSelectedDateData()
+      await refetch()
     } catch (error) {
       console.error('Error deleting entry:', error)
       toast({
@@ -476,39 +453,45 @@ export default function HistoricPage() {
           <CardDescription>Your wellness overview for {selectedDateLabel}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{selectedDaySummary.totalCalories}</div>
-              <div className="text-sm text-muted-foreground">Calories Consumed</div>
+          {historyLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{formatMetric(dailyBurned)}</div>
-              <div className="text-sm text-muted-foreground">Calories Burned</div>
-            </div>
-            <div className="text-center">
-              <div className={`text-2xl font-bold ${balanceClass}`}>{balanceDisplay}</div>
-              <div className="text-sm text-muted-foreground">Calorie Balance</div>
-              <div className="text-xs text-muted-foreground">{balanceLabel}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{selectedDaySummary.mealsLogged}</div>
-              <div className="text-sm text-muted-foreground">Meals Logged</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl">
-                {selectedDaySummary.mood ? moodEmojis.find((m) => m.score === selectedDaySummary.mood)?.emoji : '—'}
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">{selectedDaySummary.totalCalories}</div>
+                <div className="text-sm text-muted-foreground">Calories Consumed</div>
               </div>
-              <div className="text-sm text-muted-foreground">Mood</div>
-            </div>
-            <div className="text-center col-span-2 md:col-span-3 lg:col-span-2">
-              <div className="text-xs space-y-1">
-                <div>Protein: {selectedDaySummary.macros.protein}g</div>
-                <div>Carbs: {selectedDaySummary.macros.carbs}g</div>
-                <div>Fat: {selectedDaySummary.macros.fat}g</div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">{formatMetric(dailyBurned)}</div>
+                <div className="text-sm text-muted-foreground">Calories Burned</div>
               </div>
-              <div className="text-sm text-muted-foreground">Macros</div>
+              <div className="text-center">
+                <div className={`text-2xl font-bold ${balanceClass}`}>{balanceDisplay}</div>
+                <div className="text-sm text-muted-foreground">Calorie Balance</div>
+                <div className="text-xs text-muted-foreground">{balanceLabel}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">{selectedDaySummary.mealsLogged}</div>
+                <div className="text-sm text-muted-foreground">Meals Logged</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl">
+                  {selectedDaySummary.mood ? moodEmojis.find((m) => m.score === selectedDaySummary.mood)?.emoji : '—'}
+                </div>
+                <div className="text-sm text-muted-foreground">Mood</div>
+              </div>
+              <div className="text-center col-span-2 md:col-span-3 lg:col-span-2">
+                <div className="text-xs space-y-1">
+                  <div>Protein: {selectedDaySummary.macros.protein}g</div>
+                  <div>Carbs: {selectedDaySummary.macros.carbs}g</div>
+                  <div>Fat: {selectedDaySummary.macros.fat}g</div>
+                </div>
+                <div className="text-sm text-muted-foreground">Macros</div>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
