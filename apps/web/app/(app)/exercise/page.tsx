@@ -48,6 +48,7 @@ import {
   DailyActivityAggregate,
   getActivityAggregates,
   getDailyActivityRange,
+  getExerciseEventIsoRange,
   getExerciseEventsForRange,
 } from '@/lib/database'
 import { ExerciseEvent } from '@/lib/types/database'
@@ -107,13 +108,7 @@ export default function ExercisePage() {
   const rangeBounds = useMemo(() => computeRangeBounds(rangeMode, anchorDateObj), [rangeMode, anchorDateObj])
   const rangeStartDate = format(rangeBounds.start, 'yyyy-MM-dd')
   const rangeEndDate = format(rangeBounds.end, 'yyyy-MM-dd')
-  const eventRange = useMemo(() => {
-    const exclusiveEnd = addDays(rangeBounds.end, 1)
-    return {
-      startIso: rangeBounds.start.toISOString(),
-      endIso: exclusiveEnd.toISOString(),
-    }
-  }, [rangeBounds])
+  const eventRange = useMemo(() => getExerciseEventIsoRange(rangeStartDate, rangeEndDate), [rangeStartDate, rangeEndDate])
   const rangeLabel = formatRangeLabel(rangeMode, rangeBounds.start, rangeBounds.end)
 
   useEffect(() => {
@@ -676,8 +671,15 @@ function EmptyState() {
 }
 
 const parseAnchorDate = (value: string) => {
-  const parsed = parseISO(value)
-  return Number.isNaN(parsed.getTime()) ? new Date() : parsed
+  const parsed = parseLocalDate(value)
+  return parsed ?? new Date()
+}
+
+const parseLocalDate = (value: string) => {
+  if (!value) return null
+  const [year, month, day] = value.split('-').map((part) => Number(part))
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
 }
 
 const normalizeDateForMode = (date: Date, mode: RangeMode) => {

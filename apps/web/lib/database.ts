@@ -43,6 +43,25 @@ type ExerciseEventTotals = {
   distance_km: number
 }
 
+const createLocalMidnight = (dateString: string) => {
+  const parts = dateString.split('-').map((value) => Number(value))
+  const [year, month, day] = parts
+  if (!year || !month || !day) {
+    return new Date(dateString)
+  }
+  return new Date(year, month - 1, day)
+}
+
+export const getExerciseEventIsoRange = (startDate: string, endDate: string) => {
+  const start = createLocalMidnight(startDate)
+  const exclusiveEnd = createLocalMidnight(endDate)
+  exclusiveEnd.setDate(exclusiveEnd.getDate() + 1)
+  return {
+    startIso: start.toISOString(),
+    endIso: exclusiveEnd.toISOString(),
+  }
+}
+
 const numberFromValue = (value: number | string | null | undefined) => {
   if (value === null || value === undefined) return 0
   const parsed = Number(value)
@@ -139,10 +158,8 @@ const getExerciseEventsBetweenDates = async (
   startDate: string,
   endDate: string
 ) => {
-  const start = new Date(`${startDate}T00:00:00`)
-  const exclusiveEnd = new Date(`${endDate}T00:00:00`)
-  exclusiveEnd.setDate(exclusiveEnd.getDate() + 1)
-  return getExerciseEventsForRange(userId, start.toISOString(), exclusiveEnd.toISOString())
+  const { startIso, endIso } = getExerciseEventIsoRange(startDate, endDate)
+  return getExerciseEventsForRange(userId, startIso, endIso)
 }
 
 // Check if we're in demo mode
