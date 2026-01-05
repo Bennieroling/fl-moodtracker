@@ -73,7 +73,10 @@ export const useInsightsData = () => {
       end_date: endDate,
     } satisfies Database['public']['Functions']['calculate_weekly_metrics']['Args']
 
-    const metricsPromise = supabase.rpc('calculate_weekly_metrics', metricsArgs)
+    const metricsPromise = supabase.rpc(
+      'calculate_weekly_metrics',
+      metricsArgs as Database['public']['Functions']['calculate_weekly_metrics']['Args']
+    )
 
     const moodPromise = supabase
       .from('mood_entries')
@@ -105,7 +108,7 @@ export const useInsightsData = () => {
       insightsPromise,
     ])
 
-    const weeklyMetrics = (metricsRes.data as WeeklyMetrics) || defaultWeeklyMetrics
+    const weeklyMetrics = ((metricsRes.data as WeeklyMetrics | null) ?? defaultWeeklyMetrics)
     const moodData = (moodRes.data as MoodEntry[]) || []
     const foodData = (foodRes.data as FoodEntry[]) || []
 

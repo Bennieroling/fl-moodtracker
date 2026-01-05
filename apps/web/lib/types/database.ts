@@ -32,6 +32,7 @@ export interface Database {
           note?: string | null;
           updated_at?: string;
         };
+        Relationships: never[];
       };
       food_entries: {
         Row: {
@@ -93,6 +94,7 @@ export interface Database {
           journal_mode?: boolean;
           updated_at?: string;
         };
+        Relationships: never[];
       };
       insights: {
         Row: {
@@ -142,6 +144,7 @@ export interface Database {
             foodEntries: number;
           } | null;
         };
+        Relationships: never[];
       };
       streaks: {
         Row: {
@@ -168,6 +171,7 @@ export interface Database {
           last_entry_date?: string | null;
           updated_at?: string;
         };
+        Relationships: never[];
       };
       user_preferences: {
         Row: {
@@ -202,6 +206,7 @@ export interface Database {
           notifications_enabled?: boolean;
           updated_at?: string;
         };
+        Relationships: never[];
       };
       exercise_daily: {
         Row: {
@@ -237,6 +242,7 @@ export interface Database {
           source?: string | null;
           updated_at?: string;
         };
+        Relationships: never[];
       };
       exercise_events: {
         Row: {
@@ -287,6 +293,7 @@ export interface Database {
           source?: string | null;
           updated_at?: string;
         };
+        Relationships: never[];
       };
       health_metrics_daily: {
         Row: {
@@ -328,7 +335,11 @@ export interface Database {
           source?: string | null;
           updated_at?: string;
         };
+        Relationships: never[];
       };
+    };
+    Views: {
+      [_ in never]: never
     };
     Functions: {
       calculate_weekly_metrics: {
@@ -345,6 +356,12 @@ export interface Database {
           foodEntries: number;
         };
       };
+    };
+    Enums: {
+      [_ in never]: never
+    };
+    CompositeTypes: {
+      [_ in never]: never
     };
   };
 }
