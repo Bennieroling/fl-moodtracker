@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
 import { createClient } from '@/lib/supabase-browser'
 import { WeeklyMetrics } from '@/lib/validations'
-import { FoodEntry, MoodEntry, Insight } from '@/lib/types/database'
+import { Database, FoodEntry, MoodEntry, Insight } from '@/lib/types/database'
 import { useFilterQuery } from '@/hooks/useFilterQuery'
 
 interface DailyData {
@@ -67,11 +67,13 @@ export const useInsightsData = () => {
     const start = parseISO(startDate)
     const end = parseISO(endDate)
 
-    const metricsPromise = supabase.rpc('calculate_weekly_metrics', {
+    const metricsArgs = {
       user_uuid: user.id,
       start_date: startDate,
       end_date: endDate,
-    })
+    } as Database['public']['Functions']['calculate_weekly_metrics']['Args']
+
+    const metricsPromise = supabase.rpc('calculate_weekly_metrics', metricsArgs)
 
     const moodPromise = supabase
       .from('mood_entries')
