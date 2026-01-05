@@ -57,10 +57,13 @@ export const useCalendarDayData = () => {
       getFoodEntriesForDate(user.id, selectedDate),
       getDailyActivityByDate(user.id, selectedDate),
     ])
+    const moodEntry = (mood as MoodEntry | null) ?? null
+    const foodEntries = (food as FoodEntry[] | null) ?? []
+    const activityEntry = (activity as DailyActivity | null) ?? null
     return {
-      mood: (mood as MoodEntry) ?? null,
-      foodEntries: (food as FoodEntry[]) ?? [],
-      activity: activity ?? null,
+      mood: moodEntry,
+      foodEntries,
+      activity: activityEntry,
     }
   }, [user?.id, selectedDate])
 
