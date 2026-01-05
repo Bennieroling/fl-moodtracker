@@ -71,7 +71,7 @@ export const useInsightsData = () => {
       user_uuid: user.id,
       start_date: startDate,
       end_date: endDate,
-    } as Database['public']['Functions']['calculate_weekly_metrics']['Args']
+    } satisfies Database['public']['Functions']['calculate_weekly_metrics']['Args']
 
     const metricsPromise = supabase.rpc('calculate_weekly_metrics', metricsArgs)
 
