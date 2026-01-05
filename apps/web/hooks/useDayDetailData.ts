@@ -31,9 +31,11 @@ export const useDayDetailData = () => {
       getMoodEntryByDate(user.id, date),
       getFoodEntriesForDate(user.id, date),
     ])
+    const moodEntry = (mood as MoodEntry | null) ?? null
+    const foodEntries = (food as FoodEntry[] | null) ?? []
     return {
-      moodEntry: (mood as MoodEntry) ?? null,
-      foodEntries: (food as FoodEntry[]) ?? [],
+      moodEntry,
+      foodEntries,
     }
   }, [user?.id, date])
 
