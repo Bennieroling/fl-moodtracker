@@ -10,6 +10,7 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
+  error: Error | null
   signIn: (data: LoginData) => Promise<{ error?: string }>
   signUp: (data: RegisterData) => Promise<{ error?: string }>
   signInWithGoogle: () => Promise<{ error?: string }>
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   loading: true,
+  error: null,
   signIn: async () => ({ error: 'Not implemented' }),
   signUp: async () => ({ error: 'Not implemented' }),
   signInWithGoogle: async () => ({ error: 'Not implemented' }),
@@ -48,6 +50,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
   const [isDemoMode, setIsDemoMode] = useState(false)
   const [mounted, setMounted] = useState(false)
   const supabase = createClient()
@@ -66,25 +69,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [])
 
   useEffect(() => {
-    // Only run on client side after mounting
     if (!mounted) return
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
+    let isActive = true
 
-    // Listen for auth changes
+    const hydrateSession = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        if (!isActive) return
+        setSession(session ?? null)
+        setUser(session?.user ?? null)
+      } catch (err) {
+        if (!isActive) return
+        const normalizedError = err instanceof Error ? err : new Error('Unable to load session')
+        setError(normalizedError)
+        setSession(null)
+        setUser(null)
+      } finally {
+        if (!isActive) return
+        setLoading(false)
+      }
+    }
+
+    hydrateSession()
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isActive) return
       setSession(session)
       setUser(session?.user ?? null)
+      setError(null)
       setLoading(false)
 
-      // Track auth events
       if (event === 'SIGNED_IN' && session?.user) {
         toast.success('Welcome back!', {
           description: 'You have been signed in successfully.',
@@ -92,7 +113,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      isActive = false
+      subscription.unsubscribe()
+    }
   }, [mounted, supabase.auth])
 
   const signIn = async (data: LoginData): Promise<{ error?: string }> => {
@@ -283,6 +307,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     session,
     loading,
+    error,
     signIn,
     signUp,
     signInWithGoogle,

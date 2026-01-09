@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
@@ -27,24 +27,42 @@ interface AppLayoutProps {
 export default function AppLayout({ children }: AppLayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, error, signOut } = useAuth()
+  const hasRedirected = useRef(false)
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !user && !hasRedirected.current) {
+      hasRedirected.current = true
       router.replace('/login')
+    } else if (user) {
+      hasRedirected.current = false
     }
   }, [user, loading, router])
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex flex-col items-center justify-center space-y-4">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" aria-hidden />
+        <div className="text-center">
+          <p className="font-medium">Loading your dashboard...</p>
+          {error && <p className="text-sm text-muted-foreground">{error.message}</p>}
+        </div>
       </div>
     )
   }
 
   if (!user) {
-    return null
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center space-y-4">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" aria-hidden />
+        <div className="text-center">
+          <p className="font-medium">{error ? 'Session expired' : 'Redirecting...'}</p>
+          <p className="text-sm text-muted-foreground">
+            {error ? 'Please sign in again.' : 'Taking you to the login screen.'}
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
