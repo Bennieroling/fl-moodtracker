@@ -37,16 +37,24 @@ export default function OnboardingPage() {
     }
 
     try {
+      const { error } = await supabase
+        .from('user_preferences')
+        .upsert(
+          {
+            user_id: user.id,
+            onboarding_completed: true,
+            onboarding_preferred_method: preferredMethod,
+            onboarding_completed_at: new Date().toISOString(),
+            reminder_time: reminderTime,
+            reminder_enabled: true,
+          },
+          { onConflict: 'user_id' }
+        )
+      if (error) throw error
+      // Cache hint so the dashboard redirect check can skip a round-trip.
       window.localStorage.setItem(storageKey, JSON.stringify(payload))
-      await supabase.auth.updateUser({
-        data: {
-          onboarding_completed: true,
-          onboarding_preferred_method: preferredMethod,
-          onboarding_reminder_time: reminderTime,
-        },
-      })
-    } catch {
-      // Metadata update is best-effort; local storage controls app behavior.
+    } catch (err) {
+      console.error('Failed to persist onboarding completion', err)
     } finally {
       setLoading(false)
       router.replace('/dashboard')

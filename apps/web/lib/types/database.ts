@@ -182,6 +182,9 @@ export interface Database {
           reminder_time: string;
           journal_mode_default: boolean;
           notifications_enabled: boolean;
+          onboarding_completed: boolean;
+          onboarding_preferred_method: 'photo' | 'voice' | 'text' | 'manual' | null;
+          onboarding_completed_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -193,6 +196,9 @@ export interface Database {
           reminder_time?: string;
           journal_mode_default?: boolean;
           notifications_enabled?: boolean;
+          onboarding_completed?: boolean;
+          onboarding_preferred_method?: 'photo' | 'voice' | 'text' | 'manual' | null;
+          onboarding_completed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -204,6 +210,9 @@ export interface Database {
           reminder_time?: string;
           journal_mode_default?: boolean;
           notifications_enabled?: boolean;
+          onboarding_completed?: boolean;
+          onboarding_preferred_method?: 'photo' | 'voice' | 'text' | 'manual' | null;
+          onboarding_completed_at?: string | null;
           updated_at?: string;
         };
         Relationships: never[];

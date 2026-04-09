@@ -10,6 +10,7 @@ import { StandardCardHeader } from '@/components/ui/standard-card-header'
 import { format, parseISO } from 'date-fns'
 import { toast } from '@/hooks/use-toast'
 import { upsertMoodEntry, insertFoodEntry, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
+import { createClient } from '@/lib/supabase-browser'
 import { MealType, FoodEntry } from '@/lib/types/database'
 import { useDashboardData } from '@/hooks/useDashboardData'
 import { MoodPicker, moodEmojis, LogFoodCard, RecentEntriesList, EntryEditorDialog, DateStepper, type EntryEditForm } from '@/components/entry'
@@ -65,9 +66,53 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user?.id) return
     const storageKey = `sofi:onboarding:completed:${user.id}`
-    const hasCompleted = window.localStorage.getItem(storageKey)
-    if (!hasCompleted) {
+    const cached = window.localStorage.getItem(storageKey)
+    if (cached) return
+
+    let cancelled = false
+    const supabase = createClient()
+    ;(async () => {
+      // Source of truth: user_preferences.onboarding_completed.
+      const { data: prefs } = await supabase
+        .from('user_preferences')
+        .select('onboarding_completed')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (cancelled) return
+
+      if (prefs?.onboarding_completed) {
+        window.localStorage.setItem(storageKey, '1')
+        return
+      }
+
+      // Backfill: existing users with prior food entries shouldn't be re-onboarded.
+      const { count } = await supabase
+        .from('food_entries')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .limit(1)
+      if (cancelled) return
+
+      if ((count ?? 0) > 0) {
+        await supabase
+          .from('user_preferences')
+          .upsert(
+            {
+              user_id: user.id,
+              onboarding_completed: true,
+              onboarding_completed_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id' }
+          )
+        window.localStorage.setItem(storageKey, '1')
+        return
+      }
+
       router.replace('/onboarding')
+    })()
+
+    return () => {
+      cancelled = true
     }
   }, [user?.id, router])
 
