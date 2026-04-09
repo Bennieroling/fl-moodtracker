@@ -52,13 +52,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [isDemoMode, setIsDemoMode] = useState(false)
-  const [mounted, setMounted] = useState(false)
   const supabase = createClient()
-
-  // Handle client-side mounting
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   // Check if we're in demo mode (missing real credentials)
   useEffect(() => {
@@ -69,8 +63,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [])
 
   useEffect(() => {
-    if (!mounted) return
-
     let isActive = true
 
     const hydrateSession = async () => {
@@ -117,7 +109,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       isActive = false
       subscription.unsubscribe()
     }
-  }, [mounted, supabase.auth])
+    // supabase is a module-level singleton, so this effect should only run once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const signIn = async (data: LoginData): Promise<{ error?: string }> => {
     try {

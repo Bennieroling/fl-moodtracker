@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 
 export default function HomePage() {
   const router = useRouter()
   const { user, loading } = useAuth()
+  const hasRedirected = useRef(false)
 
   const target = useMemo(() => {
     if (loading) return null
@@ -14,7 +15,8 @@ export default function HomePage() {
   }, [loading, user])
 
   useEffect(() => {
-    if (!target) return
+    if (!target || hasRedirected.current) return
+    hasRedirected.current = true
     router.replace(target)
   }, [target, router])
 
