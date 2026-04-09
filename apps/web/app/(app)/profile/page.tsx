@@ -17,18 +17,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { 
-  User, 
-  Settings, 
-  Download, 
-  Trash2, 
-  Bell, 
-  Moon, 
-  Sun, 
-  Eye, 
+import {
+  User,
+  Settings,
+  Download,
+  Trash2,
+  Bell,
+  Moon,
+  Sun,
+  Eye,
   EyeOff,
   LogOut,
-  BarChart3
+  BarChart3,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { toast } from 'sonner'
@@ -72,6 +74,50 @@ export default function ProfilePage() {
   const [displayName, setDisplayName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [syncCooldown, setSyncCooldown] = useState(0)
+
+  // Sync cooldown countdown
+  useEffect(() => {
+    if (syncCooldown <= 0) return
+    const id = window.setInterval(() => {
+      setSyncCooldown((s) => (s <= 1 ? 0 : s - 1))
+    }, 1000)
+    return () => window.clearInterval(id)
+  }, [syncCooldown])
+
+  type SyncResult = {
+    sheetName: string
+    rowsFetched: number
+    rowsUpserted: number
+    error: string | null
+    durationMs: number
+  }
+
+  const handleSyncNow = async () => {
+    setIsSyncing(true)
+    try {
+      const res = await fetch('/api/sync', { method: 'POST' })
+      const body = (await res.json().catch(() => null)) as
+        | { ok?: boolean; results?: SyncResult[]; error?: string }
+        | null
+
+      if (!res.ok || !body?.ok) {
+        throw new Error(body?.error ?? `Sync failed (${res.status})`)
+      }
+
+      const summary = (body.results ?? [])
+        .map((r) => `${r.rowsUpserted} ${r.sheetName}`)
+        .join(', ')
+      toast.success(summary ? `Synced: ${summary}` : 'Sync complete')
+      setSyncCooldown(60)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Sync failed'
+      toast.error(message)
+    } finally {
+      setIsSyncing(false)
+    }
+  }
 
   // Load user data and preferences
   useEffect(() => {
@@ -399,6 +445,38 @@ export default function ProfilePage() {
           <CardDescription>Export or manage your wellness data</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Sync Health Data */}
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div className="space-y-1">
+              <h4 className="font-medium">Sync Health Data</h4>
+              <p className="text-sm text-muted-foreground">
+                Pull the latest health metrics, body, and workout data now
+              </p>
+            </div>
+            <Button
+              onClick={handleSyncNow}
+              disabled={isSyncing || syncCooldown > 0}
+              variant="outline"
+            >
+              {isSyncing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Syncing...
+                </>
+              ) : syncCooldown > 0 ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Sync again in {syncCooldown}s
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Sync Now
+                </>
+              )}
+            </Button>
+          </div>
+
           {/* Export Data */}
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div className="space-y-1">
