@@ -603,7 +603,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <RecentEntriesList
+       {/* <RecentEntriesList
         title="Recent Entries"
         description="Your latest food and mood entries"
         entries={displayedRecentEntries}
@@ -615,7 +615,8 @@ export default function DashboardPage() {
         onEmptyCta={() => setSelectedMeal('breakfast')}
         onEditEntry={handleEditEntry}
         onDeleteEntry={handleDeleteEntry}
-      />
+      /> */}
+      
       </section>
 
       <section className="space-y-3">
