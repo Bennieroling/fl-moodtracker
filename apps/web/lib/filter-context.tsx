@@ -199,11 +199,16 @@ export function FilterProvider({ children }: { children: React.ReactNode }) {
     const storedMode = window.localStorage.getItem(EXERCISE_MODE_KEY) as RangeMode | null
     const storedAnchor = window.localStorage.getItem(EXERCISE_ANCHOR_KEY)
     if (!storedMode && !storedAnchor) return
-    setExerciseFilters((prev) => ({
-      mode: storedMode || prev.mode,
-      anchorDate: storedAnchor || prev.anchorDate,
-    }))
-  }, [setExerciseFilters])
+    dispatch({
+      type: 'SET_EXERCISE',
+      payload: {
+        mode: storedMode || initialState.exercise.mode,
+        anchorDate: storedAnchor || initialState.exercise.anchorDate,
+      },
+    })
+    // Run exactly once on mount to hydrate from localStorage.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
