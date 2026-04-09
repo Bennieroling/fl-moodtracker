@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { StandardCardHeader } from '@/components/ui/standard-card-header'
 import { format, parseISO } from 'date-fns'
 import { toast } from '@/hooks/use-toast'
 import { upsertMoodEntry, insertFoodEntry, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
@@ -13,6 +14,7 @@ import { MealType, FoodEntry } from '@/lib/types/database'
 import { useDashboardData } from '@/hooks/useDashboardData'
 import { MoodPicker, moodEmojis, LogFoodCard, RecentEntriesList, EntryEditorDialog, DateStepper, type EntryEditForm } from '@/components/entry'
 import { PageHeader } from '@/components/page-header'
+import { MacroDisplay } from '@/components/macro-display'
 
 const DEFAULT_DASHBOARD_SUMMARY = {
   mood: null as number | null,
@@ -423,11 +425,6 @@ export default function DashboardPage() {
   const calorieProgress = Math.min((summary.totalCalories / calorieGoal) * 100, 100)
   const calorieRemaining = calorieGoal - summary.totalCalories
   const moodMeta = currentMood ? moodEmojis.find((mood) => mood.score === currentMood) : null
-  const macroTotal = summary.macros.protein + summary.macros.carbs + summary.macros.fat
-  const proteinPct = macroTotal > 0 ? Math.round((summary.macros.protein / macroTotal) * 100) : 0
-  const carbsPct = macroTotal > 0 ? Math.round((summary.macros.carbs / macroTotal) * 100) : 0
-  const fatPct = macroTotal > 0 ? Math.round((summary.macros.fat / macroTotal) * 100) : 0
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -442,10 +439,7 @@ export default function DashboardPage() {
           <p className="text-sm text-muted-foreground">At-a-glance wellness metrics and your latest logs.</p>
         </div>
         <Card>
-          <CardHeader>
-            <CardTitle>Today&apos;s Summary</CardTitle>
-            <CardDescription>Calories and mood first, details second.</CardDescription>
-          </CardHeader>
+          <StandardCardHeader title="Today&apos;s Summary" description="Calories and mood first, details second." />
           <CardContent className="space-y-4">
             {dataLoading ? (
               <>
@@ -461,9 +455,9 @@ export default function DashboardPage() {
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="rounded-xl border bg-gradient-to-br from-primary/10 to-background p-6">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Calories</p>
-                    <p className="mt-2 text-5xl font-bold leading-none">{summary.totalCalories.toLocaleString()}</p>
+                  <div className="rounded-xl border bg-gradient-to-br from-primary/10 to-background p-6 dark:from-primary/20">
+                    <p className="text-caption">Calories</p>
+                    <p className="mt-2 text-metric">{summary.totalCalories.toLocaleString()}</p>
                     <p className="mt-2 text-xs text-muted-foreground">Goal: {calorieGoal.toLocaleString()} kcal</p>
                     <div className="mt-3 h-2 w-full rounded-full bg-muted">
                       <div className="h-2 rounded-full bg-primary transition-all" style={{ width: `${calorieProgress}%` }} />
@@ -472,8 +466,8 @@ export default function DashboardPage() {
                       {calorieRemaining >= 0 ? `${calorieRemaining} kcal left` : `${Math.abs(calorieRemaining)} kcal over`}
                     </p>
                   </div>
-                  <div className="rounded-xl border bg-gradient-to-br from-amber-100/40 to-background p-6">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Mood</p>
+                  <div className="rounded-xl border bg-gradient-to-br from-amber-500/15 to-background p-6 dark:from-amber-400/10">
+                    <p className="text-caption">Mood</p>
                     <div className="mt-2 flex items-end gap-3">
                       <p className="text-5xl leading-none">{moodMeta?.emoji ?? '—'}</p>
                       <p className="text-xl font-semibold">{moodMeta?.label ?? 'Not logged'}</p>
@@ -484,24 +478,13 @@ export default function DashboardPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="rounded-lg border p-4">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Meals Logged</p>
+                    <p className="text-caption">Meals Logged</p>
                     <p className="mt-2 text-3xl font-bold">{summary.mealsLogged}</p>
                     <p className="text-sm text-muted-foreground">Entries recorded for this day.</p>
                   </div>
                   <div className="rounded-lg border p-4">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Macros</p>
-                    <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-muted">
-                      <div className="flex h-full">
-                        <div className="bg-blue-500 transition-all" style={{ width: `${proteinPct}%` }} />
-                        <div className="bg-emerald-500 transition-all" style={{ width: `${carbsPct}%` }} />
-                        <div className="bg-orange-500 transition-all" style={{ width: `${fatPct}%` }} />
-                      </div>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                      <span>P {summary.macros.protein}g ({proteinPct}%)</span>
-                      <span>C {summary.macros.carbs}g ({carbsPct}%)</span>
-                      <span>F {summary.macros.fat}g ({fatPct}%)</span>
-                    </div>
+                    <p className="text-caption">Macros</p>
+                    <MacroDisplay macros={summary.macros} showBar className="mt-2" />
                   </div>
                 </div>
               </>
@@ -531,10 +514,10 @@ export default function DashboardPage() {
         </div>
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
           <Card className="xl:col-span-2">
-            <CardHeader>
-              <CardTitle>How are you feeling today?</CardTitle>
-              <CardDescription>Track your mood to see patterns with your food.</CardDescription>
-            </CardHeader>
+            <StandardCardHeader
+              title="How are you feeling today?"
+              description="Track your mood to see patterns with your food."
+            />
             <CardContent>
               <MoodPicker selectedMood={currentMood} onMoodSelect={handleMoodSelect} />
             </CardContent>

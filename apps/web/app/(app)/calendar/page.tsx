@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
 import { useCalendarMonthData, useCalendarDayData } from '@/hooks/useCalendarData'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
@@ -16,13 +16,15 @@ import { toast } from '@/hooks/use-toast'
 import { upsertMoodEntry, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
 import { MoodPicker, EntryEditorDialog, type EntryEditForm } from '@/components/entry'
 import { PageHeader } from '@/components/page-header'
+import { MacroDisplay } from '@/components/macro-display'
+import { StandardCardHeader } from '@/components/ui/standard-card-header'
 
 const moodEmojis = [
-  { score: 1, emoji: '😢', label: 'Very Bad', color: 'bg-red-100 border-red-300 text-red-800' },
-  { score: 2, emoji: '😞', label: 'Bad', color: 'bg-orange-100 border-orange-300 text-orange-800' },
-  { score: 3, emoji: '😐', label: 'Okay', color: 'bg-yellow-100 border-yellow-300 text-yellow-800' },
-  { score: 4, emoji: '🙂', label: 'Good', color: 'bg-green-100 border-green-300 text-green-800' },
-  { score: 5, emoji: '😄', label: 'Great', color: 'bg-green-200 border-green-400 text-green-900' },
+  { score: 1, emoji: '😢', label: 'Very Bad', color: 'bg-red-100 border-red-300 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-200' },
+  { score: 2, emoji: '😞', label: 'Bad', color: 'bg-orange-100 border-orange-300 text-orange-800 dark:bg-orange-900/30 dark:border-orange-700 dark:text-orange-200' },
+  { score: 3, emoji: '😐', label: 'Okay', color: 'bg-yellow-100 border-yellow-300 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-700 dark:text-yellow-200' },
+  { score: 4, emoji: '🙂', label: 'Good', color: 'bg-green-100 border-green-300 text-green-800 dark:bg-green-900/30 dark:border-green-700 dark:text-green-200' },
+  { score: 5, emoji: '😄', label: 'Great', color: 'bg-green-200 border-green-400 text-green-900 dark:bg-green-900/45 dark:border-green-600 dark:text-green-100' },
 ]
 
 function getMoodEmoji(score: number | undefined): string {
@@ -311,11 +313,10 @@ export default function CalendarPage() {
 
       {/* Calendar */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-2xl">
-              {format(currentDate, 'MMMM yyyy')}
-            </CardTitle>
+        <StandardCardHeader
+          title={format(currentDate, 'MMMM yyyy')}
+          description="Select a day to review and edit food, mood, and activity details."
+          action={
             <div className="flex items-center space-x-2">
               <Button
                 variant="outline"
@@ -334,8 +335,8 @@ export default function CalendarPage() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-          </div>
-        </CardHeader>
+          }
+        />
         <CardContent>
           {/* Weekday headers */}
           <div className="grid grid-cols-7 gap-2 mb-4">
@@ -397,9 +398,7 @@ export default function CalendarPage() {
 
       {/* Legend */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Mood Legend</CardTitle>
-        </CardHeader>
+        <StandardCardHeader title="Mood Legend" description="Color and emoji mapping used on calendar day cells." />
         <CardContent>
           <div className="flex flex-wrap gap-4">
             {moodEmojis.map((mood) => (
@@ -414,11 +413,10 @@ export default function CalendarPage() {
 
       {/* Monthly Summary */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">
-            {monthLoading ? 'Loading...' : `${format(currentDate, 'MMMM yyyy')} Summary`}
-          </CardTitle>
-        </CardHeader>
+        <StandardCardHeader
+          title={monthLoading ? 'Loading...' : `${format(currentDate, 'MMMM yyyy')} Summary`}
+          description="Monthly consistency and trend snapshot for mood logging."
+        />
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
@@ -477,9 +475,7 @@ export default function CalendarPage() {
             <div className="space-y-6">
               {/* Daily Summary Stats */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Daily Summary</CardTitle>
-                </CardHeader>
+                <StandardCardHeader title="Daily Summary" description="Nutrition and mood totals for the selected date." />
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="text-center">
@@ -508,13 +504,11 @@ export default function CalendarPage() {
                           }),
                           { protein: 0, carbs: 0, fat: 0 }
                         )
-                        return (
-                          <div className="text-xs space-y-1">
-                            <div>Protein: {Math.round(totalMacros.protein)}g</div>
-                            <div>Carbs: {Math.round(totalMacros.carbs)}g</div>
-                            <div>Fat: {Math.round(totalMacros.fat)}g</div>
-                          </div>
-                        )
+                        return <MacroDisplay macros={{
+                          protein: Math.round(totalMacros.protein),
+                          carbs: Math.round(totalMacros.carbs),
+                          fat: Math.round(totalMacros.fat),
+                        }} compact className="text-center" />
                       })()}
                       <div className="text-sm text-muted-foreground">Macros</div>
                     </div>
@@ -524,9 +518,7 @@ export default function CalendarPage() {
 
               {/* Exercise Summary */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Exercise Summary</CardTitle>
-                </CardHeader>
+                <StandardCardHeader title="Exercise Summary" description="Imported movement and activity metrics for the day." />
                 <CardContent>
                   {dailyActivity ? (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -563,9 +555,7 @@ export default function CalendarPage() {
 
               {/* Mood Section */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Mood</CardTitle>
-                </CardHeader>
+                <StandardCardHeader title="Mood" description="Update or review how you felt on this day." />
                 <CardContent className="space-y-4">
                   <MoodPicker selectedMood={currentMood} onMoodSelect={handleMoodSelect} />
                   {dailyMoodEntry ? (
@@ -582,9 +572,7 @@ export default function CalendarPage() {
 
               {/* Food Entries */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Food Entries</CardTitle>
-                </CardHeader>
+                <StandardCardHeader title="Food Entries" description="Meals and notes recorded for this date." />
                 <CardContent>
                   {dailyFoodEntries.length > 0 ? (
                     <div className="space-y-4">

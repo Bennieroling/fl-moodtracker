@@ -355,11 +355,44 @@ Only do this after Phases 1–5 ship. It's high-value but depends on the rest be
 
 Low-priority cleanups worth doing once the app is visually stable.
 
-- [ ] Extract a shared `MacroDisplay` component used by Dashboard, Historic, Calendar modal, Insights.
-- [ ] Standardize Card structure: every card has `CardHeader` with title + description, consistent spacing.
-- [ ] Typography scale: define `text-display`, `text-metric`, `text-caption` utility classes. Replace ad-hoc font sizes.
-- [ ] Dark mode pass — verify every new component + chart respects the theme.
-- [ ] Storybook or a `/design` route that showcases all shared components for future reference.
+- [x] Extract a shared `MacroDisplay` component used by Dashboard, Historic, Calendar modal, Insights.
+- [x] Standardize Card structure: every card has `CardHeader` with title + description, consistent spacing.
+- [x] Typography scale: define `text-display`, `text-metric`, `text-caption` utility classes. Replace ad-hoc font sizes.
+- [x] Dark mode pass — verify every new component + chart respects the theme.
+- [x] Storybook or a `/design` route that showcases all shared components for future reference.
+
+### Phase 9 progress log (started April 9, 2026)
+- [x] Shared `MacroDisplay` extracted
+  - Added `apps/web/components/macro-display.tsx`.
+  - Replaced duplicated macro UI blocks in:
+    - `apps/web/app/(app)/dashboard/page.tsx`
+    - `apps/web/app/(app)/historic/page.tsx`
+    - `apps/web/app/(app)/calendar/page.tsx` (day modal summary)
+- [x] Typography utility classes added
+  - Added `text-display`, `text-metric`, and `text-caption` utility classes in `apps/web/app/globals.css`.
+  - Applied to shared page header and key dashboard metric/caption surfaces.
+- [x] Card-header structure normalization
+  - Added shared `StandardCardHeader` in `apps/web/components/ui/standard-card-header.tsx`.
+  - Applied consistent title/description card headers across primary app routes:
+    - `apps/web/app/(app)/dashboard/page.tsx`
+    - `apps/web/app/(app)/historic/page.tsx`
+    - `apps/web/app/(app)/calendar/page.tsx`
+    - `apps/web/app/(app)/insights/page.tsx`
+    - `apps/web/app/(app)/onboarding/page.tsx`
+- [x] Dark mode pass
+  - Updated hard-coded color treatments to theme-aware variants and dark-safe classes:
+    - Macro bar segments now use `chart-1..3` tokens in `apps/web/components/macro-display.tsx`.
+    - Dashboard/Insights gradient accents include dark-mode variants.
+    - Calendar mood color badges/day styles now include dark palette classes.
+    - Historic calorie balance colors now include dark-mode text variants.
+- [x] `/design` showcase route
+  - Added `apps/web/app/(app)/design/page.tsx` with live examples for:
+    - `PageHeader`
+    - `DateStepper`
+    - `StandardCardHeader`
+    - `MoodPicker`
+    - `MealSelector`
+    - `MacroDisplay`
 
 ---
 

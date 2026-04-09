@@ -6,7 +6,8 @@ import { Calendar as CalendarIcon, TrendingDown, TrendingUp, Minus } from 'lucid
 
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
+import { StandardCardHeader } from '@/components/ui/standard-card-header'
 import { toast } from '@/hooks/use-toast'
 import { upsertMoodEntry, insertFoodEntry, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
 import { getTotalBurnedCalories } from '@/lib/activity'
@@ -15,6 +16,7 @@ import { useHistoricData } from '@/hooks/useHistoricData'
 import { SummarySkeleton } from '@/components/skeletons/summary-skeleton'
 import { MoodPicker, moodEmojis, LogFoodCard, RecentEntriesList, EntryEditorDialog, DateStepper, type EntryEditForm } from '@/components/entry'
 import { PageHeader } from '@/components/page-header'
+import { MacroDisplay } from '@/components/macro-display'
 
 const DEFAULT_DAY_SUMMARY = {
   mood: null as number | null,
@@ -63,9 +65,9 @@ export default function HistoricPage() {
     netCalories === null
       ? 'text-muted-foreground'
       : netCalories > 0
-        ? 'text-emerald-600'
+        ? 'text-emerald-600 dark:text-emerald-400'
         : netCalories < 0
-          ? 'text-red-600'
+          ? 'text-red-600 dark:text-red-400'
           : 'text-primary'
   const BalanceIcon = netCalories === null ? Minus : netCalories > 0 ? TrendingDown : netCalories < 0 ? TrendingUp : Minus
   const handleDateChange = (value: string) => {
@@ -430,10 +432,10 @@ export default function HistoricPage() {
       />
 
       <Card>
-        <CardHeader>
-          <CardTitle>Selected Day Summary</CardTitle>
-          <CardDescription>Your wellness overview for {selectedDateLabel}</CardDescription>
-        </CardHeader>
+        <StandardCardHeader
+          title="Selected Day Summary"
+          description={`Your wellness overview for ${selectedDateLabel}`}
+        />
         <CardContent>
           {historyLoading ? (
             <SummarySkeleton cards={6} className="grid-cols-2 md:grid-cols-3 lg:grid-cols-6" />
@@ -466,11 +468,7 @@ export default function HistoricPage() {
                 <div className="text-sm text-muted-foreground">Mood</div>
               </div>
               <div className="text-center col-span-2 md:col-span-3 lg:col-span-2">
-                <div className="text-xs space-y-1">
-                  <div>Protein: {selectedDaySummary.macros.protein}g</div>
-                  <div>Carbs: {selectedDaySummary.macros.carbs}g</div>
-                  <div>Fat: {selectedDaySummary.macros.fat}g</div>
-                </div>
+                <MacroDisplay macros={selectedDaySummary.macros} compact className="text-left md:text-center" />
                 <div className="text-sm text-muted-foreground">Macros</div>
               </div>
             </div>
@@ -479,10 +477,10 @@ export default function HistoricPage() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>How were you feeling?</CardTitle>
-          <CardDescription>Track your mood for {selectedDateLabel}.</CardDescription>
-        </CardHeader>
+        <StandardCardHeader
+          title="How were you feeling?"
+          description={`Track your mood for ${selectedDateLabel}.`}
+        />
         <CardContent>
           <MoodPicker selectedMood={currentMood} onMoodSelect={handleMoodSelect} />
         </CardContent>

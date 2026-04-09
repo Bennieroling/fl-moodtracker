@@ -6,12 +6,13 @@ import { Bell, Camera, Mic, Sparkles, Type, Check } from 'lucide-react'
 import { format } from 'date-fns'
 
 import { useAuth } from '@/lib/auth-context'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/page-header'
 import { createClient } from '@/lib/supabase-browser'
+import { StandardCardHeader } from '@/components/ui/standard-card-header'
 
 const LOGGING_METHODS = ['photo', 'voice', 'text', 'manual'] as const
 type LoggingMethod = (typeof LOGGING_METHODS)[number]
@@ -60,14 +61,16 @@ export default function OnboardingPage() {
       />
 
       <Card>
-        <CardHeader>
-          <CardTitle>Step {step} of 3</CardTitle>
-          <CardDescription>
-            {step === 1 && 'Choose your preferred way to log meals.'}
-            {step === 2 && 'Set a reminder time for consistent tracking.'}
-            {step === 3 && 'Log your first meal to complete onboarding.'}
-          </CardDescription>
-        </CardHeader>
+        <StandardCardHeader
+          title={`Step ${step} of 3`}
+          description={
+            step === 1
+              ? 'Choose your preferred way to log meals.'
+              : step === 2
+                ? 'Set a reminder time for consistent tracking.'
+                : 'Log your first meal to complete onboarding.'
+          }
+        />
         <CardContent className="space-y-6">
           {step === 1 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
