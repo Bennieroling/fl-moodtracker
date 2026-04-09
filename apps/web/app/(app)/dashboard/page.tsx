@@ -16,6 +16,7 @@ import { useDashboardData } from '@/hooks/useDashboardData'
 import { MoodPicker, moodEmojis, LogFoodCard, RecentEntriesList, EntryEditorDialog, DateStepper, type EntryEditForm } from '@/components/entry'
 import { PageHeader } from '@/components/page-header'
 import { MacroDisplay } from '@/components/macro-display'
+import { Activity, Footprints } from 'lucide-react'
 
 const DEFAULT_DASHBOARD_SUMMARY = {
   mood: null as number | null,
@@ -521,7 +522,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="rounded-lg border p-4">
                     <p className="text-caption">Meals Logged</p>
                     <p className="mt-2 text-3xl font-bold">{summary.mealsLogged}</p>
@@ -530,6 +531,30 @@ export default function DashboardPage() {
                   <div className="rounded-lg border p-4">
                     <p className="text-caption">Macros</p>
                     <MacroDisplay macros={summary.macros} showBar className="mt-2" />
+                  </div>
+                  <div className="rounded-lg border p-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-caption">Steps</p>
+                      <Footprints className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <p className="mt-2 text-3xl font-bold">
+                      {data?.activity?.steps != null
+                        ? Number(data.activity.steps).toLocaleString()
+                        : '--'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Total steps for the day.</p>
+                  </div>
+                  <div className="rounded-lg border p-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-caption">Exercise</p>
+                      <Activity className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <p className="mt-2 text-3xl font-bold">
+                      {data?.activity?.exercise_time_minutes != null
+                        ? `${Math.round(Number(data.activity.exercise_time_minutes))} min`
+                        : '--'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Active workout minutes.</p>
                   </div>
                 </div>
               </>
