@@ -9,6 +9,10 @@
 *.key
 *.pem
 secrets.json
+# Google Cloud service account credentials
+moodtracker-*.json
+*-service-account*.json
+service-account*.json
 
 # Dependencies
 node_modules/
