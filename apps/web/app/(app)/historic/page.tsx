@@ -1,67 +1,20 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { format, addDays, parseISO } from 'date-fns'
-import { Calendar as CalendarIcon, Loader2, Edit, Trash2, MoreHorizontal } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { format, parseISO } from 'date-fns'
+import { Calendar as CalendarIcon, TrendingDown, TrendingUp, Minus } from 'lucide-react'
 
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { PhotoUploader, ManualFoodEntry, VoiceRecorder, TextAnalyzer } from '@/components/upload'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from '@/hooks/use-toast'
 import { upsertMoodEntry, insertFoodEntry, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
 import { getTotalBurnedCalories } from '@/lib/activity'
 import { MealType, FoodEntry } from '@/lib/types/database'
 import { useHistoricData } from '@/hooks/useHistoricData'
-
-const moodEmojis = [
-  { score: 1, emoji: '😢', label: 'Very Bad' },
-  { score: 2, emoji: '😞', label: 'Bad' },
-  { score: 3, emoji: '😐', label: 'Okay' },
-  { score: 4, emoji: '🙂', label: 'Good' },
-  { score: 5, emoji: '😄', label: 'Great' },
-]
-
-interface MoodPickerProps {
-  selectedMood: number | null
-  onMoodSelect: (mood: number) => void
-}
-
-function MoodPicker({ selectedMood, onMoodSelect }: MoodPickerProps) {
-  return (
-    <div className="flex justify-center space-x-4">
-      {moodEmojis.map((mood) => (
-        <button
-          key={mood.score}
-          onClick={() => onMoodSelect(mood.score)}
-          className={`p-3 rounded-full transition-all ${
-            selectedMood === mood.score
-              ? 'bg-primary text-primary-foreground scale-110'
-              : 'hover:bg-muted hover:scale-105'
-          }`}
-          title={mood.label}
-        >
-          <span className="text-2xl">{mood.emoji}</span>
-        </button>
-      ))}
-    </div>
-  )
-}
-
-const mealTypes = [
-  { id: 'breakfast', label: 'Breakfast', icon: '🌅' },
-  { id: 'lunch', label: 'Lunch', icon: '☀️' },
-  { id: 'dinner', label: 'Dinner', icon: '🌙' },
-  { id: 'snack', label: 'Snack', icon: '🍎' },
-]
+import { SummarySkeleton } from '@/components/skeletons/summary-skeleton'
+import { MoodPicker, moodEmojis, LogFoodCard, RecentEntriesList, EntryEditorDialog, DateStepper, type EntryEditForm } from '@/components/entry'
+import { PageHeader } from '@/components/page-header'
 
 const DEFAULT_DAY_SUMMARY = {
   mood: null as number | null,
@@ -71,45 +24,24 @@ const DEFAULT_DAY_SUMMARY = {
   foodEntries: [] as FoodEntry[],
 }
 
-interface MealSelectorProps {
-  selectedMeal: string | null
-  onMealSelect: (meal: string) => void
-}
-
-function MealSelector({ selectedMeal, onMealSelect }: MealSelectorProps) {
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-      {mealTypes.map((meal) => (
-        <Button
-          key={meal.id}
-          variant={selectedMeal === meal.id ? 'default' : 'outline'}
-          onClick={() => onMealSelect(meal.id)}
-          className="flex flex-col items-center p-4 h-auto"
-        >
-          <span className="text-lg mb-1">{meal.icon}</span>
-          <span className="text-xs">{meal.label}</span>
-        </Button>
-      ))}
-    </div>
-  )
-}
-
 export default function HistoricPage() {
   const { user } = useAuth()
   const { filters, setHistoricFilters } = useFilters()
   const selectedDate = useMemo(() => parseISO(filters.historic.date), [filters.historic.date])
   const [selectedMood, setSelectedMood] = useState<number | null>(null)
-  const [selectedMeal, setSelectedMeal] = useState<string | null>(null)
-  const [loading, setLoading] = useState({
-    mood: false,
-    entries: false,
-  })
+  const [selectedMeal, setSelectedMeal] = useState<MealType | null>(null)
+  const [optimisticEntries, setOptimisticEntries] = useState<FoodEntry[]>([])
   const { data: historicData, loading: historyLoading, refetch } = useHistoricData()
   const selectedDaySummary = historicData?.summary ?? DEFAULT_DAY_SUMMARY
+  const currentMood = selectedMood ?? selectedDaySummary.mood
   const dailyEntries = selectedDaySummary.foodEntries ?? []
+  const displayedDailyEntries = useMemo(() => {
+    const merged = [...optimisticEntries, ...dailyEntries]
+    return merged.filter((entry, index, arr) => arr.findIndex((candidate) => candidate.id === entry.id) === index)
+  }, [optimisticEntries, dailyEntries])
   const dailyActivity = historicData?.activity ?? null
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null)
-  const [editForm, setEditForm] = useState({
+  const [editForm, setEditForm] = useState<EntryEditForm>({
     meal: '',
     food_labels: [] as string[],
     calories: 0,
@@ -126,8 +58,7 @@ export default function HistoricPage() {
   const dailyBurned = getTotalBurnedCalories(dailyActivity)
   const netCalories = dailyBurned !== null ? dailyBurned - selectedDaySummary.totalCalories : null
   const balanceDisplay = netCalories === null ? '—' : `${netCalories > 0 ? '+' : ''}${Math.round(netCalories)}`
-  const balanceLabel =
-    netCalories === null ? 'No data' : netCalories > 0 ? 'Calorie deficit' : netCalories < 0 ? 'Over target' : 'Balanced'
+  const balanceLabel = netCalories === null ? 'No data' : netCalories > 0 ? 'Deficit' : netCalories < 0 ? 'Over' : 'On track'
   const balanceClass =
     netCalories === null
       ? 'text-muted-foreground'
@@ -136,55 +67,70 @@ export default function HistoricPage() {
         : netCalories < 0
           ? 'text-red-600'
           : 'text-primary'
-
-
+  const BalanceIcon = netCalories === null ? Minus : netCalories > 0 ? TrendingDown : netCalories < 0 ? TrendingUp : Minus
   const handleDateChange = (value: string) => {
     if (!value) return
     setHistoricFilters((prev) => ({ ...prev, date: value }))
   }
 
-  const shiftDate = (days: number) => {
-    setHistoricFilters((prev) => {
-      const base = parseISO(prev.date)
-      const safeBase = Number.isNaN(base.getTime()) ? new Date() : base
-      const next = addDays(safeBase, days)
-      const today = new Date()
-      if (days > 0 && next > today) {
-        return prev
-      }
-      return { ...prev, date: format(next, 'yyyy-MM-dd') }
-    })
-  }
+  const handleMoodSelect = async (moodScore: number) => {
+    if (!user?.id) return
 
-  const handleMoodSave = async () => {
-    if (!selectedMood || !user?.id) return
-
-    setLoading((prev) => ({ ...prev, mood: true }))
+    const previousMood = currentMood ?? null
+    setSelectedMood(moodScore)
 
     try {
       await upsertMoodEntry({
         user_id: user.id,
         date: selectedDateString,
-        mood_score: selectedMood,
+        mood_score: moodScore,
       })
-
-      toast({
-        title: 'Mood saved!',
-        description: `Your mood for ${selectedDateLabel} has been recorded.`,
-      })
-
       await refetch()
       setSelectedMood(null)
     } catch (error) {
       console.error('Error saving mood:', error)
+      setSelectedMood(previousMood)
       toast({
         title: 'Error saving mood',
         description: 'There was a problem saving your mood. Please try again.',
         variant: 'destructive',
       })
-    } finally {
-      setLoading((prev) => ({ ...prev, mood: false }))
     }
+  }
+
+  useEffect(() => {
+    setOptimisticEntries([])
+  }, [selectedDateString])
+
+  const createOptimisticEntry = (payload: {
+    meal: MealType
+    food_labels: string[]
+    calories?: number
+    macros?: { protein: number; carbs: number; fat: number }
+    note?: string
+    photo_url?: string
+    voice_url?: string
+    ai_raw?: unknown
+    journal_mode?: boolean
+  }) => {
+    if (!user?.id) return null
+    const now = new Date().toISOString()
+    return {
+      id: `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      user_id: user.id,
+      date: selectedDateString,
+      meal: payload.meal,
+      photo_url: payload.photo_url ?? null,
+      voice_url: payload.voice_url ?? null,
+      ai_raw: payload.ai_raw ?? null,
+      food_labels: payload.food_labels,
+      calories: payload.calories ?? null,
+      macros: payload.macros ?? null,
+      note: payload.note ?? null,
+      journal_mode: payload.journal_mode ?? false,
+      created_at: now,
+      updated_at: now,
+    } satisfies FoodEntry
   }
 
   const handlePhotoAnalysis = async (result: {
@@ -193,12 +139,23 @@ export default function HistoricPage() {
     photoUrl: string
   }) => {
     if (!user?.id || !selectedMeal) return
+    const optimisticEntry = createOptimisticEntry({
+      meal: selectedMeal,
+      photo_url: result.photoUrl,
+      food_labels: result.foods.map((food) => food.label),
+      calories: result.nutrition.calories,
+      macros: result.nutrition.macros,
+      ai_raw: result,
+    })
+    if (optimisticEntry) {
+      setOptimisticEntries((prev) => [optimisticEntry, ...prev])
+    }
 
     try {
       await insertFoodEntry({
         user_id: user.id,
         date: selectedDateString,
-        meal: selectedMeal as MealType,
+        meal: selectedMeal,
         photo_url: result.photoUrl,
         food_labels: result.foods.map((f) => f.label),
         calories: result.nutrition.calories,
@@ -213,7 +170,13 @@ export default function HistoricPage() {
 
       setSelectedMeal(null)
       await refetch()
+      if (optimisticEntry) {
+        setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
+      }
     } catch (error) {
+      if (optimisticEntry) {
+        setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
+      }
       console.error('Error saving photo analysis:', error)
       toast({
         title: 'Error saving food entry',
@@ -231,6 +194,18 @@ export default function HistoricPage() {
     voiceUrl: string
   }) => {
     if (!user?.id) return
+    const optimisticEntry = createOptimisticEntry({
+      meal: result.meal as MealType,
+      voice_url: result.voiceUrl,
+      food_labels: result.foods.map((food) => food.label),
+      calories: result.nutrition.calories,
+      macros: result.nutrition.macros,
+      note: result.transcript,
+      ai_raw: result,
+    })
+    if (optimisticEntry) {
+      setOptimisticEntries((prev) => [optimisticEntry, ...prev])
+    }
 
     try {
       await insertFoodEntry({
@@ -252,7 +227,13 @@ export default function HistoricPage() {
 
       setSelectedMeal(null)
       await refetch()
+      if (optimisticEntry) {
+        setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
+      }
     } catch (error) {
+      if (optimisticEntry) {
+        setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
+      }
       console.error('Error saving voice analysis:', error)
       toast({
         title: 'Error saving food entry',
@@ -271,6 +252,17 @@ export default function HistoricPage() {
     journal_mode: boolean
   }) => {
     if (!user?.id) return
+    const optimisticEntry = createOptimisticEntry({
+      meal: data.meal as MealType,
+      food_labels: data.food_labels,
+      calories: data.calories,
+      macros: data.macros,
+      note: data.note,
+      journal_mode: data.journal_mode,
+    })
+    if (optimisticEntry) {
+      setOptimisticEntries((prev) => [optimisticEntry, ...prev])
+    }
 
     try {
       await insertFoodEntry({
@@ -290,7 +282,13 @@ export default function HistoricPage() {
       })
 
       await refetch()
+      if (optimisticEntry) {
+        setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
+      }
     } catch (error) {
+      if (optimisticEntry) {
+        setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
+      }
       console.error('Error saving manual entry:', error)
       toast({
         title: 'Error saving food entry',
@@ -306,6 +304,16 @@ export default function HistoricPage() {
     nutrition: { calories: number; macros: { protein: number; carbs: number; fat: number } }
   }) => {
     if (!user?.id) return
+    const optimisticEntry = createOptimisticEntry({
+      meal: result.meal as MealType,
+      food_labels: result.foods.map((food) => food.label),
+      calories: result.nutrition.calories,
+      macros: result.nutrition.macros,
+      ai_raw: result,
+    })
+    if (optimisticEntry) {
+      setOptimisticEntries((prev) => [optimisticEntry, ...prev])
+    }
 
     try {
       await insertFoodEntry({
@@ -325,7 +333,13 @@ export default function HistoricPage() {
 
       setSelectedMeal(null)
       await refetch()
+      if (optimisticEntry) {
+        setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
+      }
     } catch (error) {
+      if (optimisticEntry) {
+        setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
+      }
       console.error('Error saving AI text entry:', error)
       toast({
         title: 'Error saving food entry',
@@ -407,45 +421,13 @@ export default function HistoricPage() {
     }
   }
 
-  const isNextDisabled = selectedDateString === todayString
-
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Historic Log</h1>
-        <p className="text-muted-foreground flex items-center gap-2">
-          <CalendarIcon className="h-4 w-4" />
-          {selectedDateLabel}
-        </p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Select a Date</CardTitle>
-          <CardDescription>Review or add entries for any day in the past.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-4 items-end">
-          <div className="space-y-2">
-            <Label htmlFor="historic-date">Date</Label>
-            <Input
-              id="historic-date"
-              type="date"
-              value={selectedDateString}
-              max={todayString}
-              onChange={(event) => handleDateChange(event.target.value)}
-              className="w-52"
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => shiftDate(-1)}>
-              Previous Day
-            </Button>
-            <Button variant="outline" onClick={() => shiftDate(1)} disabled={isNextDisabled}>
-              Next Day
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <PageHeader
+        title="Historic Log"
+        description={selectedDateLabel}
+        action={<DateStepper date={selectedDateString} onDateChange={handleDateChange} maxDate={todayString} />}
+      />
 
       <Card>
         <CardHeader>
@@ -454,9 +436,7 @@ export default function HistoricPage() {
         </CardHeader>
         <CardContent>
           {historyLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            </div>
+            <SummarySkeleton cards={6} className="grid-cols-2 md:grid-cols-3 lg:grid-cols-6" />
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div className="text-center">
@@ -470,7 +450,10 @@ export default function HistoricPage() {
               <div className="text-center">
                 <div className={`text-2xl font-bold ${balanceClass}`}>{balanceDisplay}</div>
                 <div className="text-sm text-muted-foreground">Calorie Balance</div>
-                <div className="text-xs text-muted-foreground">{balanceLabel}</div>
+                <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                  <BalanceIcon className="h-3 w-3" />
+                  <span>{balanceLabel}</span>
+                </div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-primary">{selectedDaySummary.mealsLogged}</div>
@@ -478,7 +461,7 @@ export default function HistoricPage() {
               </div>
               <div className="text-center">
                 <div className="text-2xl">
-                  {selectedDaySummary.mood ? moodEmojis.find((m) => m.score === selectedDaySummary.mood)?.emoji : '—'}
+                  {currentMood ? moodEmojis.find((m) => m.score === currentMood)?.emoji : '—'}
                 </div>
                 <div className="text-sm text-muted-foreground">Mood</div>
               </div>
@@ -500,218 +483,44 @@ export default function HistoricPage() {
           <CardTitle>How were you feeling?</CardTitle>
           <CardDescription>Track your mood for {selectedDateLabel}.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <MoodPicker selectedMood={selectedMood} onMoodSelect={setSelectedMood} />
-          {selectedMood && (
-            <div className="flex justify-center">
-              <Button onClick={handleMoodSave} disabled={loading.mood}>
-                {loading.mood ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Save Mood'}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Log Your Food</CardTitle>
-          <CardDescription>Backfill a meal for {selectedDateLabel} with any method.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <h4 className="font-medium">Select Meal Type</h4>
-            <MealSelector selectedMeal={selectedMeal} onMealSelect={setSelectedMeal} />
-          </div>
-
-          {selectedMeal && (
-            <div className="space-y-4">
-              <h4 className="font-medium">How would you like to log this meal?</h4>
-
-              <Tabs defaultValue="photo" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="photo">Photo</TabsTrigger>
-                  <TabsTrigger value="voice">Voice</TabsTrigger>
-                  <TabsTrigger value="text">Text</TabsTrigger>
-                  <TabsTrigger value="manual">Manual</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="photo" className="space-y-4">
-                  <PhotoUploader meal={selectedMeal} date={selectedDateString} onAnalysisComplete={handlePhotoAnalysis} />
-                </TabsContent>
-
-                <TabsContent value="voice" className="space-y-4">
-                  <VoiceRecorder date={selectedDateString} selectedMeal={selectedMeal} onAnalysisComplete={handleVoiceAnalysis} />
-                </TabsContent>
-
-                <TabsContent value="text" className="space-y-4">
-                  <TextAnalyzer selectedMeal={selectedMeal} date={selectedDateString} onAnalysisComplete={handleTextAnalysis} />
-                </TabsContent>
-
-                <TabsContent value="manual" className="space-y-4">
-                  <ManualFoodEntry meal={selectedMeal} onSave={handleManualSave} />
-                </TabsContent>
-              </Tabs>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Entries for {selectedDateLabel}</CardTitle>
-          <CardDescription>Review anything already logged on this day.</CardDescription>
-        </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {loading.entries ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
-                <span className="ml-2">Loading entries...</span>
-              </div>
-            ) : dailyEntries.length > 0 ? (
-              dailyEntries.map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
-                  <div className="flex items-center space-x-4">
-                    <span className="text-2xl">{entry.food_labels?.[0] ? '🍽️' : '📝'}</span>
-                    <div>
-                      <div className="font-medium">{entry.food_labels?.join(', ') || 'Food entry'}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {entry.meal} • {format(new Date(entry.created_at), 'MMM d, h:mm a')}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{entry.calories ? `${entry.calories} cal` : 'No cal data'}</Badge>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEditEntry(entry)}>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDeleteEntry(entry)} className="text-destructive">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center text-muted-foreground py-8">
-                <span className="text-4xl block mb-4">🍽️</span>
-                <p>No entries logged for this date</p>
-                <p className="text-sm">Use the tools above to backfill meals or moods.</p>
-              </div>
-            )}
-          </div>
+          <MoodPicker selectedMood={currentMood} onMoodSelect={handleMoodSelect} />
         </CardContent>
       </Card>
 
-      <Dialog open={!!editingEntry} onOpenChange={() => setEditingEntry(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Food Entry</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-meal">Meal Type</Label>
-              <Select value={editForm.meal} onValueChange={(value) => setEditForm((prev) => ({ ...prev, meal: value }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="breakfast">🌅 Breakfast</SelectItem>
-                  <SelectItem value="lunch">☀️ Lunch</SelectItem>
-                  <SelectItem value="dinner">🌙 Dinner</SelectItem>
-                  <SelectItem value="snack">🍎 Snack</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      <LogFoodCard
+        title="Log Your Food"
+        description={`Backfill a meal for ${selectedDateLabel} with any method.`}
+        selectedMeal={selectedMeal}
+        onMealSelect={setSelectedMeal}
+        date={selectedDateString}
+        onPhotoAnalysis={handlePhotoAnalysis}
+        onVoiceAnalysis={handleVoiceAnalysis}
+        onTextAnalysis={handleTextAnalysis}
+        onManualSave={handleManualSave}
+      />
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-foods">Food Items</Label>
-              <Input
-                id="edit-foods"
-                value={editForm.food_labels.join(', ')}
-                onChange={(e) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    food_labels: e.target.value
-                      .split(',')
-                      .map((s) => s.trim())
-                      .filter(Boolean),
-                  }))
-                }
-                placeholder="Separate items with commas"
-              />
-            </div>
+      <RecentEntriesList
+        title={`Entries for ${selectedDateLabel}`}
+        description="Review anything already logged on this day."
+        entries={displayedDailyEntries}
+        loading={historyLoading}
+        loadingText="Loading entries..."
+        emptyTitle="No entries logged for this date"
+        emptyDescription="Use the tools above to backfill meals or moods."
+        emptyCtaLabel="Log breakfast"
+        onEmptyCta={() => setSelectedMeal('breakfast')}
+        onEditEntry={handleEditEntry}
+        onDeleteEntry={handleDeleteEntry}
+      />
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-calories">Calories</Label>
-                <Input
-                  id="edit-calories"
-                  type="number"
-                  value={editForm.calories || ''}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, calories: Number(e.target.value) }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-protein">Protein (g)</Label>
-                <Input
-                  id="edit-protein"
-                  type="number"
-                  value={editForm.protein || ''}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, protein: Number(e.target.value) }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-carbs">Carbs (g)</Label>
-                <Input
-                  id="edit-carbs"
-                  type="number"
-                  value={editForm.carbs || ''}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, carbs: Number(e.target.value) }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-fat">Fat (g)</Label>
-                <Input
-                  id="edit-fat"
-                  type="number"
-                  value={editForm.fat || ''}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, fat: Number(e.target.value) }))}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-note">Note (optional)</Label>
-              <Input
-                id="edit-note"
-                value={editForm.note}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, note: e.target.value }))}
-                placeholder="Add any additional notes"
-              />
-            </div>
-
-            <div className="flex gap-2 pt-4">
-              <Button onClick={handleSaveEdit} className="flex-1">
-                Save Changes
-              </Button>
-              <Button variant="outline" onClick={() => setEditingEntry(null)}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <EntryEditorDialog
+        entry={editingEntry}
+        form={editForm}
+        setForm={setEditForm}
+        onSave={handleSaveEdit}
+        onClose={() => setEditingEntry(null)}
+      />
     </div>
   )
 }

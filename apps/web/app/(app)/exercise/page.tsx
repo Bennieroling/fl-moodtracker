@@ -124,7 +124,7 @@ export default function ExercisePage() {
             </TabsList>
           </Tabs>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => shiftRange(-1)}>
+            <Button variant="outline" size="icon" onClick={() => shiftRange(-1)} aria-label="Previous range">
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Popover>
@@ -143,7 +143,7 @@ export default function ExercisePage() {
                 />
               </PopoverContent>
             </Popover>
-            <Button variant="outline" size="icon" onClick={() => shiftRange(1)}>
+            <Button variant="outline" size="icon" onClick={() => shiftRange(1)} aria-label="Next range">
               <ChevronRight className="h-4 w-4" />
             </Button>
             <span className="text-sm text-muted-foreground">{rangeLabel}</span>
@@ -352,8 +352,24 @@ export default function ExercisePage() {
           <CardTitle>Daily Overview</CardTitle>
           <CardDescription>Merged daily records from v_daily_activity with exercise_event fallbacks.</CardDescription>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 md:hidden">
+            {dailySeries.map((day) => (
+              <div key={day.date} className="rounded-lg border p-3 space-y-2">
+                <p className="font-medium">{format(parseISO(day.date), 'MMM d, yyyy')}</p>
+                <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+                  <span>Exercise: {formatNumber(day.exercise_time_minutes)} min</span>
+                  <span>Move: {formatNumber(day.move_time_minutes)} min</span>
+                  <span>Active: {formatNumber(day.active_energy_kcal)} kcal</span>
+                  <span>Total: {formatNumber(day.total_energy_kcal)} kcal</span>
+                  <span>Steps: {formatNumber(day.steps)}</span>
+                  <span>Distance: {formatNumber(day.distance_km, { decimals: 2 })} km</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-muted-foreground">
                 <th className="py-2">Date</th>
@@ -378,7 +394,8 @@ export default function ExercisePage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>
@@ -407,7 +424,23 @@ const renderAggregateTable = (data: DailyActivityAggregate[], bucket: AggregateV
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-3 md:hidden">
+        {data.map((row) => (
+          <div key={`${bucket}-card-${row.period}`} className="rounded-lg border p-3 space-y-2">
+            <p className="font-medium">{formatAggregatePeriod(row.period, bucket)}</p>
+            <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+              <span>Active: {formatNumber(row.active_energy_kcal)} kcal</span>
+              <span>Total: {formatNumber(row.total_energy_kcal)} kcal</span>
+              <span>Exercise: {formatNumber(row.exercise_time_minutes)} min</span>
+              <span>Move: {formatNumber(row.move_time_minutes)} min</span>
+              <span>Steps: {formatNumber(row.steps)}</span>
+              <span>Distance: {formatNumber(row.distance_km, { decimals: 2 })} km</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto md:block">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-muted-foreground">
@@ -434,6 +467,7 @@ const renderAggregateTable = (data: DailyActivityAggregate[], bucket: AggregateV
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   )
 }

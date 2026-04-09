@@ -7,10 +7,12 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Mic, MicOff, Play, Pause, Square, Loader2, Trash2, Edit, Check } from 'lucide-react'
+import { Mic, MicOff, Play, Pause, Square, Loader2, Trash2, Edit, Check, Plus } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { AISpeechResponseSchema, type AISpeechResponse } from '@/lib/validations'
+import { MealType } from '@/lib/types/database'
 import { toast } from 'sonner'
 
 interface VoiceRecorderProps {
@@ -46,6 +48,9 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
   const [editedProtein, setEditedProtein] = useState<number>(0)
   const [editedCarbs, setEditedCarbs] = useState<number>(0)
   const [editedFat, setEditedFat] = useState<number>(0)
+  const [editedFoods, setEditedFoods] = useState<Array<{ label: string; confidence: number; quantity?: string }>>([])
+  const [editedTranscript, setEditedTranscript] = useState<string>('')
+  const [isReanalyzingTranscript, setIsReanalyzingTranscript] = useState(false)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -345,6 +350,12 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
       setEditedProtein(validatedResult.nutrition.macros.protein)
       setEditedCarbs(validatedResult.nutrition.macros.carbs)
       setEditedFat(validatedResult.nutrition.macros.fat)
+      setEditedFoods(validatedResult.foods.map((food) => ({
+        label: food.label,
+        confidence: food.confidence,
+        quantity: food.quantity
+      })))
+      setEditedTranscript(validatedResult.transcript)
 
       toast.success('Voice analysis completed! Please review and confirm.')
 
@@ -365,11 +376,13 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
 
     onAnalysisComplete({
       meal: editedMeal,
-      foods: analysis.foods.map(food => ({
-        label: food.label,
-        confidence: food.confidence,
-        quantity: food.quantity
-      })),
+      foods: editedFoods
+        .map((food) => ({
+          label: food.label.trim(),
+          confidence: food.confidence,
+          quantity: food.quantity
+        }))
+        .filter((food) => food.label.length > 0),
       nutrition: {
         calories: editedCalories,
         macros: {
@@ -378,7 +391,7 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
           fat: editedFat
         }
       },
-      transcript: analysis.transcript,
+      transcript: editedTranscript,
       voiceUrl: audioUrl || ''
     })
 
@@ -389,7 +402,7 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
     }
 
     toast.success('Food entry saved!')
-  }, [analysis, onAnalysisComplete, editedMeal, editedCalories, editedProtein, editedCarbs, editedFat, audioUrl])
+  }, [analysis, onAnalysisComplete, editedMeal, editedFoods, editedCalories, editedProtein, editedCarbs, editedFat, editedTranscript, audioUrl])
 
   // Start editing
   const startEditing = () => {
@@ -406,8 +419,55 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
     setEditedProtein(analysis.nutrition.macros.protein)
     setEditedCarbs(analysis.nutrition.macros.carbs)
     setEditedFat(analysis.nutrition.macros.fat)
+    setEditedFoods(analysis.foods.map((food) => ({
+      label: food.label,
+      confidence: food.confidence,
+      quantity: food.quantity
+    })))
+    setEditedTranscript(analysis.transcript)
     setIsEditing(false)
   }
+
+  const reAnalyzeTranscript = useCallback(async () => {
+    if (!user || !editedTranscript.trim()) {
+      return
+    }
+
+    setIsReanalyzingTranscript(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/ai/text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: editedTranscript.trim(),
+          userId: user.id,
+          date,
+          meal: editedMeal as MealType,
+        }),
+      })
+
+      if (!response.ok) {
+        const { error: message } = await response.json().catch(() => ({ error: 'Failed to re-analyze transcript' }))
+        throw new Error(message)
+      }
+
+      const result = await response.json()
+      setEditedMeal(result.meal)
+      setEditedFoods(result.foods)
+      setEditedCalories(result.nutrition.calories)
+      setEditedProtein(result.nutrition.macros.protein)
+      setEditedCarbs(result.nutrition.macros.carbs)
+      setEditedFat(result.nutrition.macros.fat)
+      toast.success('Transcript re-analyzed.')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to re-analyze transcript'
+      setError(message)
+      toast.error(message)
+    } finally {
+      setIsReanalyzingTranscript(false)
+    }
+  }, [user, editedTranscript, editedMeal, date])
 
   // Format duration
   const formatDuration = (seconds: number) => {
@@ -416,7 +476,7 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const isLoading = isUploading || isAnalyzing
+  const isLoading = isUploading || isAnalyzing || isReanalyzingTranscript
 
   return (
     <div className={className}>
@@ -551,9 +611,31 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
                   {/* Transcript */}
                   <div className="space-y-2">
                     <h5 className="text-sm font-medium">Transcript:</h5>
-                    <p className="text-sm bg-muted p-3 rounded-md italic">
-                      &quot;{analysis.transcript}&quot;
-                    </p>
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        <Textarea
+                          value={editedTranscript}
+                          onChange={(event) => setEditedTranscript(event.target.value)}
+                          rows={4}
+                        />
+                        <div className="flex gap-2">
+                          <Button type="button" size="sm" variant="outline" onClick={reAnalyzeTranscript} disabled={isReanalyzingTranscript}>
+                            {isReanalyzingTranscript ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Re-analyzing...
+                              </>
+                            ) : (
+                              'Re-analyze transcript'
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm bg-muted p-3 rounded-md italic">
+                        &quot;{editedTranscript}&quot;
+                      </p>
+                    )}
                   </div>
 
                   {/* Meal type */}
@@ -588,18 +670,51 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
                   {/* Detected Foods */}
                   <div className="space-y-2">
                     <h5 className="text-sm font-medium">Detected Foods:</h5>
-                    <div className="flex flex-wrap gap-2">
-                      {analysis.foods.map((food, index: number) => (
-                        <Badge key={index} variant="outline">
-                          {food.label}
-                          {food.confidence && (
-                            <span className="ml-1 text-xs opacity-70">
-                              ({Math.round(food.confidence * 100)}%)
-                            </span>
-                          )}
-                        </Badge>
-                      ))}
-                    </div>
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        {editedFoods.map((food, index) => (
+                          <div key={`${food.label}-${index}`} className="flex items-center gap-2">
+                            <Input
+                              value={food.label}
+                              onChange={(event) =>
+                                setEditedFoods((prev) =>
+                                  prev.map((item, itemIndex) =>
+                                    itemIndex === index ? { ...item, label: event.target.value } : item
+                                  )
+                                )
+                              }
+                            />
+                            <Badge variant="outline">{Math.round(food.confidence * 100)}%</Badge>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditedFoods((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
+                              aria-label="Remove detected food"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button type="button" size="sm" variant="outline" onClick={() => setEditedFoods((prev) => [...prev, { label: '', confidence: 1 }])}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add Food
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {editedFoods.map((food, index: number) => (
+                          <Badge key={index} variant="outline">
+                            {food.label}
+                            {food.confidence && (
+                              <span className="ml-1 text-xs opacity-70">
+                                ({Math.round(food.confidence * 100)}%)
+                              </span>
+                            )}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Nutrition Info */}

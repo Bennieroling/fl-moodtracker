@@ -1,67 +1,18 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Calendar as CalendarIcon, Loader2, Edit, Trash2, MoreHorizontal } from 'lucide-react'
-import { PhotoUploader, ManualFoodEntry, VoiceRecorder, TextAnalyzer } from '@/components/upload'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { format, parseISO } from 'date-fns'
 import { toast } from '@/hooks/use-toast'
 import { upsertMoodEntry, insertFoodEntry, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
 import { MealType, FoodEntry } from '@/lib/types/database'
 import { useDashboardData } from '@/hooks/useDashboardData'
-
-// Mood picker component
-const moodEmojis = [
-  { score: 1, emoji: '😢', label: 'Very Bad' },
-  { score: 2, emoji: '😞', label: 'Bad' },
-  { score: 3, emoji: '😐', label: 'Okay' },
-  { score: 4, emoji: '🙂', label: 'Good' },
-  { score: 5, emoji: '😄', label: 'Great' },
-]
-
-interface MoodPickerProps {
-  selectedMood: number | null
-  onMoodSelect: (mood: number) => void
-}
-
-function MoodPicker({ selectedMood, onMoodSelect }: MoodPickerProps) {
-  return (
-    <div className="flex justify-center space-x-4">
-      {moodEmojis.map((mood) => (
-        <button
-          key={mood.score}
-          onClick={() => onMoodSelect(mood.score)}
-          className={`p-3 rounded-full transition-all ${
-            selectedMood === mood.score
-              ? 'bg-primary text-primary-foreground scale-110'
-              : 'hover:bg-muted hover:scale-105'
-          }`}
-          title={mood.label}
-        >
-          <span className="text-2xl">{mood.emoji}</span>
-        </button>
-      ))}
-    </div>
-  )
-}
-
-// Meal type selector
-const mealTypes = [
-  { id: 'breakfast', label: 'Breakfast', icon: '🌅' },
-  { id: 'lunch', label: 'Lunch', icon: '☀️' },
-  { id: 'dinner', label: 'Dinner', icon: '🌙' },
-  { id: 'snack', label: 'Snack', icon: '🍎' },
-]
+import { MoodPicker, moodEmojis, LogFoodCard, RecentEntriesList, EntryEditorDialog, DateStepper, type EntryEditForm } from '@/components/entry'
+import { PageHeader } from '@/components/page-header'
 
 const DEFAULT_DASHBOARD_SUMMARY = {
   mood: null as number | null,
@@ -71,46 +22,28 @@ const DEFAULT_DASHBOARD_SUMMARY = {
   foodEntries: [] as FoodEntry[],
 }
 
-interface MealSelectorProps {
-  selectedMeal: string | null
-  onMealSelect: (meal: string) => void
-}
-
-function MealSelector({ selectedMeal, onMealSelect }: MealSelectorProps) {
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-      {mealTypes.map((meal) => (
-        <Button
-          key={meal.id}
-          variant={selectedMeal === meal.id ? "default" : "outline"}
-          onClick={() => onMealSelect(meal.id)}
-          className="flex flex-col items-center p-4 h-auto"
-        >
-          <span className="text-lg mb-1">{meal.icon}</span>
-          <span className="text-xs">{meal.label}</span>
-        </Button>
-      ))}
-    </div>
-  )
-}
-
 export default function DashboardPage() {
   const { user } = useAuth()
-  const { filters } = useFilters()
+  const router = useRouter()
+  const { filters, setDashboardFilters } = useFilters()
   const dashboardDate = useMemo(() => parseISO(filters.dashboard.date), [filters.dashboard.date])
   const dashboardDateString = filters.dashboard.date
   const [selectedMood, setSelectedMood] = useState<number | null>(null)
-  const [selectedMeal, setSelectedMeal] = useState<string | null>(null)
-  const [loading, setLoading] = useState({
-    mood: false,
-  })
+  const [selectedMeal, setSelectedMeal] = useState<MealType | null>(null)
+  const [optimisticEntries, setOptimisticEntries] = useState<FoodEntry[]>([])
   const { data, loading: dataLoading, refetch } = useDashboardData()
   const summary = data?.summary ?? DEFAULT_DASHBOARD_SUMMARY
   const recentEntries = data?.recentEntries ?? []
+  const displayedRecentEntries = useMemo(() => {
+    const merged = [...optimisticEntries, ...recentEntries]
+    const deduped = merged.filter((entry, index, arr) => arr.findIndex((candidate) => candidate.id === entry.id) === index)
+    return deduped.slice(0, 5)
+  }, [optimisticEntries, recentEntries])
+  const currentMood = selectedMood ?? summary.mood
   
   // Edit entry state
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null)
-  const [editForm, setEditForm] = useState({
+  const [editForm, setEditForm] = useState<EntryEditForm>({
     meal: '',
     food_labels: [] as string[],
     calories: 0,
@@ -122,54 +55,78 @@ export default function DashboardPage() {
 
   const todayLabel = format(dashboardDate, 'EEEE, MMMM d')
   const todayString = dashboardDateString
+  const handleDateChange = (value: string) => {
+    if (!value) return
+    setDashboardFilters((prev) => ({ ...prev, date: value }))
+  }
 
-  const handleMoodSave = async () => {
-    console.log('handleMoodSave called with:', {
-      selectedMood,
-      userId: user?.id,
-      date: todayString,
-      userObject: user
-    })
+  useEffect(() => {
+    if (!user?.id) return
+    const storageKey = `sofi:onboarding:completed:${user.id}`
+    const hasCompleted = window.localStorage.getItem(storageKey)
+    if (!hasCompleted) {
+      router.replace('/onboarding')
+    }
+  }, [user?.id, router])
 
-    if (!selectedMood || !user?.id) {
-      console.error('Missing required data for mood save:', {
-        selectedMood,
-        userId: user?.id,
-        date: todayString
-      })
+  const handleMoodSelect = async (moodScore: number) => {
+    if (!user?.id) {
       return
     }
-    
-    setLoading(prev => ({ ...prev, mood: true }))
-    
+
+    const previousMood = currentMood ?? null
+    setSelectedMood(moodScore)
+
     const moodEntryData = {
       user_id: user.id,
       date: todayString,
-      mood_score: selectedMood
+      mood_score: moodScore
     }
 
-    console.log('About to call upsertMoodEntry with:', moodEntryData)
-    
     try {
       await upsertMoodEntry(moodEntryData)
-      
       await refetch()
       setSelectedMood(null)
-      
-      toast({
-        title: 'Mood saved!',
-        description: `Your mood (${moodEmojis.find(m => m.score === selectedMood)?.emoji}) has been recorded for today.`
-      })
     } catch (error) {
       console.error('Error saving mood:', error)
+      setSelectedMood(previousMood)
       toast({
         title: 'Error saving mood',
         description: 'There was a problem saving your mood. Please try again.',
         variant: 'destructive'
       })
-    } finally {
-      setLoading(prev => ({ ...prev, mood: false }))
     }
+  }
+
+  const createOptimisticEntry = (payload: {
+    meal: MealType
+    food_labels: string[]
+    calories?: number
+    macros?: { protein: number; carbs: number; fat: number }
+    note?: string
+    photo_url?: string
+    voice_url?: string
+    ai_raw?: unknown
+    journal_mode?: boolean
+  }) => {
+    if (!user?.id) return null
+    const now = new Date().toISOString()
+    return {
+      id: `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      user_id: user.id,
+      date: todayString,
+      meal: payload.meal,
+      photo_url: payload.photo_url ?? null,
+      voice_url: payload.voice_url ?? null,
+      ai_raw: payload.ai_raw ?? null,
+      food_labels: payload.food_labels,
+      calories: payload.calories ?? null,
+      macros: payload.macros ?? null,
+      note: payload.note ?? null,
+      journal_mode: payload.journal_mode ?? false,
+      created_at: now,
+      updated_at: now,
+    } satisfies FoodEntry
   }
 
   const handlePhotoAnalysis = async (result: {
@@ -178,12 +135,23 @@ export default function DashboardPage() {
     photoUrl: string
   }) => {
     if (!user?.id || !selectedMeal) return
-    
+    const optimisticEntry = createOptimisticEntry({
+      meal: selectedMeal,
+      photo_url: result.photoUrl,
+      food_labels: result.foods.map((food) => food.label),
+      calories: result.nutrition.calories,
+      macros: result.nutrition.macros,
+      ai_raw: result,
+    })
+    if (optimisticEntry) {
+      setOptimisticEntries((prev) => [optimisticEntry, ...prev])
+    }
+
     try {
       await insertFoodEntry({
         user_id: user.id,
         date: todayString,
-        meal: selectedMeal as MealType,
+        meal: selectedMeal,
         photo_url: result.photoUrl,
         food_labels: result.foods.map(f => f.label),
         calories: result.nutrition.calories,
@@ -199,7 +167,13 @@ export default function DashboardPage() {
       })
       
       await refetch()
+      if (optimisticEntry) {
+        setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
+      }
     } catch (error) {
+      if (optimisticEntry) {
+        setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
+      }
       console.error('Error saving photo analysis:', error)
       toast({
         title: 'Error saving food entry',
@@ -217,7 +191,19 @@ export default function DashboardPage() {
     voiceUrl: string
   }) => {
     if (!user?.id) return
-    
+    const optimisticEntry = createOptimisticEntry({
+      meal: result.meal as MealType,
+      voice_url: result.voiceUrl,
+      food_labels: result.foods.map((food) => food.label),
+      calories: result.nutrition.calories,
+      macros: result.nutrition.macros,
+      note: result.transcript,
+      ai_raw: result,
+    })
+    if (optimisticEntry) {
+      setOptimisticEntries((prev) => [optimisticEntry, ...prev])
+    }
+
     try {
       await insertFoodEntry({
         user_id: user.id,
@@ -231,7 +217,7 @@ export default function DashboardPage() {
         ai_raw: result
       })
       
-      setSelectedMeal(result.meal)
+      setSelectedMeal(result.meal as MealType)
       
       toast({
         title: 'Food logged successfully!',
@@ -239,7 +225,13 @@ export default function DashboardPage() {
       })
       
       await refetch()
+      if (optimisticEntry) {
+        setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
+      }
     } catch (error) {
+      if (optimisticEntry) {
+        setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
+      }
       console.error('Error saving voice analysis:', error)
       toast({
         title: 'Error saving food entry',
@@ -258,7 +250,18 @@ export default function DashboardPage() {
     journal_mode: boolean
   }) => {
     if (!user?.id) return
-    
+    const optimisticEntry = createOptimisticEntry({
+      meal: data.meal as MealType,
+      food_labels: data.food_labels,
+      calories: data.calories,
+      macros: data.macros,
+      note: data.note,
+      journal_mode: data.journal_mode,
+    })
+    if (optimisticEntry) {
+      setOptimisticEntries((prev) => [optimisticEntry, ...prev])
+    }
+
     try {
       await insertFoodEntry({
         user_id: user.id,
@@ -279,7 +282,13 @@ export default function DashboardPage() {
       })
       
       await refetch()
+      if (optimisticEntry) {
+        setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
+      }
     } catch (error) {
+      if (optimisticEntry) {
+        setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
+      }
       console.error('Error saving manual entry:', error)
       toast({
         title: 'Error saving food entry',
@@ -295,6 +304,16 @@ export default function DashboardPage() {
     nutrition: { calories: number; macros: { protein: number; carbs: number; fat: number } }
   }) => {
     if (!user?.id) return
+    const optimisticEntry = createOptimisticEntry({
+      meal: result.meal as MealType,
+      food_labels: result.foods.map((food) => food.label),
+      calories: result.nutrition.calories,
+      macros: result.nutrition.macros,
+      ai_raw: result,
+    })
+    if (optimisticEntry) {
+      setOptimisticEntries((prev) => [optimisticEntry, ...prev])
+    }
 
     try {
       await insertFoodEntry({
@@ -313,7 +332,13 @@ export default function DashboardPage() {
       })
 
       await refetch()
+      if (optimisticEntry) {
+        setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
+      }
     } catch (error) {
+      if (optimisticEntry) {
+        setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
+      }
       console.error('Error saving AI text analysis:', error)
       toast({
         title: 'Error logging meal',
@@ -394,301 +419,149 @@ export default function DashboardPage() {
     }
   }
 
+  const calorieGoal = 2000
+  const calorieProgress = Math.min((summary.totalCalories / calorieGoal) * 100, 100)
+  const calorieRemaining = calorieGoal - summary.totalCalories
+  const moodMeta = currentMood ? moodEmojis.find((mood) => mood.score === currentMood) : null
+  const macroTotal = summary.macros.protein + summary.macros.carbs + summary.macros.fat
+  const proteinPct = macroTotal > 0 ? Math.round((summary.macros.protein / macroTotal) * 100) : 0
+  const carbsPct = macroTotal > 0 ? Math.round((summary.macros.carbs / macroTotal) * 100) : 0
+  const fatPct = macroTotal > 0 ? Math.round((summary.macros.fat / macroTotal) * 100) : 0
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground flex items-center gap-2">
-          <CalendarIcon className="h-4 w-4" />
-          {todayLabel}
-        </p>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description={todayLabel}
+        action={<DateStepper date={todayString} onDateChange={handleDateChange} />}
+      />
 
-
-      {/* Today's Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Today&apos;s Summary</CardTitle>
-          <CardDescription>Your wellness overview for today</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {dataLoading ? (
-            <div className="flex justify-center py-6">
-              <Loader2 className="h-6 w-6 animate-spin" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">{summary.totalCalories.toLocaleString()}</div>
-                <div className="text-sm text-muted-foreground">Calories</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">{summary.mealsLogged}</div>
-                <div className="text-sm text-muted-foreground">Meals Logged</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl">
-                  {summary.mood ? moodEmojis.find(m => m.score === summary.mood)?.emoji : '—'}
-                </div>
-                <div className="text-sm text-muted-foreground">Mood</div>
-              </div>
-              <div className="text-center">
-                <div className="text-xs space-y-1">
-                  <div>Protein: {summary.macros.protein}g</div>
-                  <div>Carbs: {summary.macros.carbs}g</div>
-                  <div>Fat: {summary.macros.fat}g</div>
-                </div>
-                <div className="text-sm text-muted-foreground">Macros</div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Mood Tracking */}
-      <Card>
-        <CardHeader>
-          <CardTitle>How are you feeling today?</CardTitle>
-          <CardDescription>Track your mood to see patterns with your food</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <MoodPicker selectedMood={selectedMood} onMoodSelect={setSelectedMood} />
-          {selectedMood && (
-            <div className="flex justify-center">
-              <Button onClick={handleMoodSave} disabled={loading.mood}>
-                {loading.mood ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Save Mood
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Food Entry */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Log Your Food</CardTitle>
-          <CardDescription>Track what you eat with photos, voice, or manual entry</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Meal Type Selection */}
-          <div className="space-y-2">
-            <h4 className="font-medium">Select Meal Type</h4>
-            <MealSelector selectedMeal={selectedMeal} onMealSelect={setSelectedMeal} />
-          </div>
-
-          {/* Entry Methods */}
-          {selectedMeal && (
-            <div className="space-y-4">
-              <h4 className="font-medium">How would you like to log this meal?</h4>
-              
-              <Tabs defaultValue="photo" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="photo">Photo</TabsTrigger>
-                  <TabsTrigger value="voice">Voice</TabsTrigger>
-                  <TabsTrigger value="text">Text</TabsTrigger>
-                  <TabsTrigger value="manual">Manual</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="photo" className="space-y-4">
-                  <PhotoUploader
-                    meal={selectedMeal}
-                    date={todayString}
-                    onAnalysisComplete={handlePhotoAnalysis}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="voice" className="space-y-4">
-                  <VoiceRecorder
-                    date={todayString}
-                    selectedMeal={selectedMeal}
-                    onAnalysisComplete={handleVoiceAnalysis}
-                  />
-                </TabsContent>
-
-                <TabsContent value="text" className="space-y-4">
-                  <TextAnalyzer
-                    selectedMeal={selectedMeal}
-                    date={todayString}
-                    onAnalysisComplete={handleTextAnalysis}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="manual" className="space-y-4">
-                  <ManualFoodEntry
-                    meal={selectedMeal}
-                    onSave={handleManualSave}
-                  />
-                </TabsContent>
-              </Tabs>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Recent Entries */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Entries</CardTitle>
-          <CardDescription>Your latest food and mood entries</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Today</h2>
+          <p className="text-sm text-muted-foreground">At-a-glance wellness metrics and your latest logs.</p>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Today&apos;s Summary</CardTitle>
+            <CardDescription>Calories and mood first, details second.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
             {dataLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
-                <span className="ml-2">Loading recent entries...</span>
-              </div>
-            ) : recentEntries.length > 0 ? (
-              recentEntries.map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
-                  <div className="flex items-center space-x-4">
-                    <span className="text-2xl">
-                      {entry.food_labels?.[0] ? '🍽️' : '📝'}
-                    </span>
-                    <div>
-                      <div className="font-medium">
-                        {entry.food_labels?.join(', ') || 'Food entry'}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {entry.meal} • {format(new Date(entry.created_at), 'MMM d, h:mm a')}
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Skeleton className="h-40 w-full" />
+                  <Skeleton className="h-40 w-full" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="rounded-xl border bg-gradient-to-br from-primary/10 to-background p-6">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Calories</p>
+                    <p className="mt-2 text-5xl font-bold leading-none">{summary.totalCalories.toLocaleString()}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">Goal: {calorieGoal.toLocaleString()} kcal</p>
+                    <div className="mt-3 h-2 w-full rounded-full bg-muted">
+                      <div className="h-2 rounded-full bg-primary transition-all" style={{ width: `${calorieProgress}%` }} />
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {calorieRemaining >= 0 ? `${calorieRemaining} kcal left` : `${Math.abs(calorieRemaining)} kcal over`}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border bg-gradient-to-br from-amber-100/40 to-background p-6">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Mood</p>
+                    <div className="mt-2 flex items-end gap-3">
+                      <p className="text-5xl leading-none">{moodMeta?.emoji ?? '—'}</p>
+                      <p className="text-xl font-semibold">{moodMeta?.label ?? 'Not logged'}</p>
+                    </div>
+                    <p className="mt-3 text-xs text-muted-foreground">Tap a mood below to update instantly.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="rounded-lg border p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Meals Logged</p>
+                    <p className="mt-2 text-3xl font-bold">{summary.mealsLogged}</p>
+                    <p className="text-sm text-muted-foreground">Entries recorded for this day.</p>
+                  </div>
+                  <div className="rounded-lg border p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Macros</p>
+                    <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-muted">
+                      <div className="flex h-full">
+                        <div className="bg-blue-500 transition-all" style={{ width: `${proteinPct}%` }} />
+                        <div className="bg-emerald-500 transition-all" style={{ width: `${carbsPct}%` }} />
+                        <div className="bg-orange-500 transition-all" style={{ width: `${fatPct}%` }} />
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary">
-                      {entry.calories ? `${entry.calories} cal` : 'No cal data'}
-                    </Badge>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEditEntry(entry)}>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => handleDeleteEntry(entry)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="mt-2 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                      <span>P {summary.macros.protein}g ({proteinPct}%)</span>
+                      <span>C {summary.macros.carbs}g ({carbsPct}%)</span>
+                      <span>F {summary.macros.fat}g ({fatPct}%)</span>
+                    </div>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="text-center text-muted-foreground py-8">
-                <span className="text-4xl block mb-4">🍽️</span>
-                <p>No recent entries</p>
-                <p className="text-sm">Start logging food above to see your entries here</p>
-              </div>
+              </>
             )}
+          </CardContent>
+        </Card>
+
+        <RecentEntriesList
+        title="Recent Entries"
+        description="Your latest food and mood entries"
+        entries={displayedRecentEntries}
+        loading={dataLoading}
+        loadingText="Loading recent entries..."
+        emptyTitle="No recent entries"
+        emptyDescription="Start logging food above to see your entries here"
+        emptyCtaLabel="Log breakfast"
+        onEmptyCta={() => setSelectedMeal('breakfast')}
+        onEditEntry={handleEditEntry}
+        onDeleteEntry={handleDeleteEntry}
+      />
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Log</h2>
+          <p className="text-sm text-muted-foreground">Capture mood and meals with the fastest path.</p>
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+          <Card className="xl:col-span-2">
+            <CardHeader>
+              <CardTitle>How are you feeling today?</CardTitle>
+              <CardDescription>Track your mood to see patterns with your food.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <MoodPicker selectedMood={currentMood} onMoodSelect={handleMoodSelect} />
+            </CardContent>
+          </Card>
+          <div className="xl:col-span-3">
+            <LogFoodCard
+              title="Log Your Food"
+              description="Track what you eat with photos, voice, or manual entry"
+              selectedMeal={selectedMeal}
+              onMealSelect={setSelectedMeal}
+              date={todayString}
+              onPhotoAnalysis={handlePhotoAnalysis}
+              onVoiceAnalysis={handleVoiceAnalysis}
+              onTextAnalysis={handleTextAnalysis}
+              onManualSave={handleManualSave}
+            />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      {/* Edit Entry Dialog */}
-      <Dialog open={!!editingEntry} onOpenChange={() => setEditingEntry(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Food Entry</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-meal">Meal Type</Label>
-              <Select value={editForm.meal} onValueChange={(value) => setEditForm(prev => ({ ...prev, meal: value }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="breakfast">🌅 Breakfast</SelectItem>
-                  <SelectItem value="lunch">☀️ Lunch</SelectItem>
-                  <SelectItem value="dinner">🌙 Dinner</SelectItem>
-                  <SelectItem value="snack">🍎 Snack</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-foods">Food Items</Label>
-              <Input
-                id="edit-foods"
-                value={editForm.food_labels.join(', ')}
-                onChange={(e) => setEditForm(prev => ({ 
-                  ...prev, 
-                  food_labels: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
-                }))}
-                placeholder="Separate items with commas"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-calories">Calories</Label>
-                <Input
-                  id="edit-calories"
-                  type="number"
-                  value={editForm.calories || ''}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, calories: Number(e.target.value) }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-protein">Protein (g)</Label>
-                <Input
-                  id="edit-protein"
-                  type="number"
-                  value={editForm.protein || ''}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, protein: Number(e.target.value) }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-carbs">Carbs (g)</Label>
-                <Input
-                  id="edit-carbs"
-                  type="number"
-                  value={editForm.carbs || ''}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, carbs: Number(e.target.value) }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-fat">Fat (g)</Label>
-                <Input
-                  id="edit-fat"
-                  type="number"
-                  value={editForm.fat || ''}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, fat: Number(e.target.value) }))}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-note">Note (optional)</Label>
-              <Input
-                id="edit-note"
-                value={editForm.note}
-                onChange={(e) => setEditForm(prev => ({ ...prev, note: e.target.value }))}
-                placeholder="Add any additional notes"
-              />
-            </div>
-
-            <div className="flex gap-2 pt-4">
-              <Button onClick={handleSaveEdit} className="flex-1">
-                Save Changes
-              </Button>
-              <Button variant="outline" onClick={() => setEditingEntry(null)}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <EntryEditorDialog
+        entry={editingEntry}
+        form={editForm}
+        setForm={setEditForm}
+        onSave={handleSaveEdit}
+        onClose={() => setEditingEntry(null)}
+      />
     </div>
   )
 }

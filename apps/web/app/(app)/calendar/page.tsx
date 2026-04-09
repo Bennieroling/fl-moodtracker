@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
 import { useCalendarMonthData, useCalendarDayData } from '@/hooks/useCalendarData'
@@ -9,9 +9,13 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Edit, Trash2 } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, addDays, subDays } from 'date-fns'
-import { MoodEntry } from '@/lib/types/database'
+import { MoodEntry, FoodEntry, MealType } from '@/lib/types/database'
+import { toast } from '@/hooks/use-toast'
+import { upsertMoodEntry, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
+import { MoodPicker, EntryEditorDialog, type EntryEditForm } from '@/components/entry'
+import { PageHeader } from '@/components/page-header'
 
 const moodEmojis = [
   { score: 1, emoji: '😢', label: 'Very Bad', color: 'bg-red-100 border-red-300 text-red-800' },
@@ -29,6 +33,11 @@ function getMoodEmoji(score: number | undefined): string {
 function getMoodColor(score: number | undefined): string {
   if (!score) return ''
   return moodEmojis.find(m => m.score === score)?.color || ''
+}
+
+function getMoodLabel(score: number | undefined): string {
+  if (!score) return 'No mood logged'
+  return moodEmojis.find((m) => m.score === score)?.label ?? 'Mood logged'
 }
 
 function formatMetric(value: number | null | undefined, options: Intl.NumberFormatOptions = {}) {
@@ -120,13 +129,29 @@ export default function CalendarPage() {
     return Number.isNaN(parsed.getTime()) ? new Date() : parsed
   }, [calendarFilters.currentMonth])
   const [dailySummaryOpen, setDailySummaryOpen] = useState(false)
-  const { data: monthEntries, loading: monthLoading } = useCalendarMonthData()
-  const { data: dayData, loading: dayLoading } = useCalendarDayData()
+  const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null)
+  const [editForm, setEditForm] = useState<EntryEditForm>({
+    meal: '',
+    food_labels: [],
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+    note: '',
+  })
+  const [selectedMood, setSelectedMood] = useState<number | null>(null)
+  const { data: monthEntries, loading: monthLoading, refetch: refetchMonth } = useCalendarMonthData()
+  const { data: dayData, loading: dayLoading, refetch: refetchDay } = useCalendarDayData()
   const moodEntries = monthEntries || []
   const dailyMoodEntry = dayData?.mood ?? null
   const dailyFoodEntries = dayData?.foodEntries ?? []
   const dailyActivity = dayData?.activity ?? null
   const selectedDate = calendarFilters.selectedDate
+  const currentMood = selectedMood ?? dailyMoodEntry?.mood_score ?? null
+
+  useEffect(() => {
+    setSelectedMood(null)
+  }, [selectedDate, dailySummaryOpen])
 
   const monthStart = startOfMonth(currentDate)
   const monthEnd = endOfMonth(currentDate)
@@ -142,11 +167,27 @@ export default function CalendarPage() {
     return acc
   }, {} as Record<string, number>)
 
-  const handleDayClick = async (dateKey: string) => {
+  const handleDayClick = (dateKey: string) => {
     if (!user) return
     
     setCalendarFilters((prev) => ({ ...prev, selectedDate: dateKey }))
     setDailySummaryOpen(true)
+  }
+
+  const handleDayKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, day: Date) => {
+    let offset = 0
+    if (event.key === 'ArrowLeft') offset = -1
+    if (event.key === 'ArrowRight') offset = 1
+    if (event.key === 'ArrowUp') offset = -7
+    if (event.key === 'ArrowDown') offset = 7
+    if (offset === 0) return
+
+    event.preventDefault()
+    const targetDate = format(addDays(day, offset), 'yyyy-MM-dd')
+    const targetButton = document.querySelector<HTMLButtonElement>(`button[data-date="${targetDate}"]`)
+    if (targetButton) {
+      targetButton.focus()
+    }
   }
 
   const navigateMonth = (direction: 'prev' | 'next') => {
@@ -164,15 +205,109 @@ export default function CalendarPage() {
     }))
   }
 
+  const handleMoodSelect = async (moodScore: number) => {
+    if (!user?.id || !selectedDate) return
+    const previousMood = currentMood
+    setSelectedMood(moodScore)
+
+    try {
+      await upsertMoodEntry({
+        user_id: user.id,
+        date: selectedDate,
+        mood_score: moodScore,
+      })
+      await Promise.all([refetchDay(), refetchMonth()])
+      setSelectedMood(null)
+    } catch (error) {
+      console.error('Error saving mood from calendar modal:', error)
+      setSelectedMood(previousMood)
+      toast({
+        title: 'Error saving mood',
+        description: 'There was a problem saving your mood. Please try again.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleEditEntry = (entry: FoodEntry) => {
+    setEditingEntry(entry)
+    setEditForm({
+      meal: entry.meal,
+      food_labels: entry.food_labels || [],
+      calories: entry.calories || 0,
+      protein: entry.macros?.protein || 0,
+      carbs: entry.macros?.carbs || 0,
+      fat: entry.macros?.fat || 0,
+      note: entry.note || '',
+    })
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingEntry || !user?.id) return
+
+    try {
+      await updateFoodEntry(editingEntry.id, {
+        meal: editForm.meal as MealType,
+        food_labels: editForm.food_labels,
+        calories: editForm.calories || undefined,
+        macros:
+          editForm.calories > 0
+            ? {
+                protein: editForm.protein,
+                carbs: editForm.carbs,
+                fat: editForm.fat,
+              }
+            : undefined,
+        note: editForm.note || undefined,
+      })
+
+      setEditingEntry(null)
+      await refetchDay()
+      toast({
+        title: 'Entry updated',
+        description: 'Your food entry was updated for this day.',
+      })
+    } catch (error) {
+      console.error('Error updating calendar entry:', error)
+      toast({
+        title: 'Error updating entry',
+        description: 'There was a problem updating this entry.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleDeleteEntry = async (entry: FoodEntry) => {
+    if (!user?.id) return
+    if (!confirm('Are you sure you want to delete this entry?')) return
+
+    try {
+      await deleteFoodEntry(entry.id)
+      await refetchDay()
+      toast({
+        title: 'Entry deleted',
+        description: 'The food entry was removed.',
+      })
+    } catch (error) {
+      console.error('Error deleting calendar entry:', error)
+      toast({
+        title: 'Error deleting entry',
+        description: 'There was a problem deleting this entry.',
+        variant: 'destructive',
+      })
+    }
+  }
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Calendar</h1>
-        <Button onClick={goToToday} variant="outline">
-          Today
-        </Button>
-      </div>
+      <PageHeader
+        title="Calendar"
+        action={(
+          <Button onClick={goToToday} variant="outline">
+            Today
+          </Button>
+        )}
+      />
 
       {/* Calendar */}
       <Card>
@@ -186,6 +321,7 @@ export default function CalendarPage() {
                 variant="outline"
                 size="icon"
                 onClick={() => navigateMonth('prev')}
+                aria-label="Previous month"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -193,6 +329,7 @@ export default function CalendarPage() {
                 variant="outline"
                 size="icon"
                 onClick={() => navigateMonth('next')}
+                aria-label="Next month"
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -223,13 +360,19 @@ export default function CalendarPage() {
               const isToday = isSameDay(day, new Date())
               const isCurrentMonth = isSameMonth(day, currentDate)
               const moodColor = getMoodColor(mood)
+              const moodLabel = getMoodLabel(mood)
+              const ariaLabel = `${format(day, 'EEEE, MMMM d, yyyy')}. ${moodLabel}.`
 
               return (
-                <div
+                <button
+                  type="button"
                   key={dateKey}
+                  data-date={dateKey}
                   onClick={() => handleDayClick(dateKey)}
+                  onKeyDown={(event) => handleDayKeyDown(event, day)}
+                  aria-label={ariaLabel}
                   className={`
-                    p-2 h-16 border rounded-lg cursor-pointer transition-all hover:opacity-90
+                    p-2 h-16 border rounded-lg transition-all hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
                     ${isToday ? 'ring-2 ring-primary' : ''}
                     ${!isCurrentMonth ? 'opacity-40' : ''}
                     ${mood ? moodColor : 'hover:bg-muted'}
@@ -245,7 +388,7 @@ export default function CalendarPage() {
                       </span>
                     )}
                   </div>
-                </div>
+                </button>
               )
             })}
           </div>
@@ -419,33 +562,23 @@ export default function CalendarPage() {
               </Card>
 
               {/* Mood Section */}
-              {dailyMoodEntry && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Mood</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-4">
-                        <span className="text-3xl">{getMoodEmoji(dailyMoodEntry.mood_score)}</span>
-                        <div>
-                          <div className="font-medium">
-                            {moodEmojis.find(m => m.score === dailyMoodEntry.mood_score)?.label}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {format(parseISO(dailyMoodEntry.created_at), 'h:mm a')}
-                          </div>
-                        </div>
-                      </div>
-                      {dailyMoodEntry.note && (
-                        <div className="p-4 bg-muted rounded-lg">
-                          <p className="text-sm">{dailyMoodEntry.note}</p>
-                        </div>
-                      )}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Mood</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <MoodPicker selectedMood={currentMood} onMoodSelect={handleMoodSelect} />
+                  {dailyMoodEntry ? (
+                    <div className="text-center text-sm text-muted-foreground">
+                      Last updated at {format(parseISO(dailyMoodEntry.created_at), 'h:mm a')}
                     </div>
-                  </CardContent>
-                </Card>
-              )}
+                  ) : (
+                    <div className="text-center text-sm text-muted-foreground">
+                      No mood logged yet for this day.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Food Entries */}
               <Card>
@@ -487,6 +620,20 @@ export default function CalendarPage() {
                                   )}
                                 </div>
                               )}
+                              <div className="flex items-center gap-2 pt-2">
+                                <Button variant="ghost" size="icon" onClick={() => handleEditEntry(entry)} aria-label="Edit entry">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteEntry(entry)}
+                                  aria-label="Delete entry"
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
                           
@@ -503,6 +650,13 @@ export default function CalendarPage() {
               </Card>
             </div>
           )}
+          <EntryEditorDialog
+            entry={editingEntry}
+            form={editForm}
+            setForm={setEditForm}
+            onSave={handleSaveEdit}
+            onClose={() => setEditingEntry(null)}
+          />
         </DialogContent>
       </Dialog>
     </div>

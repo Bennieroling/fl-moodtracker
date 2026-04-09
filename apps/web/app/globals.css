@@ -4,6 +4,11 @@
 
 @layer base {
   :root {
+    /*
+     * Sofi visual palette (Phase 0 baseline, April 9, 2026)
+     * Accent direction for upcoming UI work: fresh green (reference: hsl(142 76% 36%)).
+     * Chart tokens are verified and reserved for data-viz consistency across Dashboard/Insights.
+     */
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;
@@ -65,5 +70,16 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

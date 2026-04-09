@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Calendar, BarChart3, User, Settings, LogOut, Apple, History, Dumbbell } from 'lucide-react'
+import { Calendar, BarChart3, User, Settings, LogOut, Apple, History, Dumbbell, UtensilsCrossed } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -72,7 +72,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <div className="container flex h-14 items-center">
           <div className="mr-4 flex">
             <Link href="/dashboard" className="mr-6 flex items-center space-x-2">
-              <span className="text-2xl">🍎</span>
+              <UtensilsCrossed className="h-5 w-5 text-primary" />
               <span className="font-bold">Sofi</span>
             </Link>
           </div>

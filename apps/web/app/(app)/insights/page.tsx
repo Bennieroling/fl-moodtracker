@@ -4,12 +4,17 @@ import { useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { Sparkles, TrendingUp, Calendar, Brain, BarChart3 } from 'lucide-react'
 import { toast } from 'sonner'
+import { Bar, BarChart, CartesianGrid, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from 'recharts'
+import Link from 'next/link'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { SummarySkeleton } from '@/components/skeletons/summary-skeleton'
+import { InsightsChartsSkeleton } from '@/components/skeletons/insights-charts-skeleton'
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
 import { defaultInsightsData, useInsightsData } from '@/hooks/useInsightsData'
+import { PageHeader } from '@/components/page-header'
 
 export default function InsightsPage() {
   const { user } = useAuth()
@@ -22,6 +27,10 @@ export default function InsightsPage() {
 
   const insights = data ?? defaultInsightsData
   const { weeklyMetrics, weeklyData, macroData, aiSummary, aiTips, lastGenerated } = insights
+  const topFoodChartData = weeklyMetrics.topFoods.slice(0, 5).map((food, index) => ({
+    name: food,
+    value: 5 - index,
+  }))
 
   const generateAIInsights = async () => {
     if (!user) return
@@ -57,15 +66,7 @@ export default function InsightsPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
-
-  if (error) {
+  if (error && !loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="max-w-md w-full mx-4">
@@ -85,213 +86,199 @@ export default function InsightsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Insights</h1>
-          <p className="text-muted-foreground">
-            Weekly analytics for {format(startDateObj, 'MMM d')} - {format(endDateObj, 'MMM d')}
-          </p>
-        </div>
-        <Button onClick={generateAIInsights} disabled={generatingInsights || !user}>
-          {generatingInsights ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
-              Generating...
-            </>
-          ) : (
-            <>
-              <Sparkles className="mr-2 h-4 w-4" />
-              Generate AI Insights
-            </>
-          )}
-        </Button>
-      </div>
+      <PageHeader
+        title="Insights"
+        description={`Weekly analytics for ${format(startDateObj, 'MMM d')} - ${format(endDateObj, 'MMM d')}`}
+        action={(
+          <Button onClick={generateAIInsights} disabled={generatingInsights || !user}>
+            {generatingInsights ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-2 h-4 w-4" />
+                Generate AI Insights
+              </>
+            )}
+          </Button>
+        )}
+      />
 
       {/* Weekly Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Mood</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{weeklyMetrics.avgMood.toFixed(1)}/5</div>
-            <p className="text-xs text-muted-foreground">
-              +0.3 from last week
-            </p>
-          </CardContent>
-        </Card>
+      {loading ? (
+        <SummarySkeleton cards={4} className="grid-cols-1 md:grid-cols-4" />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="bg-gradient-to-br from-blue-500/10 to-background">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Average Mood</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold">{weeklyMetrics.avgMood.toFixed(1)}<span className="text-base text-muted-foreground">/5</span></div>
+              <p className="text-xs text-muted-foreground">From {weeklyMetrics.moodEntries} logged moods</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Calories</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{weeklyMetrics.kcalTotal.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              Avg {Math.round(weeklyMetrics.kcalTotal / 7)} per day
-            </p>
-          </CardContent>
-        </Card>
+          <Card className="bg-gradient-to-br from-emerald-500/10 to-background">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Total Calories</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold">{weeklyMetrics.kcalTotal.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">
+                Avg {Math.round(weeklyMetrics.kcalTotal / 7)} kcal per day
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Meals Logged</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{weeklyMetrics.foodEntries}</div>
-            <p className="text-xs text-muted-foreground">
-              {Math.round(weeklyMetrics.foodEntries / 7 * 10) / 10} per day
-            </p>
-          </CardContent>
-        </Card>
+          <Card className="bg-gradient-to-br from-orange-500/10 to-background">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Meals Logged</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold">{weeklyMetrics.foodEntries}</div>
+              <p className="text-xs text-muted-foreground">
+                {Math.round((weeklyMetrics.foodEntries / 7) * 10) / 10} meals/day
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tracking Streak</CardTitle>
-            <Brain className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">7</div>
-            <p className="text-xs text-muted-foreground">
-              Days in a row
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+          <Card className="bg-gradient-to-br from-violet-500/10 to-background">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Top Foods</CardTitle>
+              <Brain className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold">{weeklyMetrics.topFoods.length}</div>
+              <p className="text-xs text-muted-foreground">
+                Distinct frequent foods this week
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Charts Section - Visual Representation */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Mood vs Calories Data */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Weekly Mood & Calories Trend
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {weeklyData.length > 0 && weeklyData.some((day) => day.mood > 0 || day.calories > 0) ? (
-              <div className="space-y-4">
-                {weeklyData.map((day, index) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <span className="text-sm font-medium w-12">{day.date}</span>
-                      <div className="flex gap-1">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <div
-                            key={star}
-                            className={`w-3 h-3 rounded-full ${
-                              star <= day.mood ? 'bg-blue-500' : 'bg-gray-200'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {day.calories > 0 ? `${day.calories} cal` : 'No data'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center text-muted-foreground py-8">
-                <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No data available for this week</p>
-                <p className="text-sm">Start tracking to see trends</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Macro Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Macro Distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {macroData.some((macro) => macro.value > 0) ? (
-                macroData.map((macro) => (
-                  <div key={macro.name}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">{macro.name}</span>
-                      <span className="text-sm text-muted-foreground">{macro.value}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="h-2 rounded-full transition-all duration-500"
-                        style={{ 
-                          width: `${macro.value}%`, 
-                          backgroundColor: macro.color 
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))
+      {loading ? (
+        <InsightsChartsSkeleton />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Weekly Mood & Calories Trend
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="h-72">
+              {weeklyData.length > 0 && weeklyData.some((day) => day.mood > 0 || day.calories > 0) ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={weeklyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.2)" />
+                    <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <YAxis yAxisId="mood" domain={[0, 5]} stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <YAxis yAxisId="calories" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <Tooltip />
+                    <Line yAxisId="mood" type="monotone" dataKey="mood" name="Mood" stroke="hsl(var(--chart-1))" strokeWidth={3} dot={{ r: 4 }} />
+                    <Line yAxisId="calories" type="monotone" dataKey="calories" name="Calories" stroke="hsl(var(--chart-2))" strokeWidth={3} dot={{ r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
               ) : (
-                <div className="text-center text-muted-foreground py-8">
-                  <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No nutrition data available</p>
-                  <p className="text-sm">Log meals to see macro distribution</p>
+                <div className="text-center text-muted-foreground py-16 space-y-3">
+                  <p>No data available for this week</p>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href="/dashboard">Log a meal</Link>
+                  </Button>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Macro Distribution
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="h-72">
+              {macroData.some((macro) => macro.value > 0) ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={macroData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={90} paddingAngle={3}>
+                      {macroData.map((entry, index) => (
+                        <Cell key={`${entry.name}-${index}`} fill={`hsl(var(--chart-${index + 1}))`} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => [`${value}%`, 'Share']} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="text-center text-muted-foreground py-16 space-y-3">
+                  <p>No nutrition data available</p>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href="/dashboard">Start logging</Link>
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Top Foods */}
+      {loading ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Most Frequent Foods</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <SummarySkeleton cards={1} className="grid-cols-1" />
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Top Foods */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Brain className="h-5 w-5" />
-            Most Frequent Foods
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {weeklyMetrics.topFoods.slice(0, 5).map((food, index) => (
-              <div key={food} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-sm font-medium">
-                    {index + 1}
-                  </span>
-                  <span className="font-medium">{food}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-20 bg-gray-200 rounded-full h-2">
-                    <div
-                      className="h-2 bg-blue-500 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.max(20, (5 - index) * 20)}%` }}
-                    />
-                  </div>
-                  <span className="text-sm text-muted-foreground w-8">
-                    Top {index + 1}
-                  </span>
-                </div>
-              </div>
-            ))}
-            {weeklyMetrics.topFoods.length === 0 && (
-              <div className="text-center text-muted-foreground py-8">
-                No food data available for this week
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5" />
+              Most Frequent Foods
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="h-72">
+            {topFoodChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topFoodChartData} layout="vertical" margin={{ left: 12, right: 12 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.2)" />
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }} />
+                  <Tooltip formatter={(value) => [`Rank score ${value}`, 'Frequency']} />
+                  <Bar dataKey="value" fill="hsl(var(--chart-3))" radius={[0, 8, 8, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-center text-muted-foreground py-16 space-y-3">
+                <p>No food data available for this week</p>
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/dashboard">Log your first meal</Link>
+                </Button>
               </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* AI-Generated Insights */}
       {(aiSummary || aiTips) && (
         <div className="space-y-4">
           {aiSummary && (
-            <Card>
+            <Card className="border-primary/30 bg-gradient-to-br from-primary/10 to-background">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5" />
@@ -314,10 +301,10 @@ export default function InsightsPage() {
           )}
 
           {aiTips && (
-            <Card>
+            <Card className="border-primary/30 bg-gradient-to-br from-primary/10 to-background">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Brain className="h-5 w-5" />
+                  <Sparkles className="h-5 w-5" />
                   Personalized Tips
                 </CardTitle>
               </CardHeader>

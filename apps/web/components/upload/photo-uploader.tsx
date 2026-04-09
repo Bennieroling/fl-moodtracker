@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Camera, Upload, Loader2, X, Image as ImageIcon, Edit, Check } from 'lucide-react'
+import { Camera, Upload, Loader2, X, Image as ImageIcon, Edit, Check, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { MealTypeSchema, AIVisionResponseSchema, type AIVisionResponse } from '@/lib/validations'
 import { toast } from 'sonner'
@@ -41,6 +41,7 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
   const [editedProtein, setEditedProtein] = useState<number>(0)
   const [editedCarbs, setEditedCarbs] = useState<number>(0)
   const [editedFat, setEditedFat] = useState<number>(0)
+  const [editedFoods, setEditedFoods] = useState<Array<{ label: string; confidence: number; quantity?: string }>>([])
   const [photoUrl, setPhotoUrl] = useState<string>('')
 
   // Reset state
@@ -156,6 +157,7 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
       setEditedProtein(validatedResult.nutrition.macros.protein)
       setEditedCarbs(validatedResult.nutrition.macros.carbs)
       setEditedFat(validatedResult.nutrition.macros.fat)
+      setEditedFoods(validatedResult.foods)
 
       toast.success('Photo analyzed successfully! Please review and confirm.')
 
@@ -174,7 +176,9 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
     if (!analysis || !onAnalysisComplete) return
 
     onAnalysisComplete({
-      foods: analysis.foods,
+      foods: editedFoods
+        .map((food) => ({ ...food, label: food.label.trim() }))
+        .filter((food) => food.label.length > 0),
       nutrition: {
         calories: editedCalories,
         macros: {
@@ -185,7 +189,7 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
       },
       photoUrl: photoUrl
     })
-  }, [analysis, onAnalysisComplete, editedCalories, editedProtein, editedCarbs, editedFat, photoUrl])
+  }, [analysis, onAnalysisComplete, editedCalories, editedProtein, editedCarbs, editedFat, editedFoods, photoUrl])
 
   // Start editing
   const startEditing = () => {
@@ -202,6 +206,7 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
     setEditedProtein(analysis.nutrition.macros.protein)
     setEditedCarbs(analysis.nutrition.macros.carbs)
     setEditedFat(analysis.nutrition.macros.fat)
+    setEditedFoods(analysis.foods)
     setIsEditing(false)
   }
 
@@ -342,18 +347,58 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
                 {/* Detected Foods */}
                 <div className="space-y-2">
                   <h5 className="text-sm font-medium">Detected Foods:</h5>
-                  <div className="flex flex-wrap gap-2">
-                    {analysis.foods.map((food, index: number) => (
-                      <Badge key={index} variant="outline">
-                        {food.label} 
-                        {food.confidence && (
-                          <span className="ml-1 text-xs opacity-70">
-                            ({Math.round(food.confidence * 100)}%)
-                          </span>
-                        )}
-                      </Badge>
-                    ))}
-                  </div>
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      {editedFoods.map((food, index) => (
+                        <div key={`${food.label}-${index}`} className="flex items-center gap-2">
+                          <Input
+                            value={food.label}
+                            onChange={(e) =>
+                              setEditedFoods((prev) =>
+                                prev.map((item, itemIndex) =>
+                                  itemIndex === index ? { ...item, label: e.target.value } : item
+                                )
+                              )
+                            }
+                          />
+                          <Badge variant="outline" className="whitespace-nowrap">
+                            {Math.round(food.confidence * 100)}%
+                          </Badge>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setEditedFoods((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
+                            aria-label="Remove detected food"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditedFoods((prev) => [...prev, { label: '', confidence: 1 }])}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Food
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {editedFoods.map((food, index: number) => (
+                        <Badge key={index} variant="outline">
+                          {food.label}
+                          {food.confidence && (
+                            <span className="ml-1 text-xs opacity-70">
+                              ({Math.round(food.confidence * 100)}%)
+                            </span>
+                          )}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Meal type */}
