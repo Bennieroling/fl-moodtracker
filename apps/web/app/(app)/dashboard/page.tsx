@@ -467,9 +467,22 @@ export default function DashboardPage() {
     }
   }
 
-  const calorieGoal = 2000
+  const calorieGoal = data?.targets?.calorie_intake ?? 2000
+  const stepsGoal = data?.targets?.steps ?? 10000
+  const exerciseGoal = data?.targets?.exercise_minutes ?? 30
   const calorieProgress = Math.min((summary.totalCalories / calorieGoal) * 100, 100)
   const calorieRemaining = calorieGoal - summary.totalCalories
+  const stepsValue = data?.activity?.steps != null ? Number(data.activity.steps) : null
+  const stepsProgress = stepsValue != null ? Math.min((stepsValue / stepsGoal) * 100, 100) : 0
+  const exerciseValue =
+    data?.activity?.exercise_time_minutes != null ? Number(data.activity.exercise_time_minutes) : null
+  const exerciseProgress =
+    exerciseValue != null ? Math.min((exerciseValue / exerciseGoal) * 100, 100) : 0
+  const activeEnergy = Number(data?.activity?.active_energy_kcal ?? 0)
+  const restingEnergy = Number(data?.activity?.resting_energy_kcal ?? 0)
+  const burnedTotal = activeEnergy + restingEnergy
+  const hasBurnData = burnedTotal > 0
+  const netEnergy = summary.totalCalories - burnedTotal
   const moodMeta = currentMood ? moodEmojis.find((mood) => mood.score === currentMood) : null
   return (
     <div className="space-y-6">
@@ -538,11 +551,17 @@ export default function DashboardPage() {
                       <Footprints className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <p className="mt-2 text-3xl font-bold">
-                      {data?.activity?.steps != null
-                        ? Number(data.activity.steps).toLocaleString()
-                        : '--'}
+                      {stepsValue != null ? stepsValue.toLocaleString() : '--'}
                     </p>
-                    <p className="text-sm text-muted-foreground">Total steps for the day.</p>
+                    <div className="mt-3 h-2 w-full rounded-full bg-muted">
+                      <div
+                        className="h-2 rounded-full bg-emerald-500 transition-all"
+                        style={{ width: `${stepsProgress}%` }}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Goal: {stepsGoal.toLocaleString()}
+                    </p>
                   </div>
                   <div className="rounded-lg border p-4">
                     <div className="flex items-center justify-between">
@@ -550,12 +569,34 @@ export default function DashboardPage() {
                       <Activity className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <p className="mt-2 text-3xl font-bold">
-                      {data?.activity?.exercise_time_minutes != null
-                        ? `${Math.round(Number(data.activity.exercise_time_minutes))} min`
-                        : '--'}
+                      {exerciseValue != null ? `${Math.round(exerciseValue)} min` : '--'}
                     </p>
-                    <p className="text-sm text-muted-foreground">Active workout minutes.</p>
+                    <div className="mt-3 h-2 w-full rounded-full bg-muted">
+                      <div
+                        className="h-2 rounded-full bg-blue-500 transition-all"
+                        style={{ width: `${exerciseProgress}%` }}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">Goal: {exerciseGoal} min</p>
                   </div>
+                </div>
+
+                <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                  <p className="text-caption">Energy Balance</p>
+                  {hasBurnData ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Eaten {summary.totalCalories.toLocaleString()} kcal
+                      {' • '}
+                      Burned {Math.round(burnedTotal).toLocaleString()} kcal
+                      {' • '}
+                      Net: {netEnergy >= 0 ? '+' : '−'}
+                      {Math.abs(Math.round(netEnergy)).toLocaleString()} kcal
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Eaten {summary.totalCalories.toLocaleString()} kcal • No burn data synced yet
+                    </p>
+                  )}
                 </div>
               </>
             )}

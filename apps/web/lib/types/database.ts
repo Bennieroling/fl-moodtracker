@@ -2,6 +2,20 @@ export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type Units = 'metric' | 'imperial';
 export type ModelProvider = 'openai' | 'gemini';
 
+export type DailyTargets = {
+  steps: number;
+  exercise_minutes: number;
+  calorie_intake: number;
+  active_energy: number;
+};
+
+export const DEFAULT_DAILY_TARGETS: DailyTargets = {
+  steps: 10000,
+  exercise_minutes: 30,
+  calorie_intake: 2000,
+  active_energy: 600,
+};
+
 export interface Database {
   public: {
     Tables: {
@@ -185,6 +199,7 @@ export interface Database {
           onboarding_completed: boolean;
           onboarding_preferred_method: 'photo' | 'voice' | 'text' | 'manual' | null;
           onboarding_completed_at: string | null;
+          daily_targets: DailyTargets | null;
           created_at: string;
           updated_at: string;
         };
@@ -199,6 +214,7 @@ export interface Database {
           onboarding_completed?: boolean;
           onboarding_preferred_method?: 'photo' | 'voice' | 'text' | 'manual' | null;
           onboarding_completed_at?: string | null;
+          daily_targets?: DailyTargets | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -213,6 +229,7 @@ export interface Database {
           onboarding_completed?: boolean;
           onboarding_preferred_method?: 'photo' | 'voice' | 'text' | 'manual' | null;
           onboarding_completed_at?: string | null;
+          daily_targets?: DailyTargets | null;
           updated_at?: string;
         };
         Relationships: never[];

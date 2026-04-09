@@ -4,8 +4,8 @@ import { useMemo, useCallback } from 'react'
 
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
-import { DailyActivity, getDashboardSummary, getDailyActivityByDate, getRecentEntries } from '@/lib/database'
-import { FoodEntry } from '@/lib/types/database'
+import { DailyActivity, getDashboardSummary, getDailyActivityByDate, getRecentEntries, getUserTargets } from '@/lib/database'
+import { FoodEntry, DailyTargets, DEFAULT_DAILY_TARGETS } from '@/lib/types/database'
 import { useFilterQuery } from '@/hooks/useFilterQuery'
 
 interface DashboardData {
@@ -18,6 +18,7 @@ interface DashboardData {
   }
   recentEntries: FoodEntry[]
   activity: DailyActivity | null
+  targets: DailyTargets
 }
 
 const defaultSummary = {
@@ -32,6 +33,7 @@ const defaultData: DashboardData = {
   summary: defaultSummary,
   recentEntries: [],
   activity: null,
+  targets: { ...DEFAULT_DAILY_TARGETS },
 }
 
 export const useDashboardData = () => {
@@ -43,15 +45,17 @@ export const useDashboardData = () => {
 
   const fetcher = useCallback(async () => {
     if (!user?.id) return defaultData
-    const [summary, recentEntries, activity] = await Promise.all([
+    const [summary, recentEntries, activity, targets] = await Promise.all([
       getDashboardSummary(user.id, date),
       getRecentEntries(user.id, 5),
       getDailyActivityByDate(user.id, date),
+      getUserTargets(user.id),
     ])
     return {
       summary: summary ?? defaultSummary,
       recentEntries: (recentEntries as FoodEntry[]) ?? [],
       activity: activity ?? null,
+      targets: targets ?? { ...DEFAULT_DAILY_TARGETS },
     }
   }, [user?.id, date])
 

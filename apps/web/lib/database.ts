@@ -1,7 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase-browser'
-import { MoodEntryInsert, FoodEntryInsert, MealType, ExerciseEvent, HealthMetricsBody } from '@/lib/types/database'
+import { MoodEntryInsert, FoodEntryInsert, MealType, ExerciseEvent, HealthMetricsBody, DailyTargets, DEFAULT_DAILY_TARGETS } from '@/lib/types/database'
 import { format } from 'date-fns'
 
 const supabase = createClient()
@@ -593,6 +593,45 @@ export async function getDashboardSummary(userId: string, date: string) {
       macros: { protein: 0, carbs: 0, fat: 0 },
       foodEntries: []
     }
+  }
+}
+
+// Daily targets
+export async function getUserTargets(userId: string): Promise<DailyTargets> {
+  try {
+    const supabaseAny = supabase as any
+    const { data, error } = await supabaseAny
+      .from('user_preferences')
+      .select('daily_targets')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (error) throw error
+    const stored = (data?.daily_targets ?? null) as Partial<DailyTargets> | null
+    return { ...DEFAULT_DAILY_TARGETS, ...(stored ?? {}) }
+  } catch (error) {
+    console.error('Error fetching user targets:', error)
+    return { ...DEFAULT_DAILY_TARGETS }
+  }
+}
+
+export async function updateUserTargets(userId: string, targets: DailyTargets): Promise<void> {
+  try {
+    const supabaseAny = supabase as any
+    const { error } = await supabaseAny
+      .from('user_preferences')
+      .upsert(
+        {
+          user_id: userId,
+          daily_targets: targets,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' }
+      )
+    if (error) throw error
+  } catch (error) {
+    console.error('Error updating user targets:', error)
+    throw error
   }
 }
 

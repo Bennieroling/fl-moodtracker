@@ -31,7 +31,14 @@ import {
   BarChart3,
   RefreshCw,
   Loader2,
+  Footprints,
+  Activity,
+  Flame,
+  Zap,
+  Target,
 } from 'lucide-react'
+import { getUserTargets, updateUserTargets } from '@/lib/database'
+import { DailyTargets, DEFAULT_DAILY_TARGETS } from '@/lib/types/database'
 import { useTheme } from 'next-themes'
 import { toast } from 'sonner'
 
@@ -76,6 +83,37 @@ export default function ProfilePage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [syncCooldown, setSyncCooldown] = useState(0)
+  const [targets, setTargets] = useState<DailyTargets>({ ...DEFAULT_DAILY_TARGETS })
+  const [isSavingTargets, setIsSavingTargets] = useState(false)
+
+  // Load saved targets
+  useEffect(() => {
+    if (!user?.id) return
+    let cancelled = false
+    getUserTargets(user.id)
+      .then((loaded) => {
+        if (!cancelled) setTargets(loaded)
+      })
+      .catch(() => {
+        // fall back to defaults
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id])
+
+  const handleSaveTargets = async () => {
+    if (!user?.id) return
+    setIsSavingTargets(true)
+    try {
+      await updateUserTargets(user.id, targets)
+      toast.success('Daily targets updated!')
+    } catch {
+      toast.error('Failed to update targets')
+    } finally {
+      setIsSavingTargets(false)
+    }
+  }
 
   // Sync cooldown countdown
   useEffect(() => {
@@ -431,6 +469,93 @@ export default function ProfilePage() {
 
           <Button onClick={handleSavePreferences} disabled={isLoading} className="w-full">
             Save Preferences
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Daily Targets Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5" />
+            Daily Targets
+          </CardTitle>
+          <CardDescription>Personalize the goals shown on your dashboard</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="target-steps" className="flex items-center gap-2">
+                <Footprints className="h-4 w-4 text-muted-foreground" />
+                Daily Step Goal
+              </Label>
+              <Input
+                id="target-steps"
+                type="number"
+                min={0}
+                value={targets.steps}
+                onChange={(e) =>
+                  setTargets((prev) => ({ ...prev, steps: Number(e.target.value) || 0 }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="target-exercise" className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-muted-foreground" />
+                Exercise Minutes
+              </Label>
+              <Input
+                id="target-exercise"
+                type="number"
+                min={0}
+                value={targets.exercise_minutes}
+                onChange={(e) =>
+                  setTargets((prev) => ({
+                    ...prev,
+                    exercise_minutes: Number(e.target.value) || 0,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="target-calories" className="flex items-center gap-2">
+                <Flame className="h-4 w-4 text-muted-foreground" />
+                Calorie Intake Goal
+              </Label>
+              <Input
+                id="target-calories"
+                type="number"
+                min={0}
+                value={targets.calorie_intake}
+                onChange={(e) =>
+                  setTargets((prev) => ({
+                    ...prev,
+                    calorie_intake: Number(e.target.value) || 0,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="target-active" className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-muted-foreground" />
+                Active Calorie Goal
+              </Label>
+              <Input
+                id="target-active"
+                type="number"
+                min={0}
+                value={targets.active_energy}
+                onChange={(e) =>
+                  setTargets((prev) => ({
+                    ...prev,
+                    active_energy: Number(e.target.value) || 0,
+                  }))
+                }
+              />
+            </div>
+          </div>
+          <Button onClick={handleSaveTargets} disabled={isSavingTargets} className="w-full">
+            {isSavingTargets ? 'Saving...' : 'Save Targets'}
           </Button>
         </CardContent>
       </Card>
