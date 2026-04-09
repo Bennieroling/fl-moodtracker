@@ -1,7 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase-browser'
-import { MoodEntryInsert, FoodEntryInsert, MealType, ExerciseEvent } from '@/lib/types/database'
+import { MoodEntryInsert, FoodEntryInsert, MealType, ExerciseEvent, HealthMetricsBody } from '@/lib/types/database'
 import { format } from 'date-fns'
 
 const supabase = createClient()
@@ -18,6 +18,7 @@ export interface DailyActivity {
   exercise_time_minutes: number | null
   move_time_minutes: number | null
   stand_time_minutes: number | null
+  stand_hours?: number | null
   distance_km: number | null
   exercise_kcal: number | null
   resting_heart_rate?: number | null
@@ -592,6 +593,49 @@ export async function getDashboardSummary(userId: string, date: string) {
       macros: { protein: 0, carbs: 0, fat: 0 },
       foodEntries: []
     }
+  }
+}
+
+// Body metrics
+export async function getBodyMetrics(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<HealthMetricsBody[]> {
+  try {
+    const supabaseAny = supabase as any
+    const { data, error } = await supabaseAny
+      .from('health_metrics_body')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: true })
+
+    if (error) throw error
+    return (data || []) as HealthMetricsBody[]
+  } catch (error) {
+    console.error('Error fetching body metrics:', error)
+    return []
+  }
+}
+
+export async function getLatestBodyMetrics(userId: string): Promise<HealthMetricsBody | null> {
+  try {
+    const supabaseAny = supabase as any
+    const { data, error } = await supabaseAny
+      .from('health_metrics_body')
+      .select('*')
+      .eq('user_id', userId)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (error) throw error
+    return (data || null) as HealthMetricsBody | null
+  } catch (error) {
+    console.error('Error fetching latest body metrics:', error)
+    return null
   }
 }
 

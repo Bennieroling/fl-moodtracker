@@ -11,8 +11,10 @@ import {
   ChevronRight,
   Flame,
   Footprints,
+  Gauge,
   HeartPulse,
   MapPin,
+  Mountain,
   Timer,
   TrendingUp,
 } from 'lucide-react'
@@ -22,6 +24,8 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -229,6 +233,30 @@ export default function ExercisePage() {
               pending={healthPending && healthSummary.vo2maxAvg === null}
             />
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <SummaryTile
+              label="Stand Hours"
+              icon={<Activity className="h-4 w-4 text-muted-foreground" />}
+              value={healthSummary.standHoursAvg}
+              unit="hr/day"
+              decimals={1}
+              description="Average stand hours per day"
+              pending={healthPending && healthSummary.standHoursAvg === null}
+            />
+            <SummaryTile
+              label="Elevation"
+              icon={<Mountain className="h-4 w-4 text-muted-foreground" />}
+              value={exerciseSummary.elevation}
+              unit="m"
+              description="Total elevation climbed"
+            />
+            <SummaryTile
+              label="Training Load"
+              icon={<Gauge className="h-4 w-4 text-muted-foreground" />}
+              value={exerciseSummary.trimp}
+              description="Total TRIMP across workouts"
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -327,6 +355,56 @@ export default function ExercisePage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <HeartPulse className="h-5 w-5" />
+            Resting HR & HRV Trend
+          </CardTitle>
+          <CardDescription>
+            Daily resting heart rate (bpm) and HRV (ms) between {rangeStartDate} and {rangeEndDate}.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="h-80">
+          {chartData.some((d) => d.resting_heart_rate != null || d.hrv != null) ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} />
+                <YAxis yAxisId="left" orientation="left" domain={['auto', 'auto']} />
+                <YAxis yAxisId="right" orientation="right" domain={['auto', 'auto']} />
+                <Tooltip
+                  contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
+                  labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
+                />
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="resting_heart_rate"
+                  stroke="hsl(var(--chart-1))"
+                  strokeWidth={2}
+                  dot={false}
+                  name="Resting HR (bpm)"
+                  connectNulls
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="hrv"
+                  stroke="hsl(var(--chart-2))"
+                  strokeWidth={2}
+                  dot={false}
+                  name="HRV (ms)"
+                  connectNulls
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyState />
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -521,17 +599,40 @@ function WorkoutTile({ workout }: WorkoutTileProps) {
       ? format(parseISO(`${workout.workout_date}T00:00:00`), 'EEE, MMM d')
       : 'Unknown start'
 
-  const heartRatePieces: string[] = []
-  if (workout.avg_hr) {
-    heartRatePieces.push(`avg ${Math.round(workout.avg_hr)} bpm`)
+  const legacyHrPieces: string[] = []
+  if (workout.avg_hr && !workout.avg_heart_rate) {
+    legacyHrPieces.push(`avg ${Math.round(workout.avg_hr)} bpm`)
   }
   const rangePieces: string[] = []
   if (workout.min_hr) rangePieces.push(`min ${Math.round(workout.min_hr)}`)
-  if (workout.max_hr) rangePieces.push(`max ${Math.round(workout.max_hr)}`)
+  if (workout.max_hr && !workout.max_heart_rate) rangePieces.push(`max ${Math.round(workout.max_hr)}`)
   if (rangePieces.length) {
-    heartRatePieces.push(`${rangePieces.join(' / ')} bpm`)
+    legacyHrPieces.push(`${rangePieces.join(' / ')} bpm`)
   }
-  const heartRateLabel = heartRatePieces.join(' | ')
+  const legacyHrLabel = legacyHrPieces.join(' | ')
+
+  const hasPerformanceRow =
+    workout.elevation_gain_m != null ||
+    workout.avg_heart_rate != null ||
+    workout.max_heart_rate != null ||
+    workout.trimp != null
+
+  const hasConditionsRow =
+    workout.temperature != null ||
+    workout.humidity != null ||
+    workout.mets != null ||
+    workout.rpe != null
+
+  const hrZones = [
+    { key: 0, label: 'Rest', seconds: workout.hrz0_seconds, color: 'bg-gray-400' },
+    { key: 1, label: 'Easy', seconds: workout.hrz1_seconds, color: 'bg-blue-500' },
+    { key: 2, label: 'Aerobic', seconds: workout.hrz2_seconds, color: 'bg-green-500' },
+    { key: 3, label: 'Tempo', seconds: workout.hrz3_seconds, color: 'bg-yellow-500' },
+    { key: 4, label: 'Threshold', seconds: workout.hrz4_seconds, color: 'bg-orange-500' },
+    { key: 5, label: 'Max', seconds: workout.hrz5_seconds, color: 'bg-red-500' },
+  ].map((z) => ({ ...z, seconds: Number(z.seconds ?? 0) }))
+  const totalZoneSeconds = hrZones.reduce((sum, z) => sum + z.seconds, 0)
+  const hasHrZones = totalZoneSeconds > 0
 
   return (
     <div className="border rounded-lg p-4 space-y-3">
@@ -559,11 +660,68 @@ function WorkoutTile({ workout }: WorkoutTileProps) {
         <WorkoutStat label="Active kcal" value={workout.active_energy_kcal} unit="kcal" />
         <WorkoutStat label="Distance" value={workout.distance_km} unit="km" decimals={2} />
       </div>
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1">
-          <HeartPulse className="h-3.5 w-3.5" />
-          <span>{heartRateLabel || 'No heart-rate sample'}</span>
+      {hasPerformanceRow && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+          <WorkoutStat label="Elevation" value={workout.elevation_gain_m} unit="m" />
+          <WorkoutStat
+            label="Avg HR"
+            value={workout.avg_heart_rate ?? workout.avg_hr}
+            unit="bpm"
+          />
+          <WorkoutStat
+            label="Max HR"
+            value={workout.max_heart_rate ?? workout.max_hr}
+            unit="bpm"
+          />
+          <WorkoutStat label="Training Load" value={workout.trimp} />
         </div>
+      )}
+      {hasConditionsRow && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+          <WorkoutStat label="Temperature" value={workout.temperature} unit="°C" decimals={1} />
+          <WorkoutStat
+            label="Humidity"
+            value={workout.humidity != null ? Number(workout.humidity) * 100 : null}
+            unit="%"
+          />
+          <WorkoutStat label="METs" value={workout.mets} decimals={1} />
+          <WorkoutStat label="RPE" value={workout.rpe} decimals={1} />
+        </div>
+      )}
+      {hasHrZones && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">Heart Rate Zones</p>
+          <div className="flex h-3 w-full overflow-hidden rounded">
+            {hrZones.map((zone) =>
+              zone.seconds > 0 ? (
+                <div
+                  key={zone.key}
+                  className={zone.color}
+                  style={{ width: `${(zone.seconds / totalZoneSeconds) * 100}%` }}
+                  title={`${zone.label}: ${Math.round(zone.seconds / 60)} min`}
+                />
+              ) : null
+            )}
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-[11px] text-muted-foreground">
+            {hrZones.map((zone) => (
+              <div key={zone.key} className="flex items-center gap-1">
+                <span className={`inline-block h-2 w-2 rounded-sm ${zone.color}`} />
+                <span>
+                  {zone.label}: {Math.round(zone.seconds / 60)}m
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        {legacyHrLabel && (
+          <div className="flex items-center gap-1">
+            <HeartPulse className="h-3.5 w-3.5" />
+            <span>{legacyHrLabel}</span>
+          </div>
+        )}
         <div className="flex items-center gap-1">
           <MapPin className="h-3.5 w-3.5" />
           <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">

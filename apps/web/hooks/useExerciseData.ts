@@ -152,9 +152,11 @@ const summarizeWorkouts = (events: ExerciseEvent[]) =>
       acc.moveMinutes += numberFromValue(workout.move_minutes)
       acc.activeEnergy += numberFromValue(workout.active_energy_kcal)
       acc.distance += numberFromValue(workout.distance_km)
+      acc.elevation += numberFromValue(workout.elevation_gain_m)
+      acc.trimp += numberFromValue(workout.trimp)
       return acc
     },
-    { minutes: 0, moveMinutes: 0, activeEnergy: 0, distance: 0 }
+    { minutes: 0, moveMinutes: 0, activeEnergy: 0, distance: 0, elevation: 0, trimp: 0 }
   )
 
 const summarizeHealth = (series: DailyActivity[]) => {
@@ -165,6 +167,8 @@ const summarizeHealth = (series: DailyActivity[]) => {
   let hrvCount = 0
   let vo2Total = 0
   let vo2Count = 0
+  let standHoursTotal = 0
+  let standHoursCount = 0
   const hasHealthData = series.some(hasHealthMetrics)
 
   for (const day of series) {
@@ -181,6 +185,10 @@ const summarizeHealth = (series: DailyActivity[]) => {
       vo2Total += Number(day.vo2max)
       vo2Count++
     }
+    if (day.stand_hours !== null && day.stand_hours !== undefined) {
+      standHoursTotal += Number(day.stand_hours)
+      standHoursCount++
+    }
   }
 
   return {
@@ -188,6 +196,7 @@ const summarizeHealth = (series: DailyActivity[]) => {
     restingHeartRateAvg: restingHeartRateCount ? restingHeartRateTotal / restingHeartRateCount : null,
     hrvAvg: hrvCount ? hrvTotal / hrvCount : null,
     vo2maxAvg: vo2Count ? vo2Total / vo2Count : null,
+    standHoursAvg: standHoursCount ? standHoursTotal / standHoursCount : null,
     hasHealthData,
   }
 }
