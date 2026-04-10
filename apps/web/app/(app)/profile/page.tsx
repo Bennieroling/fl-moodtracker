@@ -124,30 +124,19 @@ export default function ProfilePage() {
     return () => window.clearInterval(id)
   }, [syncCooldown])
 
-  type SyncResult = {
-    sheetName: string
-    rowsFetched: number
-    rowsUpserted: number
-    error: string | null
-    durationMs: number
-  }
-
   const handleSyncNow = async () => {
     setIsSyncing(true)
     try {
       const res = await fetch('/api/sync', { method: 'POST' })
       const body = (await res.json().catch(() => null)) as
-        | { ok?: boolean; results?: SyncResult[]; error?: string }
+        | { ok?: boolean; message?: string; error?: string }
         | null
 
       if (!res.ok || !body?.ok) {
         throw new Error(body?.error ?? `Sync failed (${res.status})`)
       }
 
-      const summary = (body.results ?? [])
-        .map((r) => `${r.rowsUpserted} ${r.sheetName}`)
-        .join(', ')
-      toast.success(summary ? `Synced: ${summary}` : 'Sync complete')
+      toast.success(body.message || 'Sync complete')
       setSyncCooldown(60)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Sync failed'

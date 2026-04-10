@@ -11,38 +11,19 @@ export async function POST() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    return NextResponse.json(
-      { error: 'Server is missing Supabase configuration' },
-      { status: 500 }
-    )
-  }
-
   try {
-    const res = await fetch(`${supabaseUrl}/functions/v1/sync-healthfit`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${serviceRoleKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({}),
-    })
+    const { data, error } = await supabase.rpc('sync_hae_to_production')
 
-    const body = await res.json().catch(() => null)
-
-    if (!res.ok) {
+    if (error) {
       return NextResponse.json(
-        { error: body?.error ?? `Edge Function returned ${res.status}` },
-        { status: res.status }
+        { ok: false, error: error.message },
+        { status: 500 }
       )
     }
 
-    return NextResponse.json(body)
+    return NextResponse.json({ ok: true, message: data })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 502 })
+    return NextResponse.json({ ok: false, error: message }, { status: 502 })
   }
 }
