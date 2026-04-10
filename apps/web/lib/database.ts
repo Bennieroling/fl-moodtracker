@@ -5,8 +5,6 @@ import { MoodEntryInsert, FoodEntryInsert, MealType, ExerciseEvent, HealthMetric
 import { format } from 'date-fns'
 
 const supabase = createClient()
-const restUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 export interface DailyActivity {
   user_id: string
@@ -475,48 +473,22 @@ export async function getActivityAggregates(
   startDate?: string,
   endDate?: string
 ): Promise<DailyActivityAggregate[]> {
-  if (!restUrl || !anonKey) {
-    console.warn('Supabase URL or anon key missing; cannot load activity aggregates')
-    return []
-  }
-
   try {
-    const { data: sessionData } = await supabase.auth.getSession()
-    const accessToken = sessionData.session?.access_token
-    if (!accessToken) return []
-
-    const url = new URL(`${restUrl}/rest/v1/v_daily_activity`)
-    const selectColumns = [
-      `period:date_trunc('${bucket}',date)`,
-      'total_energy_kcal:sum(total_energy_kcal)',
-      'active_energy_kcal:sum(active_energy_kcal)',
-      'exercise_time_minutes:sum(exercise_time_minutes)',
-      'move_time_minutes:sum(move_time_minutes)',
-      'steps:sum(steps)',
-      'distance_km:sum(distance_km)'
-    ].join(',')
-
-    url.searchParams.set('select', selectColumns)
-    url.searchParams.append('user_id', `eq.${userId}`)
-    if (startDate) url.searchParams.append('date', `gte.${startDate}`)
-    if (endDate) url.searchParams.append('date', `lte.${endDate}`)
-    url.searchParams.append('group', 'period')
-    url.searchParams.append('order', 'period.desc')
-    url.searchParams.append('limit', String(limit))
-
-    const response = await fetch(url.toString(), {
-      headers: {
-        apikey: anonKey,
-        Authorization: `Bearer ${accessToken}`,
-      },
+    const supabaseAny = supabase as any
+    const { data, error } = await supabaseAny.rpc('get_activity_aggregates', {
+      p_user_id: userId,
+      p_period: bucket,
+      p_start_date: startDate ?? '1970-01-01',
+      p_end_date: endDate ?? '2099-12-31',
+      p_limit: limit,
     })
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch activity aggregates: ${response.status} ${response.statusText}`)
+    if (error) {
+      console.error('Aggregates error:', error)
+      return []
     }
 
-    const result = await response.json()
-    return result as DailyActivityAggregate[]
+    return (data ?? []) as DailyActivityAggregate[]
   } catch (error) {
     console.error('Error fetching activity aggregates:', error)
     return []

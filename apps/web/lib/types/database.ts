@@ -479,6 +479,24 @@ export interface Database {
         Args: Record<string, never>;
         Returns: string;
       };
+      get_activity_aggregates: {
+        Args: {
+          p_user_id: string;
+          p_period: string;
+          p_start_date: string;
+          p_end_date: string;
+          p_limit: number;
+        };
+        Returns: {
+          period: string;
+          total_energy_kcal: number | null;
+          active_energy_kcal: number | null;
+          exercise_time_minutes: number | null;
+          move_time_minutes: number | null;
+          steps: number | null;
+          distance_km: number | null;
+        }[];
+      };
     };
     Enums: {
       [_ in never]: never

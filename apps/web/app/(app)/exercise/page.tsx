@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { format, parseISO } from 'date-fns'
-import Link from 'next/link'
 import {
   Activity,
   AlertTriangle,
@@ -855,10 +854,7 @@ function WorkoutStat({ label, value, unit, decimals }: WorkoutStatProps) {
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-8 text-center text-muted-foreground">
-      <p>No HealthFit data for this range yet. Import a recent export to unlock trends.</p>
-      <Button asChild variant="outline">
-        <Link href="/seed-data">Import HealthFit data</Link>
-      </Button>
+      <p>No health data for this range yet.</p>
     </div>
   )
 }
