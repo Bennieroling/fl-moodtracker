@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { Sparkles, TrendingUp, Calendar, Brain, BarChart3, Heart } from 'lucide-react'
 import { toast } from 'sonner'
-import { Bar, BarChart, CartesianGrid, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from 'recharts'
+import { Bar, BarChart, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from 'recharts'
 import Link from 'next/link'
 
 import { Button } from '@/components/ui/button'
@@ -110,7 +110,7 @@ export default function InsightsPage() {
         <SummarySkeleton cards={4} className="grid-cols-1 md:grid-cols-4" />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="bg-gradient-to-br from-blue-500/10 to-background dark:from-blue-400/10">
+          <Card className="border-l-4 border-l-blue-500">
             <StandardCardHeader title="Average Mood" description="Weekly mood average" action={<TrendingUp className="h-4 w-4 text-muted-foreground" />} className="pb-2" />
             <CardContent>
               <div className="text-4xl font-bold">{weeklyMetrics.avgMood.toFixed(1)}<span className="text-base text-muted-foreground">/5</span></div>
@@ -118,7 +118,7 @@ export default function InsightsPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-emerald-500/10 to-background dark:from-emerald-400/10">
+          <Card className="border-l-4 border-l-emerald-500">
             <StandardCardHeader title="Total Calories" description="Weekly intake total" action={<Calendar className="h-4 w-4 text-muted-foreground" />} className="pb-2" />
             <CardContent>
               <div className="text-4xl font-bold">{weeklyMetrics.kcalTotal.toLocaleString()}</div>
@@ -128,7 +128,7 @@ export default function InsightsPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-orange-500/10 to-background dark:from-orange-400/10">
+          <Card className="border-l-4 border-l-orange-500">
             <StandardCardHeader title="Meals Logged" description="Meal count this week" action={<BarChart3 className="h-4 w-4 text-muted-foreground" />} className="pb-2" />
             <CardContent>
               <div className="text-4xl font-bold">{weeklyMetrics.foodEntries}</div>
@@ -138,7 +138,7 @@ export default function InsightsPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-violet-500/10 to-background dark:from-violet-400/10">
+          <Card className="border-l-4 border-l-violet-500">
             <StandardCardHeader title="Top Foods" description="Most frequent items logged" action={<Brain className="h-4 w-4 text-muted-foreground" />} className="pb-2" />
             <CardContent>
               <div className="text-4xl font-bold">{weeklyMetrics.topFoods.length}</div>
@@ -161,7 +161,6 @@ export default function InsightsPage() {
               {weeklyData.length > 0 && weeklyData.some((day) => day.mood > 0 || day.calories > 0) ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={weeklyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.2)" />
                     <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                     <YAxis yAxisId="mood" domain={[0, 5]} stroke="hsl(var(--muted-foreground))" fontSize={12} />
                     <YAxis yAxisId="calories" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={12} />
@@ -225,7 +224,6 @@ export default function InsightsPage() {
             {topFoodChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={topFoodChartData} layout="vertical" margin={{ left: 12, right: 12 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.2)" />
                   <XAxis type="number" hide />
                   <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }} />
                   <Tooltip formatter={(value) => [`Rank score ${value}`, 'Frequency']} />
@@ -262,8 +260,7 @@ export default function InsightsPage() {
                 <CardContent className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={valenceTrend}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.2)" />
-                      <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => v.slice(5)} />
+                        <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => v.slice(5)} />
                       <YAxis domain={[-1, 1]} stroke="hsl(var(--muted-foreground))" fontSize={12} />
                       <Tooltip
                         formatter={(value: number) => [value.toFixed(2), 'Valence']}
@@ -285,8 +282,7 @@ export default function InsightsPage() {
                 <CardContent className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={topLabels} layout="vertical" margin={{ left: 12, right: 12 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.2)" />
-                      <XAxis type="number" hide />
+                        <XAxis type="number" hide />
                       <YAxis dataKey="label" type="category" width={100} tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }} />
                       <Tooltip formatter={(value) => [`${value} entries`, 'Count']} />
                       <Bar dataKey="count" fill="#34D399" radius={[0, 8, 8, 0]} />
@@ -306,7 +302,6 @@ export default function InsightsPage() {
               <CardContent className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={topAssociations} layout="vertical" margin={{ left: 12, right: 12 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.2)" />
                     <XAxis type="number" hide />
                     <YAxis dataKey="association" type="category" width={100} tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }} />
                     <Tooltip formatter={(value) => [`${value} entries`, 'Count']} />
@@ -323,7 +318,7 @@ export default function InsightsPage() {
       {(aiSummary || aiTips) && (
         <div className="space-y-4">
           {aiSummary && (
-            <Card className="border-primary/30 bg-gradient-to-br from-primary/10 to-background dark:from-primary/20">
+            <Card className="border-l-4 border-l-primary">
               <StandardCardHeader
                 title={<span className="flex items-center gap-2"><Sparkles className="h-5 w-5" />AI Summary</span>}
                 description="Machine-generated interpretation of your recent patterns."
@@ -346,7 +341,7 @@ export default function InsightsPage() {
           )}
 
           {aiTips && (
-            <Card className="border-primary/30 bg-gradient-to-br from-primary/10 to-background dark:from-primary/20">
+            <Card className="border-l-4 border-l-primary">
               <StandardCardHeader
                 title={<span className="flex items-center gap-2"><Sparkles className="h-5 w-5" />Personalized Tips</span>}
                 description="Actionable suggestions generated from your logged data."

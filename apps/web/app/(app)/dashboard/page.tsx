@@ -563,18 +563,18 @@ export default function DashboardPage() {
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="rounded-xl border bg-gradient-to-br from-primary/10 to-background p-6 dark:from-primary/20">
+                  <div className="rounded-xl border border-l-4 border-l-emerald-500 bg-card p-6">
                     <p className="text-caption">Calories</p>
                     <p className="mt-2 text-metric">{summary.totalCalories.toLocaleString()}</p>
                     <p className="mt-2 text-xs text-muted-foreground">Goal: {calorieGoal.toLocaleString()} kcal</p>
                     <div className="mt-3 h-2 w-full rounded-full bg-muted">
-                      <div className="h-2 rounded-full bg-primary transition-all" style={{ width: `${calorieProgress}%` }} />
+                      <div className="h-2 rounded-full bg-emerald-500 transition-all" style={{ width: `${calorieProgress}%` }} />
                     </div>
                     <p className="mt-2 text-xs text-muted-foreground">
                       {calorieRemaining >= 0 ? `${calorieRemaining} kcal left` : `${Math.abs(calorieRemaining)} kcal over`}
                     </p>
                   </div>
-                  <div className="rounded-xl border bg-gradient-to-br from-amber-500/15 to-background p-6 dark:from-amber-400/10">
+                  <div className="rounded-xl border border-l-4 border-l-purple-500 bg-card p-6">
                     <p className="text-caption">Mood</p>
                     <div className="mt-2 flex items-end gap-3">
                       <p className="text-5xl leading-none">{moodMeta?.emoji ?? '—'}</p>
@@ -657,40 +657,25 @@ export default function DashboardPage() {
         </Card>
 
         {latestSom && (
-          <Card>
-            <StandardCardHeader title="State of Mind" description="Latest Apple Health mood entry for today." />
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div
-                  className="h-4 w-4 rounded-full shrink-0"
-                  style={{ backgroundColor: valenceColor(latestSom.valence_classification) }}
-                />
-                <span className="text-sm font-medium capitalize">
-                  {latestSom.valence_classification.replace(/_/g, ' ')}
-                </span>
-                <span className="text-xs text-muted-foreground ml-auto">
-                  {format(parseISO(latestSom.recorded_at), 'h:mm a')}
-                </span>
+          <div className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3">
+            <div
+              className="h-3 w-3 rounded-full shrink-0"
+              style={{ backgroundColor: valenceColor(latestSom.valence_classification) }}
+            />
+            <span className="text-sm font-medium capitalize">
+              {latestSom.valence_classification.replace(/_/g, ' ')}
+            </span>
+            {latestSom.labels && latestSom.labels.length > 0 && (
+              <div className="flex flex-wrap gap-1 ml-1">
+                {latestSom.labels.slice(0, 2).map((label) => (
+                  <span key={label} className="rounded-full bg-muted px-2 py-0.5 text-[10px]">{label}</span>
+                ))}
               </div>
-              {latestSom.labels && latestSom.labels.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {latestSom.labels.slice(0, 3).map((label) => (
-                    <span
-                      key={label}
-                      className="rounded-full border bg-muted/50 px-2.5 py-0.5 text-xs font-medium"
-                    >
-                      {label}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {latestSom.associations && latestSom.associations.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Associated with: {latestSom.associations.join(', ')}
-                </p>
-              )}
-            </CardContent>
-          </Card>
+            )}
+            <span className="text-xs text-muted-foreground ml-auto">
+              {format(parseISO(latestSom.recorded_at), 'h:mm a')}
+            </span>
+          </div>
         )}
 
       </section>

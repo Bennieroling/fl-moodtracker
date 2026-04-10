@@ -10,6 +10,7 @@ import { Calendar, BarChart3, User, Settings, LogOut, Apple, Dumbbell, UtensilsC
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { BottomNav } from '@/components/bottom-nav'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Apple },
@@ -76,8 +77,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </Link>
           </div>
           
-          {/* Navigation */}
-          <nav className="flex items-center space-x-6 text-sm font-medium">
+          {/* Navigation — desktop only */}
+          <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
             {navigation.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href
@@ -137,9 +138,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto py-6">
+      <main className="container mx-auto py-6 pb-24 md:pb-6">
         {children}
       </main>
+
+      <BottomNav />
     </div>
   )
 }

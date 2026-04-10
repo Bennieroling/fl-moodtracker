@@ -24,7 +24,6 @@ import {
   AreaChart,
   Bar,
   BarChart,
-  CartesianGrid,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -46,6 +45,8 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PageHeader } from '@/components/page-header'
+import { MetricTile } from '@/components/metric-tile'
+import { EmptyState as EmptyStateComponent } from '@/components/empty-state'
 import { Scale, Percent } from 'lucide-react'
 
 type AggregateView = 'week' | 'month' | 'year'
@@ -78,6 +79,7 @@ export default function ExercisePage() {
   } = useExerciseData()
   const [aggregateView, setAggregateView] = useState<AggregateView>('week')
   const [ecgExpanded, setEcgExpanded] = useState(false)
+  const [metricsExpanded, setMetricsExpanded] = useState(false)
   const anchorDateObj = parseISO(range.anchorDate)
   const rangeStartDate = range.startDate
   const rangeEndDate = range.endDate
@@ -174,110 +176,62 @@ export default function ExercisePage() {
       </Card>
 
       {pageTab === 'activity' && (<>
-      <Card>
-        <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div>
-            <CardTitle>Range Summary</CardTitle>
-            <CardDescription>Movement totals and health signals for {rangeLabel.toLowerCase()}.</CardDescription>
+      {/* Hero Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <MetricTile
+          label="Steps"
+          value={healthSummary.steps}
+          icon={<Footprints className="h-4 w-4" />}
+          size="lg"
+          pending={healthPending && !healthSummary.steps}
+        />
+        <MetricTile
+          label="Exercise"
+          value={exerciseSummary.minutes}
+          unit="min"
+          icon={<Activity className="h-4 w-4" />}
+          size="lg"
+        />
+        <MetricTile
+          label="Active Calories"
+          value={exerciseSummary.activeEnergy}
+          unit="kcal"
+          icon={<Flame className="h-4 w-4" />}
+          size="lg"
+        />
+        <MetricTile
+          label="Resting HR"
+          value={healthSummary.restingHeartRateAvg}
+          unit="bpm"
+          icon={<HeartPulse className="h-4 w-4" />}
+          size="lg"
+          pending={healthPending && healthSummary.restingHeartRateAvg === null}
+        />
+      </div>
+
+      {/* Collapsible More Metrics */}
+      <div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setMetricsExpanded(!metricsExpanded)}
+          className="w-full justify-between text-muted-foreground"
+        >
+          <span>{metricsExpanded ? 'Hide metrics' : 'Show more metrics'}</span>
+          <ChevronDown className={`h-4 w-4 transition-transform ${metricsExpanded ? 'rotate-180' : ''}`} />
+        </Button>
+        {metricsExpanded && (
+          <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MetricTile label="HRV" value={healthSummary.hrvAvg} unit="ms" size="sm" pending={healthPending && healthSummary.hrvAvg === null} />
+            <MetricTile label="VO2 Max" value={healthSummary.vo2maxAvg != null ? Number(healthSummary.vo2maxAvg).toFixed(1) : null} unit="ml/kg/min" size="sm" pending={healthPending && healthSummary.vo2maxAvg === null} />
+            <MetricTile label="Distance" value={exerciseSummary.distance != null ? Number(exerciseSummary.distance).toFixed(2) : null} unit="km" size="sm" />
+            <MetricTile label="Stand Hours" value={healthSummary.standHoursAvg != null ? Number(healthSummary.standHoursAvg).toFixed(1) : null} unit="hr/day" size="sm" pending={healthPending && healthSummary.standHoursAvg === null} />
+            <MetricTile label="Move Minutes" value={exerciseSummary.moveMinutes} unit="min" size="sm" />
+            <MetricTile label="Elevation" value={exerciseSummary.elevation} unit="m" size="sm" />
+            <MetricTile label="Training Load" value={exerciseSummary.trimp} size="sm" />
           </div>
-          {healthPending && (
-            <Badge variant="secondary" className="text-xs">
-              Health metrics pending sync
-            </Badge>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <SummaryTile
-              label="Exercise Minutes"
-              icon={<Activity className="h-4 w-4 text-muted-foreground" />}
-              value={exerciseSummary.minutes}
-              unit="min"
-              description="Structured workouts logged"
-            />
-            <SummaryTile
-              label="Move Minutes"
-              icon={<Timer className="h-4 w-4 text-muted-foreground" />}
-              value={exerciseSummary.moveMinutes}
-              unit="min"
-              description="All movement inside workouts"
-            />
-            <SummaryTile
-              label="Active Calories"
-              icon={<Flame className="h-4 w-4 text-muted-foreground" />}
-              value={exerciseSummary.activeEnergy}
-              unit="kcal"
-              description="Burned via exercise"
-            />
-            <SummaryTile
-              label="Distance"
-              icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
-              value={exerciseSummary.distance}
-              unit="km"
-              decimals={2}
-              description="Tracked workout distance"
-            />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <SummaryTile
-              label="Steps"
-              icon={<Footprints className="h-4 w-4 text-muted-foreground" />}
-              value={healthSummary.steps}
-              description="Sum of captured days"
-              pending={healthPending && !healthSummary.steps}
-            />
-            <SummaryTile
-              label="Resting Heart Rate"
-              icon={<HeartPulse className="h-4 w-4 text-muted-foreground" />}
-              value={healthSummary.restingHeartRateAvg}
-              unit="bpm"
-              description="Average of synced days"
-              pending={healthPending && healthSummary.restingHeartRateAvg === null}
-            />
-            <SummaryTile
-              label="HRV"
-              icon={<Activity className="h-4 w-4 text-muted-foreground" />}
-              value={healthSummary.hrvAvg}
-              unit="ms"
-              description="Average variability"
-              pending={healthPending && healthSummary.hrvAvg === null}
-            />
-            <SummaryTile
-              label="VO2 Max"
-              icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
-              value={healthSummary.vo2maxAvg}
-              unit="ml/kg/min"
-              decimals={1}
-              description="Average aerobic fitness"
-              pending={healthPending && healthSummary.vo2maxAvg === null}
-            />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <SummaryTile
-              label="Stand Hours"
-              icon={<Activity className="h-4 w-4 text-muted-foreground" />}
-              value={healthSummary.standHoursAvg}
-              unit="hr/day"
-              decimals={1}
-              description="Average stand hours per day"
-              pending={healthPending && healthSummary.standHoursAvg === null}
-            />
-            <SummaryTile
-              label="Elevation"
-              icon={<Mountain className="h-4 w-4 text-muted-foreground" />}
-              value={exerciseSummary.elevation}
-              unit="m"
-              description="Total elevation climbed"
-            />
-            <SummaryTile
-              label="Training Load"
-              icon={<Gauge className="h-4 w-4 text-muted-foreground" />}
-              value={exerciseSummary.trimp}
-              description="Total TRIMP across workouts"
-            />
-          </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
 
       <Card>
         <CardHeader>
@@ -321,9 +275,7 @@ export default function ExercisePage() {
                       <stop offset="95%" stopColor="#34d399" stopOpacity={0.1} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} />
-                  <YAxis />
+                  <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} tick={{ fontSize: 11 }} />
                   <Tooltip
                     contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
                     labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
@@ -356,9 +308,7 @@ export default function ExercisePage() {
             {chartData.length ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} />
-                  <YAxis />
+                  <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} tick={{ fontSize: 11 }} />
                   <Tooltip
                     contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
                     labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
@@ -389,10 +339,9 @@ export default function ExercisePage() {
           {chartData.some((d) => d.resting_heart_rate != null || d.hrv != null) ? (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} />
-                <YAxis yAxisId="left" orientation="left" domain={['auto', 'auto']} />
-                <YAxis yAxisId="right" orientation="right" domain={['auto', 'auto']} />
+                <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="left" orientation="left" domain={['auto', 'auto']} hide />
+                <YAxis yAxisId="right" orientation="right" domain={['auto', 'auto']} hide />
                 <Tooltip
                   contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
                   labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
@@ -426,11 +375,7 @@ export default function ExercisePage() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Aggregated Activity</CardTitle>
-          <CardDescription>Weekly, monthly, and yearly activity summaries.</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <Tabs value={aggregateView} onValueChange={(value) => setAggregateView(value as AggregateView)}>
             <TabsList>
               <TabsTrigger value="week">Weekly</TabsTrigger>
@@ -538,57 +483,6 @@ export default function ExercisePage() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Daily Overview</CardTitle>
-          <CardDescription>Merged daily records from v_daily_activity with exercise_event fallbacks.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:hidden">
-            {dailySeries.map((day) => (
-              <div key={day.date} className="rounded-lg border p-3 space-y-2">
-                <p className="font-medium">{format(parseISO(day.date), 'MMM d, yyyy')}</p>
-                <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                  <span>Exercise: {formatNumber(day.exercise_time_minutes)} min</span>
-                  <span>Move: {formatNumber(day.move_time_minutes)} min</span>
-                  <span>Active: {formatNumber(day.active_energy_kcal)} kcal</span>
-                  <span>Total: {formatNumber(day.total_energy_kcal)} kcal</span>
-                  <span>Steps: {formatNumber(day.steps)}</span>
-                  <span>Distance: {formatNumber(day.distance_km, { decimals: 2 })} km</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-muted-foreground">
-                <th className="py-2">Date</th>
-                <th className="py-2">Exercise (min)</th>
-                <th className="py-2">Move (min)</th>
-                <th className="py-2">Active kcal</th>
-                <th className="py-2">Total energy</th>
-                <th className="py-2">Steps</th>
-                <th className="py-2">Distance (km)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dailySeries.map((day) => (
-                <tr key={day.date} className="border-t">
-                  <td className="py-2 font-medium">{format(parseISO(day.date), 'MMM d, yyyy')}</td>
-                  <td className="py-2">{formatNumber(day.exercise_time_minutes)}</td>
-                  <td className="py-2">{formatNumber(day.move_time_minutes)}</td>
-                  <td className="py-2">{formatNumber(day.active_energy_kcal)}</td>
-                  <td className="py-2">{formatNumber(day.total_energy_kcal)}</td>
-                  <td className="py-2">{formatNumber(day.steps)}</td>
-                  <td className="py-2">{formatNumber(day.distance_km, { decimals: 2 })}</td>
-                </tr>
-              ))}
-            </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
       </>)}
 
       {pageTab === 'body' && (
@@ -640,9 +534,7 @@ export default function ExercisePage() {
               {weightSeries.length ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={weightSeries}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} />
-                    <YAxis domain={['auto', 'auto']} />
+                      <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} tick={{ fontSize: 11 }} />
                     <Tooltip
                       contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
                       labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
@@ -677,9 +569,7 @@ export default function ExercisePage() {
               <CardContent className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={bodyFatSeries}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} />
-                    <YAxis domain={['auto', 'auto']} />
+                      <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} tick={{ fontSize: 11 }} />
                     <Tooltip
                       contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
                       labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
@@ -727,9 +617,11 @@ function BodyStatTile({ label, icon, value, unit, decimals }: {
 
 function BodyEmptyState({ message }: { message: string }) {
   return (
-    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-      {message}
-    </div>
+    <EmptyStateComponent
+      icon={<Scale className="h-8 w-8" />}
+      title={message}
+      description="Weight syncs automatically from Apple Health."
+    />
   )
 }
 
@@ -1001,8 +893,10 @@ function WorkoutStat({ label, value, unit, decimals }: WorkoutStatProps) {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-8 text-center text-muted-foreground">
-      <p>No health data for this range yet.</p>
-    </div>
+    <EmptyStateComponent
+      icon={<Activity className="h-8 w-8" />}
+      title="No activity data yet"
+      description="Data syncs automatically from Apple Health every 2 hours."
+    />
   )
 }

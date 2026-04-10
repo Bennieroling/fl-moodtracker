@@ -408,20 +408,15 @@ export default function CalendarPage() {
         </CardContent>
       </Card>
 
-      {/* Legend */}
-      <Card>
-        <StandardCardHeader title="Mood Legend" description="Color and emoji mapping used on calendar day cells." />
-        <CardContent>
-          <div className="flex flex-wrap gap-4">
-            {moodEmojis.map((mood) => (
-              <div key={mood.score} className={`flex items-center space-x-2 px-3 py-2 rounded-lg border ${mood.color}`}>
-                <span className="text-lg">{mood.emoji}</span>
-                <span className="text-sm font-medium">{mood.label}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Mood Legend — compact inline */}
+      <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+        {moodEmojis.map((mood) => (
+          <span key={mood.score} className="flex items-center gap-1">
+            <span className="text-base">{mood.emoji}</span>
+            <span>{mood.label}</span>
+          </span>
+        ))}
+      </div>
 
       {/* Monthly Summary */}
       <Card>
@@ -485,48 +480,39 @@ export default function CalendarPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Daily Summary Stats */}
-              <Card>
-                <StandardCardHeader title="Daily Summary" description="Nutrition and mood totals for the selected date." />
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-primary">
-                        {dailyFoodEntries.reduce((sum, entry) => sum + (entry.calories || 0), 0)}
-                      </div>
-                      <div className="text-sm text-muted-foreground">Total Calories</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-primary">{dailyFoodEntries.length}</div>
-                      <div className="text-sm text-muted-foreground">Meals Logged</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl">
-                        {dailyMoodEntry ? getMoodEmoji(dailyMoodEntry.mood_score) : '—'}
-                      </div>
-                      <div className="text-sm text-muted-foreground">Mood</div>
-                    </div>
-                    <div className="text-center">
-                      {(() => {
-                        const totalMacros = dailyFoodEntries.reduce(
-                          (acc, entry) => ({
-                            protein: acc.protein + (entry.macros?.protein || 0),
-                            carbs: acc.carbs + (entry.macros?.carbs || 0),
-                            fat: acc.fat + (entry.macros?.fat || 0),
-                          }),
-                          { protein: 0, carbs: 0, fat: 0 }
-                        )
-                        return <MacroDisplay macros={{
-                          protein: Math.round(totalMacros.protein),
-                          carbs: Math.round(totalMacros.carbs),
-                          fat: Math.round(totalMacros.fat),
-                        }} compact className="text-center" />
-                      })()}
-                      <div className="text-sm text-muted-foreground">Macros</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Compact Summary Strip */}
+              <div className="flex items-center justify-between rounded-xl border bg-card px-4 py-3 text-sm">
+                <div className="text-center">
+                  <p className="text-lg font-bold">{dailyFoodEntries.reduce((sum, entry) => sum + (entry.calories || 0), 0)}</p>
+                  <p className="text-[10px] text-muted-foreground">kcal</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold">{dailyFoodEntries.length}</p>
+                  <p className="text-[10px] text-muted-foreground">meals</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg">{dailyMoodEntry ? getMoodEmoji(dailyMoodEntry.mood_score) : '—'}</p>
+                  <p className="text-[10px] text-muted-foreground">mood</p>
+                </div>
+                <div className="text-center">
+                  {(() => {
+                    const totalMacros = dailyFoodEntries.reduce(
+                      (acc, entry) => ({
+                        protein: acc.protein + (entry.macros?.protein || 0),
+                        carbs: acc.carbs + (entry.macros?.carbs || 0),
+                        fat: acc.fat + (entry.macros?.fat || 0),
+                      }),
+                      { protein: 0, carbs: 0, fat: 0 }
+                    )
+                    return <MacroDisplay macros={{
+                      protein: Math.round(totalMacros.protein),
+                      carbs: Math.round(totalMacros.carbs),
+                      fat: Math.round(totalMacros.fat),
+                    }} compact className="text-center" />
+                  })()}
+                  <p className="text-[10px] text-muted-foreground">macros</p>
+                </div>
+              </div>
 
               {/* Exercise Summary */}
               <Card>
