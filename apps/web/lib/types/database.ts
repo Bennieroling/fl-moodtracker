@@ -475,6 +475,10 @@ export interface Database {
           foodEntries: number;
         };
       };
+      sync_hae_to_production: {
+        Args: Record<string, never>;
+        Returns: string;
+      };
     };
     Enums: {
       [_ in never]: never
