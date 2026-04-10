@@ -496,6 +496,40 @@ export type HealthMetricsDaily = Database['public']['Tables']['health_metrics_da
 export type ExerciseEvent = Database['public']['Tables']['exercise_events']['Row'];
 export type HealthMetricsBody = Database['public']['Tables']['health_metrics_body']['Row'];
 
+export interface StateOfMind {
+  id?: number;
+  user_id: string;
+  recorded_at: string;
+  kind: string;
+  valence: number;
+  valence_classification: string;
+  labels: string[] | null;
+  associations: string[] | null;
+  source_id: string | null;
+  raw_payload: unknown | null;
+}
+
+export interface EcgReading {
+  id?: number;
+  user_id: string;
+  recorded_at: string;
+  classification: string;
+  average_heart_rate: number | null;
+  number_of_measurements: number | null;
+  sampling_frequency: number | null;
+  source: string | null;
+}
+
+export interface HeartRateNotification {
+  id?: number;
+  user_id: string;
+  recorded_at: string;
+  notification_type: string;
+  heart_rate: number | null;
+  threshold: number | null;
+  raw_payload: unknown | null;
+}
+
 export type MoodEntryInsert = Database['public']['Tables']['mood_entries']['Insert'];
 export type FoodEntryInsert = Database['public']['Tables']['food_entries']['Insert'];
 export type InsightInsert = Database['public']['Tables']['insights']['Insert'];

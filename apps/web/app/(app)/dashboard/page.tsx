@@ -16,7 +16,19 @@ import { useDashboardData } from '@/hooks/useDashboardData'
 import { MoodPicker, moodEmojis, LogFoodCard, RecentEntriesList, EntryEditorDialog, DateStepper, type EntryEditForm } from '@/components/entry'
 import { PageHeader } from '@/components/page-header'
 import { MacroDisplay } from '@/components/macro-display'
-import { Activity, Footprints } from 'lucide-react'
+import { Activity, AlertTriangle, Footprints, Heart } from 'lucide-react'
+import { StateOfMind, HeartRateNotification } from '@/lib/types/database'
+
+const valenceColor = (classification: string) => {
+  switch (classification) {
+    case 'very_unpleasant': return '#EF4444'
+    case 'slightly_unpleasant': return '#F59E0B'
+    case 'neutral': return '#6B7280'
+    case 'slightly_pleasant': return '#34D399'
+    case 'very_pleasant': return '#10B981'
+    default: return '#6B7280'
+  }
+}
 
 const DEFAULT_DASHBOARD_SUMMARY = {
   mood: null as number | null,
@@ -483,6 +495,9 @@ export default function DashboardPage() {
   const burnedTotal = activeEnergy + restingEnergy
   const hasBurnData = burnedTotal > 0
   const netEnergy = summary.totalCalories - burnedTotal
+  const stateOfMind = data?.stateOfMind ?? []
+  const heartRateNotifications = data?.heartRateNotifications ?? []
+  const latestSom = stateOfMind[0] ?? null
   const moodMeta = currentMood ? moodEmojis.find((mood) => mood.score === currentMood) : null
   return (
     <div className="space-y-6">
@@ -491,6 +506,24 @@ export default function DashboardPage() {
         description={todayLabel}
         action={<DateStepper date={todayString} onDateChange={handleDateChange} />}
       />
+
+      {heartRateNotifications.length > 0 && (
+        <div className="space-y-2">
+          {heartRateNotifications.slice(0, 3).map((notification, i) => (
+            <div key={i} className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30">
+              <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium text-red-800 dark:text-red-200">
+                  Heart Rate Alert on {format(parseISO(notification.recorded_at), 'MMM d, yyyy h:mm a')}
+                </p>
+                <p className="text-red-700 dark:text-red-300">
+                  {notification.notification_type} — {notification.heart_rate} bpm (threshold: {notification.threshold})
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <section className="space-y-3">
         <div>
@@ -602,6 +635,43 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+
+        {latestSom && (
+          <Card>
+            <StandardCardHeader title="State of Mind" description="Latest Apple Health mood entry for today." />
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div
+                  className="h-4 w-4 rounded-full shrink-0"
+                  style={{ backgroundColor: valenceColor(latestSom.valence_classification) }}
+                />
+                <span className="text-sm font-medium capitalize">
+                  {latestSom.valence_classification.replace(/_/g, ' ')}
+                </span>
+                <span className="text-xs text-muted-foreground ml-auto">
+                  {format(parseISO(latestSom.recorded_at), 'h:mm a')}
+                </span>
+              </div>
+              {latestSom.labels && latestSom.labels.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {latestSom.labels.slice(0, 3).map((label) => (
+                    <span
+                      key={label}
+                      className="rounded-full border bg-muted/50 px-2.5 py-0.5 text-xs font-medium"
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {latestSom.associations && latestSom.associations.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Associated with: {latestSom.associations.join(', ')}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
        {/* <RecentEntriesList
         title="Recent Entries"

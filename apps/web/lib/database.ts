@@ -1,7 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase-browser'
-import { MoodEntryInsert, FoodEntryInsert, MealType, ExerciseEvent, HealthMetricsBody, DailyTargets, DEFAULT_DAILY_TARGETS } from '@/lib/types/database'
+import { MoodEntryInsert, FoodEntryInsert, MealType, ExerciseEvent, HealthMetricsBody, DailyTargets, DEFAULT_DAILY_TARGETS, StateOfMind, EcgReading, HeartRateNotification } from '@/lib/types/database'
 import { format } from 'date-fns'
 
 const supabase = createClient()
@@ -675,6 +675,208 @@ export async function getLatestBodyMetrics(userId: string): Promise<HealthMetric
   } catch (error) {
     console.error('Error fetching latest body metrics:', error)
     return null
+  }
+}
+
+// State of Mind
+export async function getStateOfMindForDate(userId: string, date: string): Promise<StateOfMind[]> {
+  try {
+    const supabaseAny = supabase as any
+    const { data, error } = await supabaseAny
+      .from('state_of_mind')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('recorded_at', `${date}T00:00:00`)
+      .lt('recorded_at', `${date}T23:59:59.999`)
+      .order('recorded_at', { ascending: false })
+
+    if (error) throw error
+    return (data || []) as StateOfMind[]
+  } catch (error) {
+    console.error('Error fetching state of mind for date:', error)
+    return []
+  }
+}
+
+export async function getStateOfMindTrends(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<{ date: string; avg_valence: number }[]> {
+  try {
+    const supabaseAny = supabase as any
+    const { data, error } = await supabaseAny
+      .from('state_of_mind')
+      .select('recorded_at, valence')
+      .eq('user_id', userId)
+      .gte('recorded_at', `${startDate}T00:00:00`)
+      .lte('recorded_at', `${endDate}T23:59:59.999`)
+      .order('recorded_at', { ascending: true })
+
+    if (error) throw error
+    if (!data || !data.length) return []
+
+    // Group by date and average
+    const byDate = new Map<string, { total: number; count: number }>()
+    for (const row of data as StateOfMind[]) {
+      const dateKey = row.recorded_at.slice(0, 10)
+      const existing = byDate.get(dateKey) || { total: 0, count: 0 }
+      existing.total += row.valence
+      existing.count++
+      byDate.set(dateKey, existing)
+    }
+
+    return Array.from(byDate.entries()).map(([date, { total, count }]) => ({
+      date,
+      avg_valence: total / count,
+    }))
+  } catch (error) {
+    console.error('Error fetching state of mind trends:', error)
+    return []
+  }
+}
+
+export async function getStateOfMindLabelCounts(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<{ label: string; count: number }[]> {
+  try {
+    const supabaseAny = supabase as any
+    const { data, error } = await supabaseAny
+      .from('state_of_mind')
+      .select('labels')
+      .eq('user_id', userId)
+      .gte('recorded_at', `${startDate}T00:00:00`)
+      .lte('recorded_at', `${endDate}T23:59:59.999`)
+
+    if (error) throw error
+    if (!data) return []
+
+    const labelCounts = new Map<string, number>()
+    for (const row of data as { labels: string[] | null }[]) {
+      if (!row.labels) continue
+      for (const label of row.labels) {
+        labelCounts.set(label, (labelCounts.get(label) || 0) + 1)
+      }
+    }
+
+    return Array.from(labelCounts.entries())
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+  } catch (error) {
+    console.error('Error fetching state of mind label counts:', error)
+    return []
+  }
+}
+
+export async function getStateOfMindAssociationCounts(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<{ association: string; count: number }[]> {
+  try {
+    const supabaseAny = supabase as any
+    const { data, error } = await supabaseAny
+      .from('state_of_mind')
+      .select('associations')
+      .eq('user_id', userId)
+      .gte('recorded_at', `${startDate}T00:00:00`)
+      .lte('recorded_at', `${endDate}T23:59:59.999`)
+
+    if (error) throw error
+    if (!data) return []
+
+    const counts = new Map<string, number>()
+    for (const row of data as { associations: string[] | null }[]) {
+      if (!row.associations) continue
+      for (const assoc of row.associations) {
+        counts.set(assoc, (counts.get(assoc) || 0) + 1)
+      }
+    }
+
+    return Array.from(counts.entries())
+      .map(([association, count]) => ({ association, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+  } catch (error) {
+    console.error('Error fetching state of mind association counts:', error)
+    return []
+  }
+}
+
+// ECG readings
+export async function getEcgReadings(userId: string): Promise<EcgReading[]> {
+  try {
+    const supabaseAny = supabase as any
+    const { data, error } = await supabaseAny
+      .from('ecg_readings')
+      .select('*')
+      .eq('user_id', userId)
+      .order('recorded_at', { ascending: false })
+
+    if (error) throw error
+    return (data || []) as EcgReading[]
+  } catch (error) {
+    console.error('Error fetching ECG readings:', error)
+    return []
+  }
+}
+
+// Heart rate notifications
+export async function getHeartRateNotifications(userId: string): Promise<HeartRateNotification[]> {
+  try {
+    const supabaseAny = supabase as any
+    const { data, error } = await supabaseAny
+      .from('heart_rate_notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('recorded_at', { ascending: false })
+
+    if (error) throw error
+    return (data || []) as HeartRateNotification[]
+  } catch (error) {
+    console.error('Error fetching heart rate notifications:', error)
+    return []
+  }
+}
+
+// Profile stats
+export async function getProfileStats(userId: string) {
+  try {
+    const supabaseAny = supabase as any
+
+    const [foodCount, moodCount, daysActive, streakRow] = await Promise.all([
+      supabaseAny
+        .from('food_entries')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId),
+      supabaseAny
+        .from('mood_entries')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId),
+      supabaseAny
+        .from('health_metrics_daily')
+        .select('date', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .gt('steps', 0),
+      supabaseAny
+        .from('streaks')
+        .select('current_streak, longest_streak')
+        .eq('user_id', userId)
+        .maybeSingle(),
+    ])
+
+    return {
+      totalEntries: (foodCount.count ?? 0) + (moodCount.count ?? 0),
+      daysActive: daysActive.count ?? 0,
+      currentStreak: streakRow.data?.current_streak ?? 0,
+      longestStreak: streakRow.data?.longest_streak ?? 0,
+    }
+  } catch (error) {
+    console.error('Error fetching profile stats:', error)
+    return { totalEntries: 0, daysActive: 0, currentStreak: 0, longestStreak: 0 }
   }
 }
 

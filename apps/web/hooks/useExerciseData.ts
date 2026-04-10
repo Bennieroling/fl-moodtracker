@@ -12,8 +12,10 @@ import {
   getDailyActivityRange,
   getExerciseEventIsoRange,
   getExerciseEventsForRange,
+  getEcgReadings,
+  getHeartRateNotifications,
 } from '@/lib/database'
-import { ExerciseEvent } from '@/lib/types/database'
+import { ExerciseEvent, EcgReading, HeartRateNotification } from '@/lib/types/database'
 import { useFilterQuery } from '@/hooks/useFilterQuery'
 import {
   RangeMode,
@@ -32,6 +34,8 @@ interface ExerciseQueryResult {
     month: DailyActivityAggregate[]
     year: DailyActivityAggregate[]
   }
+  ecgReadings: EcgReading[]
+  heartRateNotifications: HeartRateNotification[]
 }
 
 const defaultAggregates = { week: [], month: [], year: [] }
@@ -58,14 +62,16 @@ export function useExerciseData() {
 
   const fetcher = useCallback(async () => {
     if (!user?.id) {
-      return { workouts: [], dailySeries: [], aggregates: defaultAggregates }
+      return { workouts: [], dailySeries: [], aggregates: defaultAggregates, ecgReadings: [], heartRateNotifications: [] }
     }
     const workouts = await getExerciseEventsForRange(user.id, eventRange.startIso, eventRange.endIso)
-    const [dailySeries, weekAgg, monthAgg, yearAgg] = await Promise.all([
+    const [dailySeries, weekAgg, monthAgg, yearAgg, ecgReadings, heartRateNotifications] = await Promise.all([
       getDailyActivityRange(user.id, rangeStartDate, rangeEndDate, { workouts }),
       getActivityAggregates(user.id, 'week', 12, rangeStartDate, rangeEndDate),
       getActivityAggregates(user.id, 'month', 12, rangeStartDate, rangeEndDate),
       getActivityAggregates(user.id, 'year', 5, rangeStartDate, rangeEndDate),
+      getEcgReadings(user.id),
+      getHeartRateNotifications(user.id),
     ])
     return {
       workouts,
@@ -75,17 +81,21 @@ export function useExerciseData() {
         month: monthAgg,
         year: yearAgg,
       },
+      ecgReadings,
+      heartRateNotifications,
     }
   }, [user?.id, eventRange.startIso, eventRange.endIso, rangeStartDate, rangeEndDate])
 
   const { data, loading, error, refetch } = useFilterQuery<ExerciseQueryResult>(queryKey, fetcher, {
     enabled: !!user?.id,
-    initialData: { workouts: [], dailySeries: [], aggregates: defaultAggregates },
+    initialData: { workouts: [], dailySeries: [], aggregates: defaultAggregates, ecgReadings: [], heartRateNotifications: [] },
   })
 
   const workouts = useMemo(() => (data ? data.workouts : []), [data])
   const dailySeries = useMemo(() => (data ? data.dailySeries : []), [data])
   const aggregates = data?.aggregates ?? defaultAggregates
+  const ecgReadings = data?.ecgReadings ?? []
+  const heartRateNotifications = data?.heartRateNotifications ?? []
   const exerciseSummary = useMemo(() => summarizeWorkouts(workouts), [workouts])
   const healthSummary = useMemo(() => summarizeHealth(dailySeries), [dailySeries])
 
@@ -127,6 +137,8 @@ export function useExerciseData() {
     workouts,
     dailySeries,
     aggregates,
+    ecgReadings,
+    heartRateNotifications,
     loading,
     error,
     refetch,
@@ -185,8 +197,9 @@ const summarizeHealth = (series: DailyActivity[]) => {
       vo2Total += Number(day.vo2max)
       vo2Count++
     }
-    if (day.stand_hours !== null && day.stand_hours !== undefined) {
-      standHoursTotal += Number(day.stand_hours)
+    const standVal = day.stand_hours ?? (day.stand_time_minutes != null ? Number(day.stand_time_minutes) / 60 : null)
+    if (standVal !== null && standVal !== undefined) {
+      standHoursTotal += Number(standVal)
       standHoursCount++
     }
   }

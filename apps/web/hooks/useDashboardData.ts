@@ -4,8 +4,8 @@ import { useMemo, useCallback } from 'react'
 
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
-import { DailyActivity, getDashboardSummary, getDailyActivityByDate, getRecentEntries, getUserTargets } from '@/lib/database'
-import { FoodEntry, DailyTargets, DEFAULT_DAILY_TARGETS } from '@/lib/types/database'
+import { DailyActivity, getDashboardSummary, getDailyActivityByDate, getRecentEntries, getUserTargets, getStateOfMindForDate, getHeartRateNotifications } from '@/lib/database'
+import { FoodEntry, DailyTargets, DEFAULT_DAILY_TARGETS, StateOfMind, HeartRateNotification } from '@/lib/types/database'
 import { useFilterQuery } from '@/hooks/useFilterQuery'
 
 interface DashboardData {
@@ -19,6 +19,8 @@ interface DashboardData {
   recentEntries: FoodEntry[]
   activity: DailyActivity | null
   targets: DailyTargets
+  stateOfMind: StateOfMind[]
+  heartRateNotifications: HeartRateNotification[]
 }
 
 const defaultSummary = {
@@ -34,6 +36,8 @@ const defaultData: DashboardData = {
   recentEntries: [],
   activity: null,
   targets: { ...DEFAULT_DAILY_TARGETS },
+  stateOfMind: [],
+  heartRateNotifications: [],
 }
 
 export const useDashboardData = () => {
@@ -45,17 +49,21 @@ export const useDashboardData = () => {
 
   const fetcher = useCallback(async () => {
     if (!user?.id) return defaultData
-    const [summary, recentEntries, activity, targets] = await Promise.all([
+    const [summary, recentEntries, activity, targets, stateOfMind, heartRateNotifications] = await Promise.all([
       getDashboardSummary(user.id, date),
       getRecentEntries(user.id, 5),
       getDailyActivityByDate(user.id, date),
       getUserTargets(user.id),
+      getStateOfMindForDate(user.id, date),
+      getHeartRateNotifications(user.id),
     ])
     return {
       summary: summary ?? defaultSummary,
       recentEntries: (recentEntries as FoodEntry[]) ?? [],
       activity: activity ?? null,
       targets: targets ?? { ...DEFAULT_DAILY_TARGETS },
+      stateOfMind: stateOfMind ?? [],
+      heartRateNotifications: heartRateNotifications ?? [],
     }
   }, [user?.id, date])
 

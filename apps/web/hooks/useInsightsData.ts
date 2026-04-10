@@ -6,6 +6,7 @@ import { eachDayOfInterval, format, parseISO } from 'date-fns'
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
 import { createClient } from '@/lib/supabase-browser'
+import { getStateOfMindTrends, getStateOfMindLabelCounts, getStateOfMindAssociationCounts } from '@/lib/database'
 import { WeeklyMetrics } from '@/lib/validations'
 import { Database, FoodEntry, MoodEntry, Insight } from '@/lib/types/database'
 import { useFilterQuery } from '@/hooks/useFilterQuery'
@@ -29,6 +30,9 @@ interface InsightsData {
   aiSummary: string | null
   aiTips: string | null
   lastGenerated: Date | null
+  valenceTrend: { date: string; avg_valence: number }[]
+  topLabels: { label: string; count: number }[]
+  topAssociations: { association: string; count: number }[]
 }
 
 const defaultWeeklyMetrics: WeeklyMetrics = {
@@ -52,6 +56,9 @@ export const defaultInsightsData: InsightsData = {
   aiSummary: null,
   aiTips: null,
   lastGenerated: null,
+  valenceTrend: [],
+  topLabels: [],
+  topAssociations: [],
 }
 
 export const useInsightsData = () => {
@@ -101,11 +108,14 @@ export const useInsightsData = () => {
       .eq('period_end', endDate)
       .single()
 
-    const [metricsRes, moodRes, foodRes, insightsRes] = await Promise.all([
+    const [metricsRes, moodRes, foodRes, insightsRes, valenceTrend, topLabels, topAssociations] = await Promise.all([
       metricsPromise,
       moodPromise,
       foodPromise,
       insightsPromise,
+      getStateOfMindTrends(user.id, startDate, endDate),
+      getStateOfMindLabelCounts(user.id, startDate, endDate),
+      getStateOfMindAssociationCounts(user.id, startDate, endDate),
     ])
 
     const weeklyMetrics = ((metricsRes.data as WeeklyMetrics | null) ?? defaultWeeklyMetrics)
@@ -138,6 +148,9 @@ export const useInsightsData = () => {
       aiSummary: insightRow?.summary_md ?? null,
       aiTips: insightRow?.tips_md ?? null,
       lastGenerated: insightRow?.created_at ? new Date(insightRow.created_at) : null,
+      valenceTrend,
+      topLabels,
+      topAssociations,
     }
   }, [user?.id, startDate, endDate])
 

@@ -5,8 +5,8 @@ import { parseISO } from 'date-fns'
 
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
-import { getMoodEntriesForMonth, getMoodEntryByDate, getFoodEntriesForDate, getDailyActivityByDate, DailyActivity } from '@/lib/database'
-import { MoodEntry, FoodEntry } from '@/lib/types/database'
+import { getMoodEntriesForMonth, getMoodEntryByDate, getFoodEntriesForDate, getDailyActivityByDate, getStateOfMindForDate, DailyActivity } from '@/lib/database'
+import { MoodEntry, FoodEntry, StateOfMind } from '@/lib/types/database'
 import { useFilterQuery } from '@/hooks/useFilterQuery'
 
 export const useCalendarMonthData = () => {
@@ -35,12 +35,14 @@ interface CalendarDayData {
   mood: MoodEntry | null
   foodEntries: FoodEntry[]
   activity: DailyActivity | null
+  stateOfMind: StateOfMind[]
 }
 
 const defaultDayData: CalendarDayData = {
   mood: null,
   foodEntries: [],
   activity: null,
+  stateOfMind: [],
 }
 
 export const useCalendarDayData = () => {
@@ -52,10 +54,11 @@ export const useCalendarDayData = () => {
 
   const fetcher = useCallback(async () => {
     if (!user?.id || !selectedDate) return defaultDayData
-    const [mood, food, activity] = await Promise.all([
+    const [mood, food, activity, stateOfMind] = await Promise.all([
       getMoodEntryByDate(user.id, selectedDate),
       getFoodEntriesForDate(user.id, selectedDate),
       getDailyActivityByDate(user.id, selectedDate),
+      getStateOfMindForDate(user.id, selectedDate),
     ])
     const moodEntry = (mood as MoodEntry | null) ?? null
     const foodEntries = (food as FoodEntry[] | null) ?? []
@@ -64,6 +67,7 @@ export const useCalendarDayData = () => {
       mood: moodEntry,
       foodEntries,
       activity: activityEntry,
+      stateOfMind: stateOfMind ?? [],
     }
   }, [user?.id, selectedDate])
 

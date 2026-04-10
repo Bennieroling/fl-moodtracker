@@ -37,7 +37,7 @@ import {
   Zap,
   Target,
 } from 'lucide-react'
-import { getUserTargets, updateUserTargets } from '@/lib/database'
+import { getUserTargets, updateUserTargets, getProfileStats } from '@/lib/database'
 import { DailyTargets, DEFAULT_DAILY_TARGETS } from '@/lib/types/database'
 import { useTheme } from 'next-themes'
 import { toast } from 'sonner'
@@ -172,13 +172,15 @@ export default function ProfilePage() {
         notificationsEnabled: true,
       })
       
-      // Load user stats (mock data - replace with actual Supabase queries)
-      setUserStats({
-        totalEntries: 145,
-        longestStreak: 28,
-        currentStreak: 7,
-        joinDate: '2024-01-15',
-        totalDays: 45,
+      // Load user stats from Supabase
+      getProfileStats(user.id).then((stats) => {
+        setUserStats({
+          totalEntries: stats.totalEntries,
+          longestStreak: stats.longestStreak,
+          currentStreak: stats.currentStreak,
+          joinDate: user.created_at || '',
+          totalDays: stats.daysActive,
+        })
       })
     }
   }, [user])

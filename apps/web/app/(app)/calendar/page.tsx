@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ChevronLeft, ChevronRight, Edit, Trash2 } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, addDays, subDays } from 'date-fns'
-import { MoodEntry, FoodEntry, MealType } from '@/lib/types/database'
+import { MoodEntry, FoodEntry, MealType, StateOfMind } from '@/lib/types/database'
 import { toast } from '@/hooks/use-toast'
 import { upsertMoodEntry, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
 import { MoodPicker, EntryEditorDialog, type EntryEditForm } from '@/components/entry'
@@ -40,6 +40,17 @@ function getMoodColor(score: number | undefined): string {
 function getMoodLabel(score: number | undefined): string {
   if (!score) return 'No mood logged'
   return moodEmojis.find((m) => m.score === score)?.label ?? 'Mood logged'
+}
+
+const valenceColor = (classification: string) => {
+  switch (classification) {
+    case 'very_unpleasant': return '#EF4444'
+    case 'slightly_unpleasant': return '#F59E0B'
+    case 'neutral': return '#6B7280'
+    case 'slightly_pleasant': return '#34D399'
+    case 'very_pleasant': return '#10B981'
+    default: return '#6B7280'
+  }
 }
 
 function formatMetric(value: number | null | undefined, options: Intl.NumberFormatOptions = {}) {
@@ -148,6 +159,7 @@ export default function CalendarPage() {
   const dailyMoodEntry = dayData?.mood ?? null
   const dailyFoodEntries = dayData?.foodEntries ?? []
   const dailyActivity = dayData?.activity ?? null
+  const dailyStateOfMind = dayData?.stateOfMind ?? []
   const selectedDate = calendarFilters.selectedDate
   const currentMood = selectedMood ?? dailyMoodEntry?.mood_score ?? null
 
@@ -566,6 +578,49 @@ export default function CalendarPage() {
                     <div className="text-center text-sm text-muted-foreground">
                       No mood logged yet for this day.
                     </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* State of Mind */}
+              <Card>
+                <StandardCardHeader title="State of Mind" description="Apple Health mood entries for this date." />
+                <CardContent>
+                  {dailyStateOfMind.length > 0 ? (
+                    <div className="space-y-3">
+                      {dailyStateOfMind.map((som, i) => (
+                        <div key={i} className="flex flex-col gap-1.5 rounded-lg border p-3">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="h-3 w-3 rounded-full shrink-0"
+                              style={{ backgroundColor: valenceColor(som.valence_classification) }}
+                            />
+                            <span className="text-sm font-medium capitalize">
+                              {som.valence_classification.replace(/_/g, ' ')}
+                            </span>
+                            <span className="text-xs text-muted-foreground ml-auto">
+                              {format(parseISO(som.recorded_at), 'h:mm a')}
+                            </span>
+                          </div>
+                          {som.labels && som.labels.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {som.labels.map((label) => (
+                                <span key={label} className="rounded-full border bg-muted/50 px-2 py-0.5 text-xs">
+                                  {label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {som.associations && som.associations.length > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              {som.associations.join(', ')}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center">No State of Mind data</p>
                   )}
                 </CardContent>
               </Card>

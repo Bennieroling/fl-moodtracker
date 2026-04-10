@@ -6,9 +6,12 @@ import { format, parseISO } from 'date-fns'
 import Link from 'next/link'
 import {
   Activity,
+  AlertTriangle,
   CalendarRange,
+  Check,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Flame,
   Footprints,
   Gauge,
@@ -52,6 +55,8 @@ export default function ExercisePage() {
     workouts,
     dailySeries,
     aggregates,
+    ecgReadings,
+    heartRateNotifications,
     loading,
     error,
     healthSummary,
@@ -62,6 +67,7 @@ export default function ExercisePage() {
     setAnchorDate,
   } = useExerciseData()
   const [aggregateView, setAggregateView] = useState<AggregateView>('week')
+  const [ecgExpanded, setEcgExpanded] = useState(false)
   const anchorDateObj = parseISO(range.anchorDate)
   const rangeStartDate = range.startDate
   const rangeEndDate = range.endDate
@@ -424,6 +430,100 @@ export default function ExercisePage() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {heartRateNotifications.length > 0 && (
+        <Card className="border-red-200 dark:border-red-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-700 dark:text-red-400">
+              <AlertTriangle className="h-5 w-5" />
+              Heart Rate Alerts
+            </CardTitle>
+            <CardDescription>Notifications triggered by unusual heart rate readings.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {heartRateNotifications.map((notification, i) => (
+              <div key={i} className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30">
+                <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-red-800 dark:text-red-200">
+                    {format(parseISO(notification.recorded_at), 'MMM d, yyyy @ h:mm a')}
+                  </p>
+                  <p className="text-red-700 dark:text-red-300">
+                    {notification.notification_type} — {notification.heart_rate} bpm (threshold: {notification.threshold})
+                  </p>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {ecgReadings.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <HeartPulse className="h-5 w-5" />
+              ECG Readings
+            </CardTitle>
+            <CardDescription>Electrocardiogram results from Apple Watch.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Latest ECG */}
+            <div className="flex items-center gap-3 rounded-lg border p-4">
+              {ecgReadings[0].classification === 'Sinus Rhythm' ? (
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                  <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                </div>
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/30">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                </div>
+              )}
+              <div className="flex-1">
+                <p className="font-medium">{ecgReadings[0].classification}</p>
+                <p className="text-sm text-muted-foreground">
+                  {format(parseISO(ecgReadings[0].recorded_at), 'MMM d, yyyy @ h:mm a')}
+                  {ecgReadings[0].average_heart_rate && ` — ${Math.round(ecgReadings[0].average_heart_rate)} bpm avg`}
+                </p>
+              </div>
+              <Badge variant="outline">Latest</Badge>
+            </div>
+
+            {/* History toggle */}
+            {ecgReadings.length > 1 && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEcgExpanded(!ecgExpanded)}
+                  className="w-full justify-between"
+                >
+                  <span>{ecgReadings.length - 1} older reading{ecgReadings.length > 2 ? 's' : ''}</span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${ecgExpanded ? 'rotate-180' : ''}`} />
+                </Button>
+                {ecgExpanded && (
+                  <div className="space-y-2">
+                    {ecgReadings.slice(1).map((reading, i) => (
+                      <div key={i} className="flex items-center gap-3 rounded-lg border p-3 text-sm">
+                        {reading.classification === 'Sinus Rhythm' ? (
+                          <Check className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />
+                        ) : (
+                          <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 shrink-0" />
+                        )}
+                        <span className="font-medium">{reading.classification}</span>
+                        <span className="text-muted-foreground ml-auto">
+                          {format(parseISO(reading.recorded_at), 'MMM d, yyyy')}
+                          {reading.average_heart_rate && ` — ${Math.round(reading.average_heart_rate)} bpm`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
