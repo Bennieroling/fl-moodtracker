@@ -7,17 +7,17 @@ import { useFilters } from '@/lib/filter-context'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StandardCardHeader } from '@/components/ui/standard-card-header'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, isToday } from 'date-fns'
 import { toast } from '@/hooks/use-toast'
-import { upsertMoodEntry, insertFoodEntry } from '@/lib/database'
+import { upsertMoodEntry, insertFoodEntry, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
+import { getTotalBurnedCalories } from '@/lib/activity'
 import { createClient } from '@/lib/supabase-browser'
 import { MealType, FoodEntry } from '@/lib/types/database'
 import { useDashboardData } from '@/hooks/useDashboardData'
-import { MoodPicker, moodEmojis, LogFoodCard, DateStepper } from '@/components/entry'
+import { MoodPicker, moodEmojis, LogFoodCard, RecentEntriesList, EntryEditorDialog, DateStepper, type EntryEditForm } from '@/components/entry'
 import { PageHeader } from '@/components/page-header'
 import { MacroDisplay } from '@/components/macro-display'
-import { Activity, AlertTriangle, Footprints, Heart } from 'lucide-react'
-import { StateOfMind, HeartRateNotification } from '@/lib/types/database'
+import { Activity, AlertTriangle, Footprints, TrendingDown, TrendingUp, Minus } from 'lucide-react'
 
 const valenceColor = (classification: string) => {
   switch (classification) {
@@ -51,12 +51,38 @@ export default function DashboardPage() {
   const summary = data?.summary ?? DEFAULT_DASHBOARD_SUMMARY
   const currentMood = selectedMood ?? summary.mood
 
-  const todayLabel = format(dashboardDate, 'EEEE, MMMM d')
+  // Food entries for the selected day (merged with optimistic entries)
+  const dailyEntries = summary.foodEntries ?? []
+  const displayedDailyEntries = useMemo(() => {
+    const merged = [...optimisticEntries, ...dailyEntries]
+    return merged.filter((entry, index, arr) => arr.findIndex((candidate) => candidate.id === entry.id) === index)
+  }, [optimisticEntries, dailyEntries])
+
+  // Edit entry state
+  const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null)
+  const [editForm, setEditForm] = useState<EntryEditForm>({
+    meal: '',
+    food_labels: [] as string[],
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+    note: ''
+  })
+
+  const isViewingToday = isToday(dashboardDate)
+  const dateLabel = format(dashboardDate, 'EEEE, MMMM d')
+  const sectionTitle = isViewingToday ? 'Today' : dateLabel
   const todayString = dashboardDateString
   const handleDateChange = (value: string) => {
     if (!value) return
     setDashboardFilters((prev) => ({ ...prev, date: value }))
   }
+
+  // Clear optimistic entries when date changes
+  useEffect(() => {
+    setOptimisticEntries([])
+  }, [dashboardDateString])
 
   useEffect(() => {
     if (!user?.id) return
@@ -67,7 +93,6 @@ export default function DashboardPage() {
     let cancelled = false
     const supabase = createClient()
     ;(async () => {
-      // Source of truth: user_preferences.onboarding_completed.
       const { data: prefs } = await supabase
         .from('user_preferences')
         .select('onboarding_completed')
@@ -80,7 +105,6 @@ export default function DashboardPage() {
         return
       }
 
-      // Backfill: existing users with prior food entries shouldn't be re-onboarded.
       const { count } = await supabase
         .from('food_entries')
         .select('id', { count: 'exact', head: true })
@@ -200,14 +224,14 @@ export default function DashboardPage() {
         macros: result.nutrition.macros,
         ai_raw: result
       })
-      
+
       setSelectedMeal(null)
-      
+
       toast({
         title: 'Food logged successfully!',
         description: `${result.foods.map(f => f.label).join(', ')} (${result.nutrition.calories} cal)`
       })
-      
+
       await refetch()
       if (optimisticEntry) {
         setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
@@ -258,14 +282,14 @@ export default function DashboardPage() {
         note: result.transcript,
         ai_raw: result
       })
-      
+
       setSelectedMeal(result.meal as MealType)
-      
+
       toast({
         title: 'Food logged successfully!',
         description: `${result.foods.map(f => f.label).join(', ')} (${result.nutrition.calories} cal)`
       })
-      
+
       await refetch()
       if (optimisticEntry) {
         setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
@@ -315,14 +339,14 @@ export default function DashboardPage() {
         note: data.note,
         journal_mode: data.journal_mode
       })
-      
+
       setSelectedMeal(null)
-      
+
       toast({
         title: 'Food logged successfully!',
         description: `${data.food_labels.join(', ')}${data.calories ? ` (${data.calories} cal)` : ''}`
       })
-      
+
       await refetch()
       if (optimisticEntry) {
         setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
@@ -390,6 +414,72 @@ export default function DashboardPage() {
     }
   }
 
+  const handleEditEntry = (entry: FoodEntry) => {
+    setEditingEntry(entry)
+    setEditForm({
+      meal: entry.meal,
+      food_labels: entry.food_labels || [],
+      calories: entry.calories || 0,
+      protein: entry.macros?.protein || 0,
+      carbs: entry.macros?.carbs || 0,
+      fat: entry.macros?.fat || 0,
+      note: entry.note || ''
+    })
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingEntry || !user?.id) return
+
+    try {
+      await updateFoodEntry(editingEntry.id, {
+        meal: editForm.meal as MealType,
+        food_labels: editForm.food_labels,
+        calories: editForm.calories || undefined,
+        macros: editForm.calories > 0 ? {
+          protein: editForm.protein,
+          carbs: editForm.carbs,
+          fat: editForm.fat
+        } : undefined,
+        note: editForm.note || undefined
+      })
+
+      setEditingEntry(null)
+      toast({
+        title: 'Entry updated!',
+        description: 'Your food entry has been successfully updated.'
+      })
+      await refetch()
+    } catch (error) {
+      console.error('Error updating entry:', error)
+      toast({
+        title: 'Error updating entry',
+        description: 'There was a problem updating your entry. Please try again.',
+        variant: 'destructive'
+      })
+    }
+  }
+
+  const handleDeleteEntry = async (entry: FoodEntry) => {
+    if (!user?.id) return
+    if (!confirm('Are you sure you want to delete this entry?')) return
+
+    try {
+      await deleteFoodEntry(entry.id)
+      toast({
+        title: 'Entry deleted!',
+        description: 'Your food entry has been successfully deleted.'
+      })
+      await refetch()
+    } catch (error) {
+      console.error('Error deleting entry:', error)
+      toast({
+        title: 'Error deleting entry',
+        description: 'There was a problem deleting your entry. Please try again.',
+        variant: 'destructive'
+      })
+    }
+  }
+
   const calorieGoal = data?.targets?.calorie_intake ?? 2000
   const stepsGoal = data?.targets?.steps ?? 10000
   const exerciseGoal = data?.targets?.exercise_minutes ?? 30
@@ -405,16 +495,31 @@ export default function DashboardPage() {
   const restingEnergy = Number(data?.activity?.resting_energy_kcal ?? 0)
   const burnedTotal = activeEnergy + restingEnergy
   const hasBurnData = burnedTotal > 0
-  const netEnergy = summary.totalCalories - burnedTotal
   const stateOfMind = data?.stateOfMind ?? []
   const heartRateNotifications = data?.heartRateNotifications ?? []
   const latestSom = stateOfMind[0] ?? null
   const moodMeta = currentMood ? moodEmojis.find((mood) => mood.score === currentMood) : null
+
+  // Calorie balance (from Historic)
+  const dailyBurned = getTotalBurnedCalories(data?.activity)
+  const calorieBalance = dailyBurned !== null ? dailyBurned - summary.totalCalories : null
+  const balanceDisplay = calorieBalance === null ? '—' : `${calorieBalance > 0 ? '+' : ''}${Math.round(calorieBalance)}`
+  const balanceLabel = calorieBalance === null ? 'No data' : calorieBalance > 0 ? 'Deficit' : calorieBalance < 0 ? 'Over' : 'On track'
+  const balanceClass =
+    calorieBalance === null
+      ? 'text-muted-foreground'
+      : calorieBalance > 0
+        ? 'text-emerald-600 dark:text-emerald-400'
+        : calorieBalance < 0
+          ? 'text-red-600 dark:text-red-400'
+          : 'text-primary'
+  const BalanceIcon = calorieBalance === null ? Minus : calorieBalance > 0 ? TrendingDown : calorieBalance < 0 ? TrendingUp : Minus
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
-        description={todayLabel}
+        description={dateLabel}
         action={<DateStepper date={todayString} onDateChange={handleDateChange} />}
       />
 
@@ -438,11 +543,11 @@ export default function DashboardPage() {
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">Today</h2>
+          <h2 className="text-lg font-semibold tracking-tight">{sectionTitle}</h2>
           <p className="text-sm text-muted-foreground">At-a-glance wellness metrics and your latest logs.</p>
         </div>
         <Card>
-          <StandardCardHeader title="Today&apos;s Summary" description="Calories and mood first, details second." />
+          <StandardCardHeader title={`${sectionTitle}\u2019s Summary`} description="Calories and mood first, details second." />
           <CardContent className="space-y-4">
             {dataLoading ? (
               <>
@@ -526,19 +631,23 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="rounded-lg border bg-muted/30 px-4 py-3">
-                  <p className="text-caption">Energy Balance</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-caption">Energy Balance</p>
+                    <div className="flex items-center gap-1.5">
+                      <BalanceIcon className="h-4 w-4" />
+                      <span className={`text-sm font-semibold ${balanceClass}`}>{balanceDisplay} kcal</span>
+                      <span className="text-xs text-muted-foreground">{balanceLabel}</span>
+                    </div>
+                  </div>
                   {hasBurnData ? (
                     <p className="mt-1 text-xs text-muted-foreground">
                       Eaten {summary.totalCalories.toLocaleString()} kcal
-                      {' • '}
+                      {' \u2022 '}
                       Burned {Math.round(burnedTotal).toLocaleString()} kcal
-                      {' • '}
-                      Net: {netEnergy >= 0 ? '+' : '−'}
-                      {Math.abs(Math.round(netEnergy)).toLocaleString()} kcal
                     </p>
                   ) : (
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Eaten {summary.totalCalories.toLocaleString()} kcal • No burn data synced yet
+                      Eaten {summary.totalCalories.toLocaleString()} kcal \u2022 No burn data synced yet
                     </p>
                   )}
                 </div>
@@ -594,7 +703,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
           <Card className="xl:col-span-2">
             <StandardCardHeader
-              title="How are you feeling today?"
+              title={isViewingToday ? 'How are you feeling today?' : `How were you feeling on ${format(dashboardDate, 'MMM d')}?`}
               description="Track your mood to see patterns with your food."
             />
             <CardContent>
@@ -604,7 +713,7 @@ export default function DashboardPage() {
           <div className="xl:col-span-3">
             <LogFoodCard
               title="Log Your Food"
-              description="Track what you eat with photos, voice, or manual entry"
+              description={isViewingToday ? 'Track what you eat with photos, voice, or manual entry' : `Backfill a meal for ${dateLabel}`}
               selectedMeal={selectedMeal}
               onMealSelect={setSelectedMeal}
               date={todayString}
@@ -617,6 +726,27 @@ export default function DashboardPage() {
         </div>
       </section>
 
+      <RecentEntriesList
+        title={`Entries for ${dateLabel}`}
+        description="Review anything already logged on this day."
+        entries={displayedDailyEntries}
+        loading={dataLoading}
+        loadingText="Loading entries..."
+        emptyTitle="No entries logged for this date"
+        emptyDescription="Use the tools above to log meals or moods."
+        emptyCtaLabel="Log breakfast"
+        onEmptyCta={() => setSelectedMeal('breakfast')}
+        onEditEntry={handleEditEntry}
+        onDeleteEntry={handleDeleteEntry}
+      />
+
+      <EntryEditorDialog
+        entry={editingEntry}
+        form={editForm}
+        setForm={setEditForm}
+        onSave={handleSaveEdit}
+        onClose={() => setEditingEntry(null)}
+      />
     </div>
   )
 }

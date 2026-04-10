@@ -38,6 +38,7 @@ import { DailyActivityAggregate } from '@/lib/database'
 import { ExerciseEvent } from '@/lib/types/database'
 import { RangeMode } from '@/lib/range-utils'
 import { useExerciseData } from '@/hooks/useExerciseData'
+import { useBodyData } from '@/hooks/useBodyData'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -45,11 +46,21 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PageHeader } from '@/components/page-header'
+import { Scale, Percent } from 'lucide-react'
 
 type AggregateView = 'week' | 'month' | 'year'
+type PageTab = 'activity' | 'body'
 
 export default function ExercisePage() {
   const { user } = useAuth()
+  const [pageTab, setPageTab] = useState<PageTab>('activity')
+  const {
+    weightSeries,
+    bodyFatSeries,
+    latest: latestBody,
+    loading: bodyLoading,
+    error: bodyError,
+  } = useBodyData()
   const {
     workouts,
     dailySeries,
@@ -113,6 +124,13 @@ export default function ExercisePage() {
     <div className="space-y-6">
       <PageHeader title="Exercise" description="Your activity and workout data" />
 
+      <Tabs value={pageTab} onValueChange={(v) => setPageTab(v as PageTab)}>
+        <TabsList>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="body">Body</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       <Card>
         <CardHeader>
           <CardTitle>Data Controls</CardTitle>
@@ -155,6 +173,7 @@ export default function ExercisePage() {
         </CardContent>
       </Card>
 
+      {pageTab === 'activity' && (<>
       <Card>
         <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
@@ -570,6 +589,146 @@ export default function ExercisePage() {
           </div>
         </CardContent>
       </Card>
+      </>)}
+
+      {pageTab === 'body' && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Current Stats</CardTitle>
+              <CardDescription>
+                {latestBody?.date
+                  ? `Latest measurement on ${format(parseISO(latestBody.date), 'MMM d, yyyy')}`
+                  : 'No measurements synced yet'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <BodyStatTile
+                label="Weight"
+                icon={<Scale className="h-4 w-4 text-muted-foreground" />}
+                value={latestBody?.weight_kg}
+                unit="kg"
+                decimals={1}
+              />
+              <BodyStatTile
+                label="Body Fat"
+                icon={<Percent className="h-4 w-4 text-muted-foreground" />}
+                value={latestBody?.body_fat_pct}
+                unit="%"
+                decimals={1}
+              />
+              <BodyStatTile
+                label="BMI"
+                icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
+                value={latestBody?.bmi}
+                decimals={1}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Scale className="h-5 w-5" />
+                Weight Trend
+              </CardTitle>
+              <CardDescription>
+                Daily weight between {range.startDate} and {range.endDate}.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-80">
+              {weightSeries.length ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={weightSeries}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} />
+                    <YAxis domain={['auto', 'auto']} />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
+                      labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="weight_kg"
+                      stroke="hsl(var(--chart-1))"
+                      strokeWidth={2}
+                      dot={false}
+                      name="Weight (kg)"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <BodyEmptyState message="No weight data for this range yet." />
+              )}
+            </CardContent>
+          </Card>
+
+          {bodyFatSeries.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Percent className="h-5 w-5" />
+                  Body Fat Trend
+                </CardTitle>
+                <CardDescription>
+                  Daily body fat percentage between {range.startDate} and {range.endDate}.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={bodyFatSeries}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} />
+                    <YAxis domain={['auto', 'auto']} />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
+                      labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="body_fat_pct"
+                      stroke="hsl(var(--chart-2))"
+                      strokeWidth={2}
+                      dot={false}
+                      name="Body Fat (%)"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+function BodyStatTile({ label, icon, value, unit, decimals }: {
+  label: string
+  icon: ReactNode
+  value: number | string | null | undefined
+  unit?: string
+  decimals?: number
+}) {
+  const hasValue = value !== null && value !== undefined
+  const formatted = hasValue ? `${formatNumber(value, { decimals })}${unit ? ` ${unit}` : ''}` : '--'
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{label}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{formatted}</div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function BodyEmptyState({ message }: { message: string }) {
+  return (
+    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+      {message}
     </div>
   )
 }
