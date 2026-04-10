@@ -15,7 +15,6 @@ import {
   Footprints,
   Gauge,
   HeartPulse,
-  MapPin,
   Mountain,
   Timer,
   TrendingUp,
@@ -45,6 +44,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { PageHeader } from '@/components/page-header'
 
 type AggregateView = 'week' | 'month' | 'year'
 
@@ -111,12 +111,7 @@ export default function ExercisePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Exercise</h1>
-        <p className="text-muted-foreground">
-          Raw workout events merged with daily health metrics. Pick any period to explore.
-        </p>
-      </div>
+      <PageHeader title="Exercise" description="Your activity and workout data" />
 
       <Card>
         <CardHeader>
@@ -276,7 +271,7 @@ export default function ExercisePage() {
           {workouts.length === 0 ? (
             <div className="text-center text-muted-foreground py-8 space-y-2">
               <p className="text-lg font-medium">No workouts yet for this range.</p>
-              <p>Import or sync from HealthFit to populate these tiles.</p>
+              <p>No data for this range yet.</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -414,7 +409,7 @@ export default function ExercisePage() {
       <Card>
         <CardHeader>
           <CardTitle>Aggregated Activity</CardTitle>
-          <CardDescription>Weekly, monthly, and yearly rollups straight from Supabase SQL.</CardDescription>
+          <CardDescription>Weekly, monthly, and yearly activity summaries.</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={aggregateView} onValueChange={(value) => setAggregateView(value as AggregateView)}>
@@ -814,20 +809,14 @@ function WorkoutTile({ workout }: WorkoutTileProps) {
           </div>
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        {legacyHrLabel && (
+      {legacyHrLabel && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
             <HeartPulse className="h-3.5 w-3.5" />
             <span>{legacyHrLabel}</span>
           </div>
-        )}
-        <div className="flex items-center gap-1">
-          <MapPin className="h-3.5 w-3.5" />
-          <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
-            GPX route pending
-          </Badge>
         </div>
-      </div>
+      )}
     </div>
   )
 }

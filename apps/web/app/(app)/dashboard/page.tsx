@@ -9,11 +9,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { StandardCardHeader } from '@/components/ui/standard-card-header'
 import { format, parseISO } from 'date-fns'
 import { toast } from '@/hooks/use-toast'
-import { upsertMoodEntry, insertFoodEntry, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
+import { upsertMoodEntry, insertFoodEntry } from '@/lib/database'
 import { createClient } from '@/lib/supabase-browser'
 import { MealType, FoodEntry } from '@/lib/types/database'
 import { useDashboardData } from '@/hooks/useDashboardData'
-import { MoodPicker, moodEmojis, LogFoodCard, RecentEntriesList, EntryEditorDialog, DateStepper, type EntryEditForm } from '@/components/entry'
+import { MoodPicker, moodEmojis, LogFoodCard, DateStepper } from '@/components/entry'
 import { PageHeader } from '@/components/page-header'
 import { MacroDisplay } from '@/components/macro-display'
 import { Activity, AlertTriangle, Footprints, Heart } from 'lucide-react'
@@ -49,25 +49,7 @@ export default function DashboardPage() {
   const [optimisticEntries, setOptimisticEntries] = useState<FoodEntry[]>([])
   const { data, loading: dataLoading, refetch } = useDashboardData()
   const summary = data?.summary ?? DEFAULT_DASHBOARD_SUMMARY
-  const recentEntries = data?.recentEntries ?? []
-  const displayedRecentEntries = useMemo(() => {
-    const merged = [...optimisticEntries, ...recentEntries]
-    const deduped = merged.filter((entry, index, arr) => arr.findIndex((candidate) => candidate.id === entry.id) === index)
-    return deduped.slice(0, 5)
-  }, [optimisticEntries, recentEntries])
   const currentMood = selectedMood ?? summary.mood
-  
-  // Edit entry state
-  const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null)
-  const [editForm, setEditForm] = useState<EntryEditForm>({
-    meal: '',
-    food_labels: [] as string[],
-    calories: 0,
-    protein: 0,
-    carbs: 0,
-    fat: 0,
-    note: ''
-  })
 
   const todayLabel = format(dashboardDate, 'EEEE, MMMM d')
   const todayString = dashboardDateString
@@ -408,77 +390,6 @@ export default function DashboardPage() {
     }
   }
 
-  const handleEditEntry = (entry: FoodEntry) => {
-    setEditingEntry(entry)
-    setEditForm({
-      meal: entry.meal,
-      food_labels: entry.food_labels || [],
-      calories: entry.calories || 0,
-      protein: entry.macros?.protein || 0,
-      carbs: entry.macros?.carbs || 0,
-      fat: entry.macros?.fat || 0,
-      note: entry.note || ''
-    })
-  }
-
-  const handleSaveEdit = async () => {
-    if (!editingEntry || !user?.id) return
-
-    try {
-      await updateFoodEntry(editingEntry.id, {
-        meal: editForm.meal as MealType,
-        food_labels: editForm.food_labels,
-        calories: editForm.calories || undefined,
-        macros: editForm.calories > 0 ? {
-          protein: editForm.protein,
-          carbs: editForm.carbs,
-          fat: editForm.fat
-        } : undefined,
-        note: editForm.note || undefined
-      })
-
-      // Update local state
-      setEditingEntry(null)
-      toast({
-        title: 'Entry updated!',
-        description: 'Your food entry has been successfully updated.'
-      })
-      await refetch()
-
-    } catch (error) {
-      console.error('Error updating entry:', error)
-      toast({
-        title: 'Error updating entry',
-        description: 'There was a problem updating your entry. Please try again.',
-        variant: 'destructive'
-      })
-    }
-  }
-
-  const handleDeleteEntry = async (entry: FoodEntry) => {
-    if (!user?.id) return
-
-    if (!confirm('Are you sure you want to delete this entry?')) return
-
-    try {
-      await deleteFoodEntry(entry.id)
-
-      toast({
-        title: 'Entry deleted!',
-        description: 'Your food entry has been successfully deleted.'
-      })
-      await refetch()
-
-    } catch (error) {
-      console.error('Error deleting entry:', error)
-      toast({
-        title: 'Error deleting entry',
-        description: 'There was a problem deleting your entry. Please try again.',
-        variant: 'destructive'
-      })
-    }
-  }
-
   const calorieGoal = data?.targets?.calorie_intake ?? 2000
   const stepsGoal = data?.targets?.steps ?? 10000
   const exerciseGoal = data?.targets?.exercise_minutes ?? 30
@@ -673,20 +584,6 @@ export default function DashboardPage() {
           </Card>
         )}
 
-       {/* <RecentEntriesList
-        title="Recent Entries"
-        description="Your latest food and mood entries"
-        entries={displayedRecentEntries}
-        loading={dataLoading}
-        loadingText="Loading recent entries..."
-        emptyTitle="No recent entries"
-        emptyDescription="Start logging food above to see your entries here"
-        emptyCtaLabel="Log breakfast"
-        onEmptyCta={() => setSelectedMeal('breakfast')}
-        onEditEntry={handleEditEntry}
-        onDeleteEntry={handleDeleteEntry}
-      /> */}
-      
       </section>
 
       <section className="space-y-3">
@@ -720,13 +617,6 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <EntryEditorDialog
-        entry={editingEntry}
-        form={editForm}
-        setForm={setEditForm}
-        onSave={handleSaveEdit}
-        onClose={() => setEditingEntry(null)}
-      />
     </div>
   )
 }

@@ -20,6 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { PageHeader } from '@/components/page-header'
 
 export default function BodyPage() {
   const { user } = useAuth()
@@ -69,12 +70,7 @@ export default function BodyPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Body</h1>
-        <p className="text-muted-foreground">
-          Weight, body fat, and BMI history synced from HealthFit.
-        </p>
-      </div>
+      <PageHeader title="Body" description="Weight, body fat, and BMI trends from Apple Health." />
 
       <Card>
         <CardHeader>

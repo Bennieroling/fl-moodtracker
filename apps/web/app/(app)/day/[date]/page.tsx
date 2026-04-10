@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { StandardCardHeader } from '@/components/ui/standard-card-header'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -171,9 +172,7 @@ export default function DayDetailPage() {
 
       {/* Daily Summary */}
       <Card>
-        <CardHeader>
-          <CardTitle>Daily Summary</CardTitle>
-        </CardHeader>
+        <StandardCardHeader title="Daily Summary" description="Nutrition and mood totals for the selected date." />
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
@@ -277,9 +276,7 @@ export default function DayDetailPage() {
 
       {/* Food Entries */}
       <Card>
-        <CardHeader>
-          <CardTitle>Food Entries</CardTitle>
-        </CardHeader>
+        <StandardCardHeader title="Food Entries" description="Meals and notes recorded for this date." />
         <CardContent>
           {foodEntries.length > 0 ? (
             <div className="space-y-4">
@@ -318,14 +315,6 @@ export default function DayDetailPage() {
                     </div>
 
                     <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        disabled
-                        title="Food editing coming soon"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
                       <Button
                         variant="outline"
                         size="icon"

@@ -530,7 +530,7 @@ export default function CalendarPage() {
 
               {/* Exercise Summary */}
               <Card>
-                <StandardCardHeader title="Exercise Summary" description="Imported movement and activity metrics for the day." />
+                <StandardCardHeader title="Exercise Summary" description="Movement and activity metrics for the day." />
                 <CardContent>
                   {dailyActivity ? (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

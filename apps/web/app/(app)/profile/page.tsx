@@ -41,6 +41,7 @@ import { getUserTargets, updateUserTargets, getProfileStats } from '@/lib/databa
 import { DailyTargets, DEFAULT_DAILY_TARGETS } from '@/lib/types/database'
 import { useTheme } from 'next-themes'
 import { toast } from 'sonner'
+import { PageHeader } from '@/components/page-header'
 
 interface UserPreferences {
   units: 'metric' | 'imperial'
@@ -259,11 +260,7 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Profile</h1>
-        <p className="text-muted-foreground">Manage your account and preferences</p>
-      </div>
+      <PageHeader title="Profile" description="Your account, preferences, and data" />
 
       {/* User Info Card */}
       <Card>
@@ -611,23 +608,23 @@ export default function ProfilePage() {
             </Button>
           </div>
 
+          {/* Sign Out */}
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div className="space-y-1">
+              <h4 className="font-medium">Sign Out</h4>
+              <p className="text-sm text-muted-foreground">Sign out of your account</p>
+            </div>
+            <Button onClick={signOut} variant="outline">
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
+
           {/* Account Actions */}
           <Separator />
-          
+
           <div className="space-y-4">
             <h4 className="font-medium text-destructive">Danger Zone</h4>
-            
-            {/* Sign Out */}
-            <div className="flex items-center justify-between p-4 border border-orange-200 rounded-lg">
-              <div className="space-y-1">
-                <h4 className="font-medium">Sign Out</h4>
-                <p className="text-sm text-muted-foreground">Sign out of your account</p>
-              </div>
-              <Button onClick={signOut} variant="outline">
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </Button>
-            </div>
 
             {/* Delete Account */}
             <div className="flex items-center justify-between p-4 border border-red-200 rounded-lg">
