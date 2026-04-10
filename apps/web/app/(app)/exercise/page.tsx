@@ -84,6 +84,8 @@ export default function ExercisePage() {
   const rangeStartDate = range.startDate
   const rangeEndDate = range.endDate
   const rangeLabel = range.label
+  const todayStr = format(new Date(), 'yyyy-MM-dd')
+  const rangeIncludesToday = todayStr >= rangeStartDate && todayStr <= rangeEndDate
   const healthPending = workouts.length > 0 && !healthSummary.hasHealthData
   const chartData = dailySeries
   const errorMessage = error?.message ?? null
@@ -170,7 +172,11 @@ export default function ExercisePage() {
             <Button variant="outline" size="icon" onClick={() => shiftRange(1)} aria-label="Next range">
               <ChevronRight className="h-4 w-4" />
             </Button>
-            <span className="text-sm text-muted-foreground">{rangeLabel}</span>
+            {!rangeIncludesToday && (
+              <Button variant="outline" onClick={() => setAnchorDate(new Date())}>
+                Today
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
