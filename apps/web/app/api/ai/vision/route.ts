@@ -16,7 +16,7 @@ async function analyzeWithOpenAI(imageUrl: string) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
@@ -85,7 +85,7 @@ async function analyzeWithGemini(imageUrl: string) {
   const base64Image = Buffer.from(imageBuffer).toString('base64')
   const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg'
 
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${process.env.GEMINI_API_KEY}`
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`
   console.log('Gemini API URL:', geminiUrl.replace(process.env.GEMINI_API_KEY!, '[REDACTED]'))
   
   const response = await fetch(geminiUrl, {

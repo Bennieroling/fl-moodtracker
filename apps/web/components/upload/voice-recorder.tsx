@@ -266,16 +266,16 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
 
   // Stop recording
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop()
       setIsRecording(false)
-      
+
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
         intervalRef.current = null
       }
     }
-  }, [isRecording])
+  }, [])
 
   // Play audio
   const playAudio = useCallback(() => {
