@@ -533,7 +533,7 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
             // Playback and analysis interface
             <div className="space-y-4">
               {/* Audio controls */}
-              <div className="flex items-center justify-between p-4 bg-muted rounded-md">
+              <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
                 <div className="flex items-center space-x-3">
                   <Button
                     size="sm"
@@ -632,7 +632,7 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
                         </div>
                       </div>
                     ) : (
-                      <p className="text-sm bg-muted p-3 rounded-md italic">
+                      <p className="text-sm bg-muted p-3 rounded-lg italic">
                         &quot;{editedTranscript}&quot;
                       </p>
                     )}
@@ -761,7 +761,7 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
                       </div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted rounded-md">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted rounded-lg">
                       <div className="text-center">
                         <div className="font-semibold text-lg">{editedCalories}</div>
                         <div className="text-xs text-muted-foreground">Calories</div>

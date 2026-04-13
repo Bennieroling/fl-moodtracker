@@ -15,7 +15,8 @@ import {
   getEcgReadings,
   getHeartRateNotifications,
 } from '@/lib/database'
-import { ExerciseEvent, EcgReading, HeartRateNotification } from '@/lib/types/database'
+import { ExerciseEvent, WorkoutRoute, EcgReading, HeartRateNotification } from '@/lib/types/database'
+import { createClient } from '@/lib/supabase-browser'
 import { useFilterQuery } from '@/hooks/useFilterQuery'
 import {
   RangeMode,
@@ -36,6 +37,7 @@ interface ExerciseQueryResult {
   }
   ecgReadings: EcgReading[]
   heartRateNotifications: HeartRateNotification[]
+  routesByWorkoutId: Map<number, WorkoutRoute>
 }
 
 const defaultAggregates = { week: [], month: [], year: [] }
@@ -62,7 +64,7 @@ export function useExerciseData() {
 
   const fetcher = useCallback(async () => {
     if (!user?.id) {
-      return { workouts: [], dailySeries: [], aggregates: defaultAggregates, ecgReadings: [], heartRateNotifications: [] }
+      return { workouts: [], dailySeries: [], aggregates: defaultAggregates, ecgReadings: [], heartRateNotifications: [], routesByWorkoutId: new Map() }
     }
     const workouts = await getExerciseEventsForRange(user.id, eventRange.startIso, eventRange.endIso)
     const [dailySeries, weekAgg, monthAgg, yearAgg, ecgReadings, heartRateNotifications] = await Promise.all([
@@ -73,6 +75,23 @@ export function useExerciseData() {
       getEcgReadings(user.id),
       getHeartRateNotifications(user.id),
     ])
+
+    // Fetch routes for all workouts in range
+    const routesByWorkoutId = new Map<number, WorkoutRoute>()
+    if (workouts.length > 0) {
+      const workoutIds = workouts.map((w) => w.id)
+      const supabase = createClient()
+      const { data: routes } = await supabase
+        .from('workout_routes')
+        .select('id, exercise_event_id, route_points, point_count, bounds_ne_lat, bounds_ne_lng, bounds_sw_lat, bounds_sw_lng, source')
+        .in('exercise_event_id', workoutIds)
+      if (routes) {
+        for (const route of routes) {
+          routesByWorkoutId.set(route.exercise_event_id, route as WorkoutRoute)
+        }
+      }
+    }
+
     return {
       workouts,
       dailySeries,
@@ -83,12 +102,13 @@ export function useExerciseData() {
       },
       ecgReadings,
       heartRateNotifications,
+      routesByWorkoutId,
     }
   }, [user?.id, eventRange.startIso, eventRange.endIso, rangeStartDate, rangeEndDate])
 
   const { data, loading, error, refetch } = useFilterQuery<ExerciseQueryResult>(queryKey, fetcher, {
     enabled: !!user?.id,
-    initialData: { workouts: [], dailySeries: [], aggregates: defaultAggregates, ecgReadings: [], heartRateNotifications: [] },
+    initialData: { workouts: [], dailySeries: [], aggregates: defaultAggregates, ecgReadings: [], heartRateNotifications: [], routesByWorkoutId: new Map() },
   })
 
   const workouts = useMemo(() => (data ? data.workouts : []), [data])
@@ -96,6 +116,7 @@ export function useExerciseData() {
   const aggregates = data?.aggregates ?? defaultAggregates
   const ecgReadings = data?.ecgReadings ?? []
   const heartRateNotifications = data?.heartRateNotifications ?? []
+  const routesByWorkoutId = data?.routesByWorkoutId ?? new Map()
   const exerciseSummary = useMemo(() => summarizeWorkouts(workouts), [workouts])
   const healthSummary = useMemo(() => summarizeHealth(dailySeries), [dailySeries])
 
@@ -152,6 +173,7 @@ export function useExerciseData() {
       label: rangeLabel,
     },
     shiftRange,
+    routesByWorkoutId,
     setRangeMode,
     setAnchorDate,
   }
@@ -160,7 +182,7 @@ export function useExerciseData() {
 const summarizeWorkouts = (events: ExerciseEvent[]) =>
   events.reduce(
     (acc, workout) => {
-      acc.minutes += numberFromValue(workout.total_minutes)
+      acc.minutes += numberFromValue(workout.total_minutes ?? (workout.duration_seconds != null ? Math.round(workout.duration_seconds / 60) : null))
       acc.moveMinutes += numberFromValue(workout.move_minutes)
       acc.activeEnergy += numberFromValue(workout.active_energy_kcal)
       acc.distance += numberFromValue(workout.distance_km)
@@ -183,8 +205,13 @@ const summarizeHealth = (series: DailyActivity[]) => {
   let standHoursCount = 0
   const hasHealthData = series.some(hasHealthMetrics)
 
+  let exerciseMinutes = 0
+  let activeEnergy = 0
+
   for (const day of series) {
     steps += numberFromValue(day.steps)
+    exerciseMinutes += numberFromValue(day.exercise_time_minutes)
+    activeEnergy += numberFromValue(day.active_energy_kcal)
     if (day.resting_heart_rate !== null && day.resting_heart_rate !== undefined) {
       restingHeartRateTotal += Number(day.resting_heart_rate)
       restingHeartRateCount++
@@ -206,6 +233,8 @@ const summarizeHealth = (series: DailyActivity[]) => {
 
   return {
     steps,
+    exerciseMinutes,
+    activeEnergy,
     restingHeartRateAvg: restingHeartRateCount ? restingHeartRateTotal / restingHeartRateCount : null,
     hrvAvg: hrvCount ? hrvTotal / hrvCount : null,
     vo2maxAvg: vo2Count ? vo2Total / vo2Count : null,

@@ -559,7 +559,7 @@ export default function ProfilePage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Sync Health Data */}
-          <div className="flex items-center justify-between p-4 border rounded-lg">
+          <div className="flex items-center justify-between p-4 border rounded-xl">
             <div className="space-y-1">
               <h4 className="font-medium">Sync Health Data</h4>
               <p className="text-sm text-muted-foreground">
@@ -591,7 +591,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Export Data */}
-          <div className="flex items-center justify-between p-4 border rounded-lg">
+          <div className="flex items-center justify-between p-4 border rounded-xl">
             <div className="space-y-1">
               <h4 className="font-medium">Export Your Data</h4>
               <p className="text-sm text-muted-foreground">
@@ -609,7 +609,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Sign Out */}
-          <div className="flex items-center justify-between p-4 border rounded-lg">
+          <div className="flex items-center justify-between p-4 border rounded-xl">
             <div className="space-y-1">
               <h4 className="font-medium">Sign Out</h4>
               <p className="text-sm text-muted-foreground">Sign out of your account</p>

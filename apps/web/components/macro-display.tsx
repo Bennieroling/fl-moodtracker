@@ -24,9 +24,9 @@ export function MacroDisplay({ macros, className, showBar = false, compact = fal
       {showBar ? (
         <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
           <div className="flex h-full">
-            <div className="transition-all" style={{ width: `${proteinPct}%`, backgroundColor: 'hsl(var(--chart-1))' }} />
-            <div className="transition-all" style={{ width: `${carbsPct}%`, backgroundColor: 'hsl(var(--chart-2))' }} />
-            <div className="transition-all" style={{ width: `${fatPct}%`, backgroundColor: 'hsl(var(--chart-3))' }} />
+            <div className="transition-all" style={{ width: `${proteinPct}%`, backgroundColor: 'var(--chart-1)' }} />
+            <div className="transition-all" style={{ width: `${carbsPct}%`, backgroundColor: 'var(--chart-2)' }} />
+            <div className="transition-all" style={{ width: `${fatPct}%`, backgroundColor: 'var(--chart-3)' }} />
           </div>
         </div>
       ) : null}

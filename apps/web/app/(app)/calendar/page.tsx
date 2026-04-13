@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator'
 import { ChevronLeft, ChevronRight, Edit, Trash2 } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, addDays, subDays } from 'date-fns'
 import { MoodEntry, FoodEntry, MealType, StateOfMind } from '@/lib/types/database'
-import { toast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { upsertMoodEntry, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
 import { MoodPicker, EntryEditorDialog, type EntryEditForm } from '@/components/entry'
 import { PageHeader } from '@/components/page-header'
@@ -235,11 +235,7 @@ export default function CalendarPage() {
     } catch (error) {
       console.error('Error saving mood from calendar modal:', error)
       setSelectedMood(previousMood)
-      toast({
-        title: 'Error saving mood',
-        description: 'There was a problem saving your mood. Please try again.',
-        variant: 'destructive',
-      })
+      toast.error('Error saving mood', { description: 'There was a problem saving your mood. Please try again.' })
     }
   }
 
@@ -277,17 +273,10 @@ export default function CalendarPage() {
 
       setEditingEntry(null)
       await refetchDay()
-      toast({
-        title: 'Entry updated',
-        description: 'Your food entry was updated for this day.',
-      })
+      toast.success('Entry updated', { description: 'Your food entry was updated for this day.' })
     } catch (error) {
       console.error('Error updating calendar entry:', error)
-      toast({
-        title: 'Error updating entry',
-        description: 'There was a problem updating this entry.',
-        variant: 'destructive',
-      })
+      toast.error('Error updating entry', { description: 'There was a problem updating this entry.' })
     }
   }
 
@@ -298,17 +287,10 @@ export default function CalendarPage() {
     try {
       await deleteFoodEntry(entry.id)
       await refetchDay()
-      toast({
-        title: 'Entry deleted',
-        description: 'The food entry was removed.',
-      })
+      toast.success('Entry deleted', { description: 'The food entry was removed.' })
     } catch (error) {
       console.error('Error deleting calendar entry:', error)
-      toast({
-        title: 'Error deleting entry',
-        description: 'There was a problem deleting this entry.',
-        variant: 'destructive',
-      })
+      toast.error('Error deleting entry', { description: 'There was a problem deleting this entry.' })
     }
   }
 
@@ -385,7 +367,7 @@ export default function CalendarPage() {
                   onKeyDown={(event) => handleDayKeyDown(event, day)}
                   aria-label={ariaLabel}
                   className={`
-                    p-2 h-16 border rounded-lg transition-all hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                    p-2 h-16 border rounded-xl transition-all hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
                     ${isToday ? 'ring-2 ring-primary' : ''}
                     ${!isCurrentMonth ? 'opacity-40' : ''}
                     ${mood ? moodColor : 'hover:bg-muted'}
@@ -575,7 +557,7 @@ export default function CalendarPage() {
                   {dailyStateOfMind.length > 0 ? (
                     <div className="space-y-3">
                       {dailyStateOfMind.map((som, i) => (
-                        <div key={i} className="flex flex-col gap-1.5 rounded-lg border p-3">
+                        <div key={i} className="flex flex-col gap-1.5 rounded-xl border p-3">
                           <div className="flex items-center gap-2">
                             <div
                               className="h-3 w-3 rounded-full shrink-0"
@@ -619,7 +601,7 @@ export default function CalendarPage() {
                     <div className="space-y-4">
                       {dailyFoodEntries.map((entry, index) => (
                         <div key={entry.id}>
-                          <div className="flex items-start justify-between p-4 border rounded-lg">
+                          <div className="flex items-start justify-between p-4 border rounded-xl">
                             <div className="flex-1 space-y-2">
                               <div className="flex items-center space-x-2">
                                 <Badge variant="secondary" className="capitalize">

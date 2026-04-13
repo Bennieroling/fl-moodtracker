@@ -251,7 +251,7 @@ export function ManualFoodEntry({ meal, onSave, className }: ManualFoodEntryProp
           </div>
 
           {/* Journal Mode */}
-          <div className="flex items-center justify-between p-3 border rounded-md">
+          <div className="flex items-center justify-between p-3 border rounded-lg">
             <div className="space-y-1">
               <Label>Private Mode</Label>
               <p className="text-xs text-muted-foreground">
@@ -270,7 +270,7 @@ export function ManualFoodEntry({ meal, onSave, className }: ManualFoodEntryProp
 
           {/* Summary */}
           {foods.some(f => f.trim()) && (
-            <div className="p-3 bg-muted rounded-md space-y-2">
+            <div className="p-3 bg-muted rounded-lg space-y-2">
               <h4 className="text-sm font-medium">Entry Summary:</h4>
               <div className="space-y-1">
                 <Badge variant="outline" className="capitalize">{meal}</Badge>

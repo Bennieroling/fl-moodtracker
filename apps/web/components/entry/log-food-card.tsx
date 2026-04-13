@@ -77,14 +77,14 @@ export function LogFoodCard({
 
   useEffect(() => {
     if (!user?.id) return
-    const storageKey = `sofi:log-guide:dismissed:${user.id}`
+    const storageKey = `pulse:log-guide:dismissed:${user.id}`
     const dismissed = window.localStorage.getItem(storageKey) === '1'
     setGuideVisible(!dismissed)
   }, [user?.id])
 
   const dismissGuide = () => {
     if (user?.id) {
-      window.localStorage.setItem(`sofi:log-guide:dismissed:${user.id}`, '1')
+      window.localStorage.setItem(`pulse:log-guide:dismissed:${user.id}`, '1')
     }
     setGuideVisible(false)
   }
@@ -152,7 +152,7 @@ export function LogFoodCard({
             ) : null}
 
             <Tabs defaultValue="photo" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
                 <TabsTrigger value="photo">Photo</TabsTrigger>
                 <TabsTrigger value="voice">Voice</TabsTrigger>
                 <TabsTrigger value="text">Text</TabsTrigger>

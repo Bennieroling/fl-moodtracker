@@ -87,7 +87,7 @@ const groupExerciseEventsByDate = (events: ExerciseEvent[]) => {
       })
     }
     const totals = grouped.get(dateKey)!
-    totals.total_minutes += numberFromValue(workout.total_minutes)
+    totals.total_minutes += numberFromValue(workout.total_minutes ?? (workout.duration_seconds != null ? Math.round(workout.duration_seconds / 60) : null))
     totals.move_minutes += numberFromValue(workout.move_minutes)
     totals.active_energy_kcal += numberFromValue(workout.active_energy_kcal)
     totals.distance_km += numberFromValue(workout.distance_km)
@@ -134,8 +134,8 @@ const mergeActivityWithExercise = (
     }
     return {
       ...row,
-      exercise_time_minutes: totals.total_minutes,
-      move_time_minutes: totals.move_minutes,
+      exercise_time_minutes: row.exercise_time_minutes ?? totals.total_minutes,
+      move_time_minutes: row.move_time_minutes ?? totals.move_minutes,
       active_energy_kcal: totals.active_energy_kcal,
       distance_km: totals.distance_km,
       exercise_kcal: totals.active_energy_kcal,

@@ -302,7 +302,7 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
                 alt="Food preview"
                 width={400}
                 height={192}
-                className="w-full h-48 object-cover rounded-md"
+                className="w-full h-48 object-cover rounded-lg"
               />
               {!isLoading && (
                 <Button
@@ -473,7 +473,7 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted rounded-md">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted rounded-lg">
                     <div className="text-center">
                       <div className="font-semibold text-lg">{editedCalories}</div>
                       <div className="text-xs text-muted-foreground">Calories</div>

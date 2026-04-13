@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sofi-v1'
+const CACHE_NAME = 'pulse-v1'
 const STATIC_CACHE_URLS = [
   '/',
   '/dashboard',
@@ -199,7 +199,7 @@ async function networkFirstWithOfflineFallback(request) {
       `<!DOCTYPE html>
       <html>
         <head>
-          <title>Offline - Sofi</title>
+          <title>Offline - Pulse</title>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <style>
@@ -336,7 +336,7 @@ self.addEventListener('push', (event) => {
   }
   
   event.waitUntil(
-    self.registration.showNotification('Sofi Reminder', options)
+    self.registration.showNotification('Pulse Reminder', options)
   )
 })
 

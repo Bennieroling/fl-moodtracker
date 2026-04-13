@@ -24,7 +24,7 @@ export default function DesignSystemPage() {
     <div className="space-y-6">
       <PageHeader
         title="Design System"
-        description="Reference implementations for shared Sofi UI components."
+        description="Reference implementations for shared Pulse UI components."
         action={<DateStepper date={date} onDateChange={setDate} />}
       />
 

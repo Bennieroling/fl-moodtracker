@@ -256,7 +256,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Create a mock user for demo purposes
       const mockUser: User = {
         id: 'demo-user-123',
-        email: 'demo@sofi.app',
+        email: 'demo@pulse.app',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         app_metadata: {},

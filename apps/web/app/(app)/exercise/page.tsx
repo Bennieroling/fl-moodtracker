@@ -34,7 +34,10 @@ import {
 
 import { useAuth } from '@/lib/auth-context'
 import { DailyActivityAggregate } from '@/lib/database'
-import { ExerciseEvent } from '@/lib/types/database'
+import { ExerciseEvent, WorkoutRoute } from '@/lib/types/database'
+import dynamic from 'next/dynamic'
+
+const WorkoutRouteMap = dynamic(() => import('@/components/workout-route-map').then((m) => m.WorkoutRouteMap), { ssr: false })
 import { RangeMode } from '@/lib/range-utils'
 import { useExerciseData } from '@/hooks/useExerciseData'
 import { useBodyData } from '@/hooks/useBodyData'
@@ -74,6 +77,7 @@ export default function ExercisePage() {
     exerciseSummary,
     range,
     shiftRange,
+    routesByWorkoutId,
     setRangeMode,
     setAnchorDate,
   } = useExerciseData()
@@ -193,14 +197,14 @@ export default function ExercisePage() {
         />
         <MetricTile
           label="Exercise"
-          value={exerciseSummary.minutes}
+          value={healthSummary.exerciseMinutes || exerciseSummary.minutes}
           unit="min"
           icon={<Activity className="h-4 w-4" />}
           size="lg"
         />
         <MetricTile
           label="Active Calories"
-          value={exerciseSummary.activeEnergy}
+          value={healthSummary.activeEnergy || exerciseSummary.activeEnergy}
           unit="kcal"
           icon={<Flame className="h-4 w-4" />}
           size="lg"
@@ -255,7 +259,7 @@ export default function ExercisePage() {
           ) : (
             <div className="space-y-4">
               {workouts.map((workout) => (
-                <WorkoutTile key={`${workout.id}-${workout.started_at}`} workout={workout} />
+                <WorkoutTile key={`${workout.id}-${workout.started_at}`} workout={workout} route={routesByWorkoutId.get(workout.id)} />
               ))}
             </div>
           )}
@@ -356,7 +360,7 @@ export default function ExercisePage() {
                   yAxisId="left"
                   type="monotone"
                   dataKey="resting_heart_rate"
-                  stroke="hsl(var(--chart-1))"
+                  stroke="var(--chart-1)"
                   strokeWidth={2}
                   dot={false}
                   name="Resting HR (bpm)"
@@ -366,7 +370,7 @@ export default function ExercisePage() {
                   yAxisId="right"
                   type="monotone"
                   dataKey="hrv"
-                  stroke="hsl(var(--chart-2))"
+                  stroke="var(--chart-2)"
                   strokeWidth={2}
                   dot={false}
                   name="HRV (ms)"
@@ -406,7 +410,7 @@ export default function ExercisePage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {heartRateNotifications.map((notification, i) => (
-              <div key={i} className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30">
+              <div key={i} className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30">
                 <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
                 <div className="text-sm">
                   <p className="font-medium text-red-800 dark:text-red-200">
@@ -433,7 +437,7 @@ export default function ExercisePage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Latest ECG */}
-            <div className="flex items-center gap-3 rounded-lg border p-4">
+            <div className="flex items-center gap-3 rounded-xl border p-4">
               {ecgReadings[0].classification === 'Sinus Rhythm' ? (
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
                   <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
@@ -468,7 +472,7 @@ export default function ExercisePage() {
                 {ecgExpanded && (
                   <div className="space-y-2">
                     {ecgReadings.slice(1).map((reading, i) => (
-                      <div key={i} className="flex items-center gap-3 rounded-lg border p-3 text-sm">
+                      <div key={i} className="flex items-center gap-3 rounded-xl border p-3 text-sm">
                         {reading.classification === 'Sinus Rhythm' ? (
                           <Check className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />
                         ) : (
@@ -548,7 +552,7 @@ export default function ExercisePage() {
                     <Line
                       type="monotone"
                       dataKey="weight_kg"
-                      stroke="hsl(var(--chart-1))"
+                      stroke="var(--chart-1)"
                       strokeWidth={2}
                       dot={false}
                       name="Weight (kg)"
@@ -583,7 +587,7 @@ export default function ExercisePage() {
                     <Line
                       type="monotone"
                       dataKey="body_fat_pct"
-                      stroke="hsl(var(--chart-2))"
+                      stroke="var(--chart-2)"
                       strokeWidth={2}
                       dot={false}
                       name="Body Fat (%)"
@@ -656,7 +660,7 @@ const renderAggregateTable = (data: DailyActivityAggregate[], bucket: AggregateV
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 md:hidden">
         {data.map((row) => (
-          <div key={`${bucket}-card-${row.period}`} className="rounded-lg border p-3 space-y-2">
+          <div key={`${bucket}-card-${row.period}`} className="rounded-xl border p-3 space-y-2">
             <p className="font-medium">{formatAggregatePeriod(row.period, bucket)}</p>
             <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
               <span>Active: {formatNumber(row.active_energy_kcal)} kcal</span>
@@ -741,38 +745,21 @@ function SummaryTile({ label, icon, value, unit, description, decimals, pending 
 
 interface WorkoutTileProps {
   workout: ExerciseEvent
+  route?: WorkoutRoute
 }
 
-function WorkoutTile({ workout }: WorkoutTileProps) {
+function WorkoutTile({ workout, route }: WorkoutTileProps) {
   const startedLabel = workout.started_at
     ? format(parseISO(workout.started_at), 'EEE, MMM d @ h:mm a')
     : workout.workout_date
       ? format(parseISO(`${workout.workout_date}T00:00:00`), 'EEE, MMM d')
       : 'Unknown start'
 
-  const legacyHrPieces: string[] = []
-  if (workout.avg_hr && !workout.avg_heart_rate) {
-    legacyHrPieces.push(`avg ${Math.round(workout.avg_hr)} bpm`)
-  }
-  const rangePieces: string[] = []
-  if (workout.min_hr) rangePieces.push(`min ${Math.round(workout.min_hr)}`)
-  if (workout.max_hr && !workout.max_heart_rate) rangePieces.push(`max ${Math.round(workout.max_hr)}`)
-  if (rangePieces.length) {
-    legacyHrPieces.push(`${rangePieces.join(' / ')} bpm`)
-  }
-  const legacyHrLabel = legacyHrPieces.join(' | ')
-
-  const hasPerformanceRow =
-    workout.elevation_gain_m != null ||
-    workout.avg_heart_rate != null ||
-    workout.max_heart_rate != null ||
-    workout.trimp != null
-
-  const hasConditionsRow =
-    workout.temperature != null ||
-    workout.humidity != null ||
-    workout.mets != null ||
-    workout.rpe != null
+  const totalMinutes = workout.total_minutes ?? (workout.duration_seconds ? Math.round(workout.duration_seconds / 60) : null)
+  const avgHr = workout.avg_heart_rate ?? workout.avg_hr
+  const maxHr = workout.max_heart_rate ?? workout.max_hr
+  const minHr = workout.min_heart_rate ?? workout.min_hr
+  const humidityPct = workout.humidity != null ? Math.round(Number(workout.humidity)) : null
 
   const hrZones = [
     { key: 0, label: 'Rest', seconds: workout.hrz0_seconds, color: 'bg-gray-400' },
@@ -786,7 +773,7 @@ function WorkoutTile({ workout }: WorkoutTileProps) {
   const hasHrZones = totalZoneSeconds > 0
 
   return (
-    <div className="border rounded-lg p-4 space-y-3">
+    <div className="border rounded-xl p-4 space-y-3">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="font-semibold capitalize">{workout.workout_type || 'Workout'}</p>
@@ -805,40 +792,28 @@ function WorkoutTile({ workout }: WorkoutTileProps) {
           )}
         </div>
       </div>
+      {route && route.point_count > 1 && <WorkoutRouteMap route={route} />}
+      {/* Row 1: Duration, Energy, Distance, Speed */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-        <WorkoutStat label="Total minutes" value={workout.total_minutes} unit="min" />
-        <WorkoutStat label="Move minutes" value={workout.move_minutes} unit="min" />
+        <WorkoutStat label="Total minutes" value={totalMinutes} unit="min" />
         <WorkoutStat label="Active kcal" value={workout.active_energy_kcal} unit="kcal" />
         <WorkoutStat label="Distance" value={workout.distance_km} unit="km" decimals={2} />
+        <WorkoutStat label="Avg Speed" value={workout.avg_speed_kmh} unit="km/h" decimals={1} />
       </div>
-      {hasPerformanceRow && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-          <WorkoutStat label="Elevation" value={workout.elevation_gain_m} unit="m" />
-          <WorkoutStat
-            label="Avg HR"
-            value={workout.avg_heart_rate ?? workout.avg_hr}
-            unit="bpm"
-          />
-          <WorkoutStat
-            label="Max HR"
-            value={workout.max_heart_rate ?? workout.max_hr}
-            unit="bpm"
-          />
-          <WorkoutStat label="Training Load" value={workout.trimp} />
-        </div>
-      )}
-      {hasConditionsRow && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-          <WorkoutStat label="Temperature" value={workout.temperature} unit="°C" decimals={1} />
-          <WorkoutStat
-            label="Humidity"
-            value={workout.humidity != null ? Number(workout.humidity) * 100 : null}
-            unit="%"
-          />
-          <WorkoutStat label="METs" value={workout.mets} decimals={1} />
-          <WorkoutStat label="RPE" value={workout.rpe} decimals={1} />
-        </div>
-      )}
+      {/* Row 2: Heart Rate, Elevation */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+        <WorkoutStat label="Avg HR" value={avgHr} unit="bpm" />
+        <WorkoutStat label="Max HR" value={maxHr} unit="bpm" />
+        <WorkoutStat label="Min HR" value={minHr} unit="bpm" />
+        <WorkoutStat label="Elevation" value={workout.elevation_gain_m} unit="m" decimals={1} />
+      </div>
+      {/* Row 3: Conditions, Steps */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+        <WorkoutStat label="Temperature" value={workout.temperature} unit="°C" decimals={1} />
+        <WorkoutStat label="Humidity" value={humidityPct} unit="%" raw />
+        <WorkoutStat label="METs" value={workout.mets} decimals={2} />
+        <WorkoutStat label="Steps" value={workout.step_count} />
+      </div>
       {hasHrZones && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground">Heart Rate Zones</p>
@@ -866,14 +841,6 @@ function WorkoutTile({ workout }: WorkoutTileProps) {
           </div>
         </div>
       )}
-      {legacyHrLabel && (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <HeartPulse className="h-3.5 w-3.5" />
-            <span>{legacyHrLabel}</span>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -885,12 +852,20 @@ interface WorkoutStatProps {
   decimals?: number
 }
 
-function WorkoutStat({ label, value, unit, decimals }: WorkoutStatProps) {
+function WorkoutStat({ label, value, unit, decimals, raw }: WorkoutStatProps & { raw?: boolean }) {
+  if (value === null || value === undefined) return null
+  const numeric = Number(value)
+  if (Number.isNaN(numeric)) return null
+
+  const display = raw
+    ? `${decimals != null ? numeric.toFixed(decimals) : Math.round(numeric)}`
+    : formatNumber(value, { decimals })
+
   return (
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="font-semibold">
-        {formatNumber(value, { decimals })}
+        {display}
         {unit ? ` ${unit}` : ''}
       </p>
     </div>

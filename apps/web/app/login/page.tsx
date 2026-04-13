@@ -49,7 +49,7 @@ export default function LoginPage() {
           <div className="flex justify-center mb-4">
             <span className="text-4xl">🍎</span>
           </div>
-          <CardTitle className="text-center">Welcome back to Sofi</CardTitle>
+          <CardTitle className="text-center">Welcome back to Pulse</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {isDemoMode && (

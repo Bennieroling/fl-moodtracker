@@ -161,12 +161,12 @@ export default function InsightsPage() {
               {weeklyData.length > 0 && weeklyData.some((day) => day.mood > 0 || day.calories > 0) ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={weeklyData}>
-                    <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis yAxisId="mood" domain={[0, 5]} stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis yAxisId="calories" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <XAxis dataKey="date" stroke="var(--muted-foreground)" fontSize={12} />
+                    <YAxis yAxisId="mood" domain={[0, 5]} stroke="var(--muted-foreground)" fontSize={12} />
+                    <YAxis yAxisId="calories" orientation="right" stroke="var(--muted-foreground)" fontSize={12} />
                     <Tooltip />
-                    <Line yAxisId="mood" type="monotone" dataKey="mood" name="Mood" stroke="hsl(var(--chart-1))" strokeWidth={3} dot={{ r: 4 }} />
-                    <Line yAxisId="calories" type="monotone" dataKey="calories" name="Calories" stroke="hsl(var(--chart-2))" strokeWidth={3} dot={{ r: 4 }} />
+                    <Line yAxisId="mood" type="monotone" dataKey="mood" name="Mood" stroke="var(--chart-1)" strokeWidth={3} dot={{ r: 4 }} />
+                    <Line yAxisId="calories" type="monotone" dataKey="calories" name="Calories" stroke="var(--chart-2)" strokeWidth={3} dot={{ r: 4 }} />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -188,7 +188,7 @@ export default function InsightsPage() {
                   <PieChart>
                     <Pie data={macroData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={90} paddingAngle={3}>
                       {macroData.map((entry, index) => (
-                        <Cell key={`${entry.name}-${index}`} fill={`hsl(var(--chart-${index + 1}))`} />
+                        <Cell key={`${entry.name}-${index}`} fill={`var(--chart-${index + 1})`} />
                       ))}
                     </Pie>
                     <Tooltip formatter={(value) => [`${value}%`, 'Share']} />
@@ -225,9 +225,9 @@ export default function InsightsPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={topFoodChartData} layout="vertical" margin={{ left: 12, right: 12 }}>
                   <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }} />
+                  <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12, fill: 'var(--foreground)' }} />
                   <Tooltip formatter={(value) => [`Rank score ${value}`, 'Frequency']} />
-                  <Bar dataKey="value" fill="hsl(var(--chart-3))" radius={[0, 8, 8, 0]} />
+                  <Bar dataKey="value" fill="var(--chart-3)" radius={[0, 8, 8, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -260,10 +260,10 @@ export default function InsightsPage() {
                 <CardContent className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={valenceTrend}>
-                        <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => v.slice(5)} />
-                      <YAxis domain={[-1, 1]} stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                        <XAxis dataKey="date" stroke="var(--muted-foreground)" fontSize={12} tickFormatter={(v) => v.slice(5)} />
+                      <YAxis domain={[-1, 1]} stroke="var(--muted-foreground)" fontSize={12} />
                       <Tooltip
-                        formatter={(value: number) => [value.toFixed(2), 'Valence']}
+                        formatter={(value) => [Number(value).toFixed(2), 'Valence']}
                         labelFormatter={(label) => `Date: ${label}`}
                       />
                       <Line type="monotone" dataKey="avg_valence" stroke="#10B981" strokeWidth={2} dot={{ r: 4 }} name="Valence" />
@@ -283,7 +283,7 @@ export default function InsightsPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={topLabels} layout="vertical" margin={{ left: 12, right: 12 }}>
                         <XAxis type="number" hide />
-                      <YAxis dataKey="label" type="category" width={100} tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }} />
+                      <YAxis dataKey="label" type="category" width={100} tick={{ fontSize: 12, fill: 'var(--foreground)' }} />
                       <Tooltip formatter={(value) => [`${value} entries`, 'Count']} />
                       <Bar dataKey="count" fill="#34D399" radius={[0, 8, 8, 0]} />
                     </BarChart>
@@ -303,7 +303,7 @@ export default function InsightsPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={topAssociations} layout="vertical" margin={{ left: 12, right: 12 }}>
                     <XAxis type="number" hide />
-                    <YAxis dataKey="association" type="category" width={100} tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }} />
+                    <YAxis dataKey="association" type="category" width={100} tick={{ fontSize: 12, fill: 'var(--foreground)' }} />
                     <Tooltip formatter={(value) => [`${value} entries`, 'Count']} />
                     <Bar dataKey="count" fill="#6366F1" radius={[0, 8, 8, 0]} />
                   </BarChart>

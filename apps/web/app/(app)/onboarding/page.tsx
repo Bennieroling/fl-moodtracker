@@ -29,7 +29,7 @@ export default function OnboardingPage() {
   const finishOnboarding = async () => {
     if (!user?.id) return
     setLoading(true)
-    const storageKey = `sofi:onboarding:completed:${user.id}`
+    const storageKey = `pulse:onboarding:completed:${user.id}`
     const payload = {
       completedAt: format(new Date(), "yyyy-MM-dd'T'HH:mm:ssxxx"),
       preferredMethod,
@@ -64,7 +64,7 @@ export default function OnboardingPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Welcome to Sofi"
+        title="Welcome to Pulse"
         description="Quick setup to personalize logging and reminders."
       />
 

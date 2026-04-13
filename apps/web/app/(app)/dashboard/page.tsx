@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StandardCardHeader } from '@/components/ui/standard-card-header'
 import { format, parseISO, isToday } from 'date-fns'
-import { toast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { upsertMoodEntry, insertFoodEntry, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
 import { getTotalBurnedCalories } from '@/lib/activity'
 import { createClient } from '@/lib/supabase-browser'
@@ -86,7 +86,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user?.id) return
-    const storageKey = `sofi:onboarding:completed:${user.id}`
+    const storageKey = `pulse:onboarding:completed:${user.id}`
     const cached = window.localStorage.getItem(storageKey)
     if (cached) return
 
@@ -156,11 +156,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error saving mood:', error)
       setSelectedMood(previousMood)
-      toast({
-        title: 'Error saving mood',
-        description: 'There was a problem saving your mood. Please try again.',
-        variant: 'destructive'
-      })
+      toast.error('Error saving mood', { description: 'There was a problem saving your mood. Please try again.' })
     }
   }
 
@@ -227,10 +223,7 @@ export default function DashboardPage() {
 
       setSelectedMeal(null)
 
-      toast({
-        title: 'Food logged successfully!',
-        description: `${result.foods.map(f => f.label).join(', ')} (${result.nutrition.calories} cal)`
-      })
+      toast.success('Food logged successfully!', { description: `${result.foods.map(f => f.label).join(', ')} (${result.nutrition.calories} cal)` })
 
       await refetch()
       if (optimisticEntry) {
@@ -241,11 +234,7 @@ export default function DashboardPage() {
         setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
       }
       console.error('Error saving photo analysis:', error)
-      toast({
-        title: 'Error saving food entry',
-        description: 'There was a problem saving your food entry. Please try again.',
-        variant: 'destructive'
-      })
+      toast.error('Error saving food entry', { description: 'There was a problem saving your food entry. Please try again.' })
     }
   }
 
@@ -285,10 +274,7 @@ export default function DashboardPage() {
 
       setSelectedMeal(result.meal as MealType)
 
-      toast({
-        title: 'Food logged successfully!',
-        description: `${result.foods.map(f => f.label).join(', ')} (${result.nutrition.calories} cal)`
-      })
+      toast.success('Food logged successfully!', { description: `${result.foods.map(f => f.label).join(', ')} (${result.nutrition.calories} cal)` })
 
       await refetch()
       if (optimisticEntry) {
@@ -299,11 +285,7 @@ export default function DashboardPage() {
         setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
       }
       console.error('Error saving voice analysis:', error)
-      toast({
-        title: 'Error saving food entry',
-        description: 'There was a problem saving your food entry. Please try again.',
-        variant: 'destructive'
-      })
+      toast.error('Error saving food entry', { description: 'There was a problem saving your food entry. Please try again.' })
     }
   }
 
@@ -342,10 +324,7 @@ export default function DashboardPage() {
 
       setSelectedMeal(null)
 
-      toast({
-        title: 'Food logged successfully!',
-        description: `${data.food_labels.join(', ')}${data.calories ? ` (${data.calories} cal)` : ''}`
-      })
+      toast.success('Food logged successfully!', { description: `${data.food_labels.join(', ')}${data.calories ? ` (${data.calories} cal)` : ''}` })
 
       await refetch()
       if (optimisticEntry) {
@@ -356,11 +335,7 @@ export default function DashboardPage() {
         setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
       }
       console.error('Error saving manual entry:', error)
-      toast({
-        title: 'Error saving food entry',
-        description: 'There was a problem saving your food entry. Please try again.',
-        variant: 'destructive'
-      })
+      toast.error('Error saving food entry', { description: 'There was a problem saving your food entry. Please try again.' })
     }
   }
 
@@ -392,10 +367,7 @@ export default function DashboardPage() {
         ai_raw: result,
       })
 
-      toast({
-        title: 'Meal logged!',
-        description: `${result.foods.map((f) => f.label).join(', ')} (${result.nutrition.calories} cal)`,
-      })
+      toast.success('Meal logged!', { description: `${result.foods.map((f) => f.label).join(', ')} (${result.nutrition.calories} cal)` })
 
       await refetch()
       if (optimisticEntry) {
@@ -406,11 +378,7 @@ export default function DashboardPage() {
         setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
       }
       console.error('Error saving AI text analysis:', error)
-      toast({
-        title: 'Error logging meal',
-        description: 'Unable to log this meal. Please try again.',
-        variant: 'destructive',
-      })
+      toast.error('Error logging meal', { description: 'Unable to log this meal. Please try again.' })
     }
   }
 
@@ -444,18 +412,11 @@ export default function DashboardPage() {
       })
 
       setEditingEntry(null)
-      toast({
-        title: 'Entry updated!',
-        description: 'Your food entry has been successfully updated.'
-      })
+      toast.success('Entry updated!', { description: 'Your food entry has been successfully updated.' })
       await refetch()
     } catch (error) {
       console.error('Error updating entry:', error)
-      toast({
-        title: 'Error updating entry',
-        description: 'There was a problem updating your entry. Please try again.',
-        variant: 'destructive'
-      })
+      toast.error('Error updating entry', { description: 'There was a problem updating your entry. Please try again.' })
     }
   }
 
@@ -465,18 +426,11 @@ export default function DashboardPage() {
 
     try {
       await deleteFoodEntry(entry.id)
-      toast({
-        title: 'Entry deleted!',
-        description: 'Your food entry has been successfully deleted.'
-      })
+      toast.success('Entry deleted!', { description: 'Your food entry has been successfully deleted.' })
       await refetch()
     } catch (error) {
       console.error('Error deleting entry:', error)
-      toast({
-        title: 'Error deleting entry',
-        description: 'There was a problem deleting your entry. Please try again.',
-        variant: 'destructive'
-      })
+      toast.error('Error deleting entry', { description: 'There was a problem deleting your entry. Please try again.' })
     }
   }
 
@@ -526,7 +480,7 @@ export default function DashboardPage() {
       {heartRateNotifications.length > 0 && (
         <div className="space-y-2">
           {heartRateNotifications.slice(0, 3).map((notification, i) => (
-            <div key={i} className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30">
+            <div key={i} className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30">
               <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
               <div className="text-sm">
                 <p className="font-medium text-red-800 dark:text-red-200">
@@ -563,7 +517,7 @@ export default function DashboardPage() {
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="rounded-xl border border-l-4 border-l-emerald-500 bg-card p-6">
+                  <div className="rounded-3xl border border-l-4 border-l-emerald-500 bg-card p-6">
                     <p className="text-caption">Calories</p>
                     <p className="mt-2 text-metric">{summary.totalCalories.toLocaleString()}</p>
                     <p className="mt-2 text-xs text-muted-foreground">Goal: {calorieGoal.toLocaleString()} kcal</p>
@@ -574,7 +528,7 @@ export default function DashboardPage() {
                       {calorieRemaining >= 0 ? `${calorieRemaining} kcal left` : `${Math.abs(calorieRemaining)} kcal over`}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-l-4 border-l-purple-500 bg-card p-6">
+                  <div className="rounded-3xl border border-l-4 border-l-purple-500 bg-card p-6">
                     <p className="text-caption">Mood</p>
                     <div className="mt-2 flex items-end gap-3">
                       <p className="text-5xl leading-none">{moodMeta?.emoji ?? '—'}</p>
@@ -585,16 +539,16 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="rounded-lg border p-4">
+                  <div className="rounded-xl border p-4">
                     <p className="text-caption">Meals Logged</p>
                     <p className="mt-2 text-3xl font-bold">{summary.mealsLogged}</p>
                     <p className="text-sm text-muted-foreground">Entries recorded for this day.</p>
                   </div>
-                  <div className="rounded-lg border p-4">
+                  <div className="rounded-xl border p-4">
                     <p className="text-caption">Macros</p>
                     <MacroDisplay macros={summary.macros} showBar className="mt-2" />
                   </div>
-                  <div className="rounded-lg border p-4">
+                  <div className="rounded-xl border p-4">
                     <div className="flex items-center justify-between">
                       <p className="text-caption">Steps</p>
                       <Footprints className="h-4 w-4 text-muted-foreground" />
@@ -612,7 +566,7 @@ export default function DashboardPage() {
                       Goal: {stepsGoal.toLocaleString()}
                     </p>
                   </div>
-                  <div className="rounded-lg border p-4">
+                  <div className="rounded-xl border p-4">
                     <div className="flex items-center justify-between">
                       <p className="text-caption">Exercise</p>
                       <Activity className="h-4 w-4 text-muted-foreground" />
@@ -630,7 +584,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                <div className="rounded-xl border bg-muted/30 px-4 py-3">
                   <div className="flex items-center justify-between">
                     <p className="text-caption">Energy Balance</p>
                     <div className="flex items-center gap-1.5">
@@ -657,7 +611,7 @@ export default function DashboardPage() {
         </Card>
 
         {latestSom && (
-          <div className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3">
+          <div className="flex items-center gap-3 rounded-2xl border bg-card px-4 py-3">
             <div
               className="h-3 w-3 rounded-full shrink-0"
               style={{ backgroundColor: valenceColor(latestSom.valence_classification) }}

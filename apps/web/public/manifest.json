@@ -1,6 +1,6 @@
 {
-  "name": "Sofi — Food & Mood",
-  "short_name": "Sofi",
+  "name": "Pulse — Food & Mood",
+  "short_name": "Pulse",
   "description": "Track your wellness journey with AI-powered insights and personalized recommendations.",
   "start_url": "/",
   "display": "standalone",
@@ -104,7 +104,7 @@
   },
   "protocol_handlers": [
     {
-      "protocol": "web+sofi",
+      "protocol": "web+pulse",
       "url": "/protocol-handler?url=%s"
     }
   ]

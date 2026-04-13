@@ -51,7 +51,7 @@ export function RecentEntriesList({
             entries.map((entry) => (
               <div
                 key={entry.id}
-                className="flex items-center justify-between p-4 border rounded-lg bg-background transition-all duration-200 hover:bg-muted/50 hover:shadow-sm animate-in fade-in slide-in-from-bottom-1"
+                className="flex items-center justify-between p-4 border rounded-xl bg-background transition-all duration-200 hover:bg-muted/50 hover:shadow-md animate-in fade-in slide-in-from-bottom-1"
               >
                 <div className="flex items-center space-x-4">
                   <span className="text-2xl">{entry.food_labels?.[0] ? '🍽️' : '📝'}</span>

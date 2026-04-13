@@ -302,6 +302,10 @@ export interface Database {
           hrz3_seconds: number | null;
           hrz4_seconds: number | null;
           hrz5_seconds: number | null;
+          min_heart_rate: number | null;
+          avg_speed_kmh: number | null;
+          step_count: number | null;
+          step_cadence: number | null;
           source: string | null;
           updated_at: string;
         };
@@ -336,6 +340,10 @@ export interface Database {
           hrz3_seconds?: number | null;
           hrz4_seconds?: number | null;
           hrz5_seconds?: number | null;
+          min_heart_rate?: number | null;
+          avg_speed_kmh?: number | null;
+          step_count?: number | null;
+          step_cadence?: number | null;
           source?: string | null;
           updated_at?: string;
         };
@@ -370,8 +378,48 @@ export interface Database {
           hrz3_seconds?: number | null;
           hrz4_seconds?: number | null;
           hrz5_seconds?: number | null;
+          min_heart_rate?: number | null;
+          avg_speed_kmh?: number | null;
+          step_count?: number | null;
+          step_cadence?: number | null;
           source?: string | null;
           updated_at?: string;
+        };
+        Relationships: never[];
+      };
+      workout_routes: {
+        Row: {
+          id: number;
+          exercise_event_id: number;
+          route_points: Array<{ lat: number; lng: number; alt?: number; speed?: number; ts?: string }>;
+          point_count: number;
+          bounds_ne_lat: number;
+          bounds_ne_lng: number;
+          bounds_sw_lat: number;
+          bounds_sw_lng: number;
+          source: string | null;
+        };
+        Insert: {
+          id?: number;
+          exercise_event_id: number;
+          route_points: Array<{ lat: number; lng: number; alt?: number; speed?: number; ts?: string }>;
+          point_count?: number;
+          bounds_ne_lat?: number;
+          bounds_ne_lng?: number;
+          bounds_sw_lat?: number;
+          bounds_sw_lng?: number;
+          source?: string | null;
+        };
+        Update: {
+          id?: number;
+          exercise_event_id?: number;
+          route_points?: Array<{ lat: number; lng: number; alt?: number; speed?: number; ts?: string }>;
+          point_count?: number;
+          bounds_ne_lat?: number;
+          bounds_ne_lng?: number;
+          bounds_sw_lat?: number;
+          bounds_sw_lng?: number;
+          source?: string | null;
         };
         Relationships: never[];
       };
@@ -516,6 +564,7 @@ export type UserPreferences = Database['public']['Tables']['user_preferences']['
 export type ExerciseDaily = Database['public']['Tables']['exercise_daily']['Row'];
 export type HealthMetricsDaily = Database['public']['Tables']['health_metrics_daily']['Row'];
 export type ExerciseEvent = Database['public']['Tables']['exercise_events']['Row'];
+export type WorkoutRoute = Database['public']['Tables']['workout_routes']['Row'];
 export type HealthMetricsBody = Database['public']['Tables']['health_metrics_body']['Row'];
 
 export interface StateOfMind {

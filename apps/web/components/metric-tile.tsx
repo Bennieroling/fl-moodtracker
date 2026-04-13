@@ -43,7 +43,7 @@ export function MetricTile({
     : null
 
   return (
-    <div className={cn('rounded-xl border bg-card p-4', className)}>
+    <div className={cn('rounded-2xl border bg-card p-4', className)}>
       <div className="flex items-center justify-between">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
         {icon && <span className="text-muted-foreground">{icon}</span>}
