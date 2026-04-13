@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 interface FilterQueryOptions<T> {
   enabled?: boolean
@@ -20,11 +20,16 @@ export function useFilterQuery<T>(
   options?: FilterQueryOptions<T>
 ): FilterQueryState<T> {
   const { enabled = true, initialData = null } = options ?? {}
-  const serializedKey = useMemo(() => JSON.stringify(queryKey), [queryKey])
+  const serializedKey = JSON.stringify(queryKey)
   const [data, setData] = useState<T | null>(initialData)
   const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState<Error | null>(null)
   const latestFetch = useRef(0)
+  const fetcherRef = useRef(fetcher)
+  const prevKeyRef = useRef(serializedKey)
+
+  // Keep fetcher ref up to date without causing re-renders
+  fetcherRef.current = fetcher
 
   const executeFetch = useCallback(async () => {
     const fetchId = Date.now()
@@ -32,7 +37,7 @@ export function useFilterQuery<T>(
     setLoading(true)
     setError(null)
     try {
-      const result = await fetcher()
+      const result = await fetcherRef.current()
       if (latestFetch.current === fetchId) {
         setData(result)
         setLoading(false)
@@ -45,17 +50,20 @@ export function useFilterQuery<T>(
       }
       throw err
     }
-  }, [fetcher])
+  }, []) // stable — uses ref for fetcher
 
   useEffect(() => {
     if (!enabled) {
       setLoading(false)
       return
     }
-    executeFetch().catch(() => {
-      // errors already handled in executeFetch
-    })
-  }, [serializedKey, enabled, executeFetch])
+    // Only re-fetch when the serialized key actually changes by value
+    if (prevKeyRef.current !== serializedKey) {
+      prevKeyRef.current = serializedKey
+    }
+    executeFetch().catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serializedKey, enabled])
 
   const refetch = useCallback(async () => {
     if (!enabled) return null

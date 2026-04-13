@@ -34,7 +34,7 @@ import {
 
 import { useAuth } from '@/lib/auth-context'
 import { DailyActivityAggregate } from '@/lib/database'
-import { ExerciseEvent, WorkoutRoute } from '@/lib/types/database'
+import { ExerciseEvent, WorkoutRouteMeta } from '@/lib/types/database'
 import dynamic from 'next/dynamic'
 
 const WorkoutRouteMap = dynamic(() => import('@/components/workout-route-map').then((m) => m.WorkoutRouteMap), { ssr: false })
@@ -745,7 +745,7 @@ function SummaryTile({ label, icon, value, unit, description, decimals, pending 
 
 interface WorkoutTileProps {
   workout: ExerciseEvent
-  route?: WorkoutRoute
+  route?: WorkoutRouteMeta
 }
 
 function WorkoutTile({ workout, route }: WorkoutTileProps) {
@@ -792,7 +792,7 @@ function WorkoutTile({ workout, route }: WorkoutTileProps) {
           )}
         </div>
       </div>
-      {route && route.point_count > 1 && <WorkoutRouteMap route={route} />}
+      {route && route.point_count > 1 && <WorkoutRouteMap routeMeta={route} />}
       {/* Row 1: Duration, Energy, Distance, Speed */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
         <WorkoutStat label="Total minutes" value={totalMinutes} unit="min" />

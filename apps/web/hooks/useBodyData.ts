@@ -35,9 +35,9 @@ export function useBodyData() {
     () => computeRangeBounds(filterState.mode, anchorDateObj),
     [filterState.mode, anchorDateObj]
   )
-  const rangeStartDate = format(rangeBounds.start, 'yyyy-MM-dd')
-  const rangeEndDate = format(rangeBounds.end, 'yyyy-MM-dd')
-  const rangeLabel = formatRangeLabel(filterState.mode, rangeBounds.start, rangeBounds.end)
+  const rangeStartDate = useMemo(() => format(rangeBounds.start, 'yyyy-MM-dd'), [rangeBounds.start])
+  const rangeEndDate = useMemo(() => format(rangeBounds.end, 'yyyy-MM-dd'), [rangeBounds.end])
+  const rangeLabel = useMemo(() => formatRangeLabel(filterState.mode, rangeBounds.start, rangeBounds.end), [filterState.mode, rangeBounds.start, rangeBounds.end])
 
   const queryKey = useMemo(
     () => ['body', user?.id, filterState.mode, filterState.anchorDate, rangeStartDate, rangeEndDate],

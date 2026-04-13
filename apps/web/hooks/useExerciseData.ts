@@ -15,7 +15,7 @@ import {
   getEcgReadings,
   getHeartRateNotifications,
 } from '@/lib/database'
-import { ExerciseEvent, WorkoutRoute, EcgReading, HeartRateNotification } from '@/lib/types/database'
+import { ExerciseEvent, WorkoutRouteMeta, EcgReading, HeartRateNotification } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase-browser'
 import { useFilterQuery } from '@/hooks/useFilterQuery'
 import {
@@ -37,7 +37,7 @@ interface ExerciseQueryResult {
   }
   ecgReadings: EcgReading[]
   heartRateNotifications: HeartRateNotification[]
-  routesByWorkoutId: Map<number, WorkoutRoute>
+  routesByWorkoutId: Map<number, WorkoutRouteMeta>
 }
 
 const defaultAggregates = { week: [], month: [], year: [] }
@@ -49,9 +49,9 @@ export function useExerciseData() {
 
   const anchorDateObj = useMemo(() => parseAnchorDate(filterState.anchorDate), [filterState.anchorDate])
   const rangeBounds = useMemo(() => computeRangeBounds(filterState.mode, anchorDateObj), [filterState.mode, anchorDateObj])
-  const rangeStartDate = format(rangeBounds.start, 'yyyy-MM-dd')
-  const rangeEndDate = format(rangeBounds.end, 'yyyy-MM-dd')
-  const rangeLabel = formatRangeLabel(filterState.mode, rangeBounds.start, rangeBounds.end)
+  const rangeStartDate = useMemo(() => format(rangeBounds.start, 'yyyy-MM-dd'), [rangeBounds.start])
+  const rangeEndDate = useMemo(() => format(rangeBounds.end, 'yyyy-MM-dd'), [rangeBounds.end])
+  const rangeLabel = useMemo(() => formatRangeLabel(filterState.mode, rangeBounds.start, rangeBounds.end), [filterState.mode, rangeBounds.start, rangeBounds.end])
   const eventRange = useMemo(
     () => getExerciseEventIsoRange(rangeStartDate, rangeEndDate),
     [rangeStartDate, rangeEndDate]
@@ -76,18 +76,18 @@ export function useExerciseData() {
       getHeartRateNotifications(user.id),
     ])
 
-    // Fetch routes for all workouts in range
-    const routesByWorkoutId = new Map<number, WorkoutRoute>()
+    // Fetch route metadata (no route_points) for all workouts in range
+    const routesByWorkoutId = new Map<number, WorkoutRouteMeta>()
     if (workouts.length > 0) {
       const workoutIds = workouts.map((w) => w.id)
       const supabase = createClient()
       const { data: routes } = await supabase
         .from('workout_routes')
-        .select('id, exercise_event_id, route_points, point_count, bounds_ne_lat, bounds_ne_lng, bounds_sw_lat, bounds_sw_lng, source')
+        .select('id, exercise_event_id, point_count, bounds_ne_lat, bounds_ne_lng, bounds_sw_lat, bounds_sw_lng, source')
         .in('exercise_event_id', workoutIds)
       if (routes) {
         for (const route of routes) {
-          routesByWorkoutId.set(route.exercise_event_id, route as WorkoutRoute)
+          routesByWorkoutId.set(route.exercise_event_id, route as WorkoutRouteMeta)
         }
       }
     }

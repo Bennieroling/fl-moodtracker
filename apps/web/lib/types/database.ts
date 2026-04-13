@@ -565,6 +565,7 @@ export type ExerciseDaily = Database['public']['Tables']['exercise_daily']['Row'
 export type HealthMetricsDaily = Database['public']['Tables']['health_metrics_daily']['Row'];
 export type ExerciseEvent = Database['public']['Tables']['exercise_events']['Row'];
 export type WorkoutRoute = Database['public']['Tables']['workout_routes']['Row'];
+export type WorkoutRouteMeta = Omit<WorkoutRoute, 'route_points'>;
 export type HealthMetricsBody = Database['public']['Tables']['health_metrics_body']['Row'];
 
 export interface StateOfMind {

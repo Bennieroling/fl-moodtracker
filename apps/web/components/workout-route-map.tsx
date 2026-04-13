@@ -1,12 +1,21 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
-import type { WorkoutRoute } from '@/lib/types/database'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { WorkoutRouteMeta } from '@/lib/types/database'
+import { createClient } from '@/lib/supabase-browser'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
+interface RoutePoint {
+  lat: number
+  lng: number
+  alt?: number
+  speed?: number
+  ts?: string
+}
+
 interface WorkoutRouteMapProps {
-  route: WorkoutRoute
+  routeMeta: WorkoutRouteMeta
 }
 
 function speedToColor(speed: number, minSpeed: number, maxSpeed: number): string {
@@ -18,12 +27,29 @@ function speedToColor(speed: number, minSpeed: number, maxSpeed: number): string
   return '#ef4444' // red — very fast
 }
 
-export function WorkoutRouteMap({ route }: WorkoutRouteMapProps) {
+export function WorkoutRouteMap({ routeMeta }: WorkoutRouteMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
+  const [points, setPoints] = useState<RoutePoint[] | null>(null)
+
+  // Fetch route_points on demand when this component mounts
+  useEffect(() => {
+    let cancelled = false
+    const supabase = createClient()
+    supabase
+      .from('workout_routes')
+      .select('route_points')
+      .eq('id', routeMeta.id)
+      .single()
+      .then(({ data }) => {
+        if (!cancelled && data?.route_points) {
+          setPoints(data.route_points as RoutePoint[])
+        }
+      })
+    return () => { cancelled = true }
+  }, [routeMeta.id])
 
   const { segments, bounds } = useMemo(() => {
-    const points = route.route_points
     if (!points || points.length < 2) return { segments: [], bounds: null }
 
     const speeds = points.map((p) => p.speed ?? 0).filter((s) => s > 0)
@@ -46,12 +72,11 @@ export function WorkoutRouteMap({ route }: WorkoutRouteMapProps) {
     const routeBounds = L.latLngBounds(latlngs)
 
     return { segments: segs, bounds: routeBounds }
-  }, [route])
+  }, [points])
 
   useEffect(() => {
     if (!mapRef.current || segments.length === 0 || !bounds) return
 
-    // Clean up previous instance
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove()
       mapInstanceRef.current = null
@@ -99,9 +124,7 @@ export function WorkoutRouteMap({ route }: WorkoutRouteMapProps) {
       fillOpacity: 1,
     }).addTo(map)
 
-    // Fit bounds so route fills the map — padding keeps markers from edge
     map.fitBounds(bounds, { padding: [12, 12], maxZoom: 18 })
-
     mapInstanceRef.current = map
 
     return () => {
@@ -109,6 +132,12 @@ export function WorkoutRouteMap({ route }: WorkoutRouteMapProps) {
       mapInstanceRef.current = null
     }
   }, [segments, bounds])
+
+  if (!points) {
+    return (
+      <div className="w-full rounded-xl bg-muted animate-pulse" style={{ height: 240 }} />
+    )
+  }
 
   if (segments.length === 0) return null
 
