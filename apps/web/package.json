@@ -14,6 +14,7 @@
     "@jridgewell/gen-mapping": "^0.3.13",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.56.0",
+    "@tanstack/react-query": "^5.99.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

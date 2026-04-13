@@ -1,12 +1,11 @@
 'use client'
 
-import { useMemo, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
 import { DailyActivity, getDashboardSummary, getDailyActivityByDate } from '@/lib/database'
 import { FoodEntry } from '@/lib/types/database'
-import { useFilterQuery } from '@/hooks/useFilterQuery'
 
 interface HistoricData {
   summary: {
@@ -36,23 +35,20 @@ export const useHistoricData = () => {
   const { user } = useAuth()
   const { filters } = useFilters()
   const selectedDate = filters.historic.date
+  const userId = user?.id
 
-  const queryKey = useMemo(() => ['historic', user?.id, selectedDate], [user?.id, selectedDate])
-
-  const fetcher = useCallback(async () => {
-    if (!user?.id) return defaultHistoricData
-    const [summary, activity] = await Promise.all([
-      getDashboardSummary(user.id, selectedDate),
-      getDailyActivityByDate(user.id, selectedDate),
-    ])
-    return {
-      summary: summary ?? defaultSummary,
-      activity: activity ?? null,
-    }
-  }, [user?.id, selectedDate])
-
-  return useFilterQuery<HistoricData>(queryKey, fetcher, {
-    enabled: !!user?.id,
-    initialData: defaultHistoricData,
+  const { data, isLoading: loading, error, refetch } = useQuery({
+    queryKey: ['historic', userId, selectedDate],
+    queryFn: async () => {
+      if (!userId) throw new Error('No user')
+      const [summary, activity] = await Promise.all([
+        getDashboardSummary(userId, selectedDate),
+        getDailyActivityByDate(userId, selectedDate),
+      ])
+      return { summary: summary ?? defaultSummary, activity: activity ?? null }
+    },
+    enabled: !!userId,
   })
+
+  return { data: data ?? defaultHistoricData, loading, error: error as Error | null, refetch }
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
 
 import { useAuth } from '@/lib/auth-context'
@@ -17,7 +18,6 @@ import {
 } from '@/lib/database'
 import { ExerciseEvent, WorkoutRouteMeta, EcgReading, HeartRateNotification } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase-browser'
-import { useFilterQuery } from '@/hooks/useFilterQuery'
 import {
   RangeMode,
   computeRangeBounds,
@@ -27,20 +27,7 @@ import {
   shiftAnchor,
 } from '@/lib/range-utils'
 
-interface ExerciseQueryResult {
-  workouts: ExerciseEvent[]
-  dailySeries: DailyActivity[]
-  aggregates: {
-    week: DailyActivityAggregate[]
-    month: DailyActivityAggregate[]
-    year: DailyActivityAggregate[]
-  }
-  ecgReadings: EcgReading[]
-  heartRateNotifications: HeartRateNotification[]
-  routesByWorkoutId: Map<number, WorkoutRouteMeta>
-}
-
-const defaultAggregates = { week: [], month: [], year: [] }
+const defaultAggregates = { week: [] as DailyActivityAggregate[], month: [] as DailyActivityAggregate[], year: [] as DailyActivityAggregate[] }
 
 export function useExerciseData() {
   const { user } = useAuth()
@@ -57,62 +44,44 @@ export function useExerciseData() {
     [rangeStartDate, rangeEndDate]
   )
 
-  const queryKey = useMemo(
-    () => ['exercise', user?.id, filterState.mode, filterState.anchorDate, rangeStartDate, rangeEndDate],
-    [user?.id, filterState.mode, filterState.anchorDate, rangeStartDate, rangeEndDate]
-  )
+  const userId = user?.id
 
-  const fetcher = useCallback(async () => {
-    if (!user?.id) {
-      return { workouts: [], dailySeries: [], aggregates: defaultAggregates, ecgReadings: [], heartRateNotifications: [], routesByWorkoutId: new Map() }
-    }
-    const workouts = await getExerciseEventsForRange(user.id, eventRange.startIso, eventRange.endIso)
-    const [dailySeries, weekAgg, monthAgg, yearAgg, ecgReadings, heartRateNotifications] = await Promise.all([
-      getDailyActivityRange(user.id, rangeStartDate, rangeEndDate, { workouts }),
-      getActivityAggregates(user.id, 'week', 12, rangeStartDate, rangeEndDate),
-      getActivityAggregates(user.id, 'month', 12, rangeStartDate, rangeEndDate),
-      getActivityAggregates(user.id, 'year', 5, rangeStartDate, rangeEndDate),
-      getEcgReadings(user.id),
-      getHeartRateNotifications(user.id),
-    ])
+  const { data, isLoading: loading, error, refetch } = useQuery({
+    queryKey: ['exercise', userId, filterState.mode, filterState.anchorDate, rangeStartDate, rangeEndDate],
+    queryFn: async () => {
+      if (!userId) throw new Error('No user')
+      const workouts = await getExerciseEventsForRange(userId, eventRange.startIso, eventRange.endIso)
+      const [dailySeries, weekAgg, monthAgg, yearAgg, ecgReadings, heartRateNotifications] = await Promise.all([
+        getDailyActivityRange(userId, rangeStartDate, rangeEndDate, { workouts }),
+        getActivityAggregates(userId, 'week', 12, rangeStartDate, rangeEndDate),
+        getActivityAggregates(userId, 'month', 12, rangeStartDate, rangeEndDate),
+        getActivityAggregates(userId, 'year', 5, rangeStartDate, rangeEndDate),
+        getEcgReadings(userId),
+        getHeartRateNotifications(userId),
+      ])
 
-    // Fetch route metadata (no route_points) for all workouts in range
-    const routesByWorkoutId = new Map<number, WorkoutRouteMeta>()
-    if (workouts.length > 0) {
-      const workoutIds = workouts.map((w) => w.id)
-      const supabase = createClient()
-      const { data: routes } = await supabase
-        .from('workout_routes')
-        .select('id, exercise_event_id, point_count, bounds_ne_lat, bounds_ne_lng, bounds_sw_lat, bounds_sw_lng, source')
-        .in('exercise_event_id', workoutIds)
-      if (routes) {
-        for (const route of routes) {
-          routesByWorkoutId.set(route.exercise_event_id, route as WorkoutRouteMeta)
+      const routesByWorkoutId = new Map<number, WorkoutRouteMeta>()
+      if (workouts.length > 0) {
+        const workoutIds = workouts.map((w) => w.id)
+        const supabase = createClient()
+        const { data: routes } = await supabase
+          .from('workout_routes')
+          .select('id, exercise_event_id, point_count, bounds_ne_lat, bounds_ne_lng, bounds_sw_lat, bounds_sw_lng, source')
+          .in('exercise_event_id', workoutIds)
+        if (routes) {
+          for (const route of routes) {
+            routesByWorkoutId.set(route.exercise_event_id, route as WorkoutRouteMeta)
+          }
         }
       }
-    }
 
-    return {
-      workouts,
-      dailySeries,
-      aggregates: {
-        week: weekAgg,
-        month: monthAgg,
-        year: yearAgg,
-      },
-      ecgReadings,
-      heartRateNotifications,
-      routesByWorkoutId,
-    }
-  }, [user?.id, eventRange.startIso, eventRange.endIso, rangeStartDate, rangeEndDate])
-
-  const { data, loading, error, refetch } = useFilterQuery<ExerciseQueryResult>(queryKey, fetcher, {
-    enabled: !!user?.id,
-    initialData: { workouts: [], dailySeries: [], aggregates: defaultAggregates, ecgReadings: [], heartRateNotifications: [], routesByWorkoutId: new Map() },
+      return { workouts, dailySeries, aggregates: { week: weekAgg, month: monthAgg, year: yearAgg }, ecgReadings, heartRateNotifications, routesByWorkoutId }
+    },
+    enabled: !!userId,
   })
 
-  const workouts = useMemo(() => (data ? data.workouts : []), [data])
-  const dailySeries = useMemo(() => (data ? data.dailySeries : []), [data])
+  const workouts = useMemo(() => data?.workouts ?? [], [data])
+  const dailySeries = useMemo(() => data?.dailySeries ?? [], [data])
   const aggregates = data?.aggregates ?? defaultAggregates
   const ecgReadings = data?.ecgReadings ?? []
   const heartRateNotifications = data?.heartRateNotifications ?? []
@@ -145,37 +114,18 @@ export function useExerciseData() {
       setExerciseFilters((prev) => {
         const base = parseAnchorDate(prev.anchorDate)
         const shifted = shiftAnchor(base, prev.mode, direction)
-        return {
-          ...prev,
-          anchorDate: format(normalizeDateForMode(shifted, prev.mode), 'yyyy-MM-dd'),
-        }
+        return { ...prev, anchorDate: format(normalizeDateForMode(shifted, prev.mode), 'yyyy-MM-dd') }
       })
     },
     [setExerciseFilters]
   )
 
   return {
-    workouts,
-    dailySeries,
-    aggregates,
-    ecgReadings,
-    heartRateNotifications,
-    loading,
-    error,
-    refetch,
-    healthSummary,
-    exerciseSummary,
-    range: {
-      mode: filterState.mode,
-      anchorDate: filterState.anchorDate,
-      startDate: rangeStartDate,
-      endDate: rangeEndDate,
-      label: rangeLabel,
-    },
-    shiftRange,
-    routesByWorkoutId,
-    setRangeMode,
-    setAnchorDate,
+    workouts, dailySeries, aggregates, ecgReadings, heartRateNotifications,
+    loading, error: error as Error | null, refetch,
+    healthSummary, exerciseSummary, routesByWorkoutId,
+    range: { mode: filterState.mode, anchorDate: filterState.anchorDate, startDate: rangeStartDate, endDate: rangeEndDate, label: rangeLabel },
+    shiftRange, setRangeMode, setAnchorDate,
   }
 }
 
@@ -194,47 +144,26 @@ const summarizeWorkouts = (events: ExerciseEvent[]) =>
   )
 
 const summarizeHealth = (series: DailyActivity[]) => {
-  let steps = 0
-  let restingHeartRateTotal = 0
-  let restingHeartRateCount = 0
-  let hrvTotal = 0
-  let hrvCount = 0
-  let vo2Total = 0
-  let vo2Count = 0
-  let standHoursTotal = 0
-  let standHoursCount = 0
+  let steps = 0, exerciseMinutes = 0, activeEnergy = 0
+  let restingHeartRateTotal = 0, restingHeartRateCount = 0
+  let hrvTotal = 0, hrvCount = 0
+  let vo2Total = 0, vo2Count = 0
+  let standHoursTotal = 0, standHoursCount = 0
   const hasHealthData = series.some(hasHealthMetrics)
-
-  let exerciseMinutes = 0
-  let activeEnergy = 0
 
   for (const day of series) {
     steps += numberFromValue(day.steps)
     exerciseMinutes += numberFromValue(day.exercise_time_minutes)
     activeEnergy += numberFromValue(day.active_energy_kcal)
-    if (day.resting_heart_rate !== null && day.resting_heart_rate !== undefined) {
-      restingHeartRateTotal += Number(day.resting_heart_rate)
-      restingHeartRateCount++
-    }
-    if (day.hrv !== null && day.hrv !== undefined) {
-      hrvTotal += Number(day.hrv)
-      hrvCount++
-    }
-    if (day.vo2max !== null && day.vo2max !== undefined) {
-      vo2Total += Number(day.vo2max)
-      vo2Count++
-    }
+    if (day.resting_heart_rate != null) { restingHeartRateTotal += Number(day.resting_heart_rate); restingHeartRateCount++ }
+    if (day.hrv != null) { hrvTotal += Number(day.hrv); hrvCount++ }
+    if (day.vo2max != null) { vo2Total += Number(day.vo2max); vo2Count++ }
     const standVal = day.stand_hours ?? (day.stand_time_minutes != null ? Number(day.stand_time_minutes) / 60 : null)
-    if (standVal !== null && standVal !== undefined) {
-      standHoursTotal += Number(standVal)
-      standHoursCount++
-    }
+    if (standVal != null) { standHoursTotal += Number(standVal); standHoursCount++ }
   }
 
   return {
-    steps,
-    exerciseMinutes,
-    activeEnergy,
+    steps, exerciseMinutes, activeEnergy,
     restingHeartRateAvg: restingHeartRateCount ? restingHeartRateTotal / restingHeartRateCount : null,
     hrvAvg: hrvCount ? hrvTotal / hrvCount : null,
     vo2maxAvg: vo2Count ? vo2Total / vo2Count : null,
@@ -244,12 +173,9 @@ const summarizeHealth = (series: DailyActivity[]) => {
 }
 
 const hasHealthMetrics = (day: DailyActivity) =>
-  day.total_energy_kcal !== null ||
-  day.resting_energy_kcal !== null ||
-  day.steps !== null ||
-  day.resting_heart_rate !== null ||
-  day.hrv !== null ||
-  day.vo2max !== null
+  day.total_energy_kcal !== null || day.resting_energy_kcal !== null ||
+  day.steps !== null || day.resting_heart_rate !== null ||
+  day.hrv !== null || day.vo2max !== null
 
 const numberFromValue = (value: number | string | null | undefined) => {
   if (value === null || value === undefined) return 0

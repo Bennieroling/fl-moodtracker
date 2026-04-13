@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import type { WorkoutRouteMeta } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase-browser'
 import L from 'leaflet'
@@ -21,33 +22,29 @@ interface WorkoutRouteMapProps {
 function speedToColor(speed: number, minSpeed: number, maxSpeed: number): string {
   if (maxSpeed <= minSpeed) return '#3b82f6'
   const ratio = (speed - minSpeed) / (maxSpeed - minSpeed)
-  if (ratio < 0.33) return '#3b82f6' // blue — slow
-  if (ratio < 0.66) return '#22c55e' // green — medium
-  if (ratio < 0.85) return '#f97316' // orange — fast
-  return '#ef4444' // red — very fast
+  if (ratio < 0.33) return '#3b82f6'
+  if (ratio < 0.66) return '#22c55e'
+  if (ratio < 0.85) return '#f97316'
+  return '#ef4444'
 }
 
 export function WorkoutRouteMap({ routeMeta }: WorkoutRouteMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
-  const [points, setPoints] = useState<RoutePoint[] | null>(null)
 
-  // Fetch route_points on demand when this component mounts
-  useEffect(() => {
-    let cancelled = false
-    const supabase = createClient()
-    supabase
-      .from('workout_routes')
-      .select('route_points')
-      .eq('id', routeMeta.id)
-      .single()
-      .then(({ data }) => {
-        if (!cancelled && data?.route_points) {
-          setPoints(data.route_points as RoutePoint[])
-        }
-      })
-    return () => { cancelled = true }
-  }, [routeMeta.id])
+  const { data: points } = useQuery({
+    queryKey: ['route-points', routeMeta.id],
+    queryFn: async () => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('workout_routes')
+        .select('route_points')
+        .eq('id', routeMeta.id)
+        .single()
+      return (data?.route_points as RoutePoint[] | null) ?? null
+    },
+    staleTime: 30 * 60 * 1000, // route data doesn't change — cache 30 min
+  })
 
   const { segments, bounds } = useMemo(() => {
     if (!points || points.length < 2) return { segments: [], bounds: null }
@@ -108,21 +105,8 @@ export function WorkoutRouteMap({ routeMeta }: WorkoutRouteMapProps) {
     const firstPt = segments[0].from
     const lastPt = segments[segments.length - 1].to
 
-    L.circleMarker(firstPt, {
-      radius: 6,
-      fillColor: '#22c55e',
-      color: '#fff',
-      weight: 2,
-      fillOpacity: 1,
-    }).addTo(map)
-
-    L.circleMarker(lastPt, {
-      radius: 6,
-      fillColor: '#ef4444',
-      color: '#fff',
-      weight: 2,
-      fillOpacity: 1,
-    }).addTo(map)
+    L.circleMarker(firstPt, { radius: 6, fillColor: '#22c55e', color: '#fff', weight: 2, fillOpacity: 1 }).addTo(map)
+    L.circleMarker(lastPt, { radius: 6, fillColor: '#ef4444', color: '#fff', weight: 2, fillOpacity: 1 }).addTo(map)
 
     map.fitBounds(bounds, { padding: [12, 12], maxZoom: 18 })
     mapInstanceRef.current = map
@@ -134,18 +118,10 @@ export function WorkoutRouteMap({ routeMeta }: WorkoutRouteMapProps) {
   }, [segments, bounds])
 
   if (!points) {
-    return (
-      <div className="w-full rounded-xl bg-muted animate-pulse" style={{ height: 240 }} />
-    )
+    return <div className="w-full rounded-xl bg-muted animate-pulse" style={{ height: 240 }} />
   }
 
   if (segments.length === 0) return null
 
-  return (
-    <div
-      ref={mapRef}
-      className="w-full rounded-xl overflow-hidden"
-      style={{ height: 240 }}
-    />
-  )
+  return <div ref={mapRef} className="w-full rounded-xl overflow-hidden" style={{ height: 240 }} />
 }

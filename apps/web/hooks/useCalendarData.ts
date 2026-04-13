@@ -1,13 +1,13 @@
 'use client'
 
-import { useMemo, useCallback } from 'react'
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { parseISO } from 'date-fns'
 
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
 import { getMoodEntriesForMonth, getMoodEntryByDate, getFoodEntriesForDate, getDailyActivityByDate, getStateOfMindForDate, DailyActivity } from '@/lib/database'
 import { MoodEntry, FoodEntry, StateOfMind } from '@/lib/types/database'
-import { useFilterQuery } from '@/hooks/useFilterQuery'
 
 export const useCalendarMonthData = () => {
   const { user } = useAuth()
@@ -16,19 +16,19 @@ export const useCalendarMonthData = () => {
   const currentMonthDate = useMemo(() => parseISO(currentMonth), [currentMonth])
   const year = currentMonthDate.getFullYear()
   const month = currentMonthDate.getMonth() + 1
+  const userId = user?.id
 
-  const queryKey = useMemo(() => ['calendar-month', user?.id, currentMonth], [user?.id, currentMonth])
-
-  const fetcher = useCallback(async () => {
-    if (!user?.id) return [] as MoodEntry[]
-    const entries = await getMoodEntriesForMonth(user.id, year, month)
-    return entries as MoodEntry[]
-  }, [user?.id, year, month])
-
-  return useFilterQuery<MoodEntry[]>(queryKey, fetcher, {
-    enabled: !!user?.id,
-    initialData: [],
+  const { data, isLoading: loading, error, refetch } = useQuery({
+    queryKey: ['calendar-month', userId, currentMonth],
+    queryFn: async () => {
+      if (!userId) throw new Error('No user')
+      const entries = await getMoodEntriesForMonth(userId, year, month)
+      return (entries as MoodEntry[]) ?? []
+    },
+    enabled: !!userId,
   })
+
+  return { data: data ?? [], loading, error: error as Error | null, refetch }
 }
 
 interface CalendarDayData {
@@ -49,30 +49,27 @@ export const useCalendarDayData = () => {
   const { user } = useAuth()
   const { filters } = useFilters()
   const selectedDate = filters.calendar.selectedDate
+  const userId = user?.id
 
-  const queryKey = useMemo(() => ['calendar-day', user?.id, selectedDate], [user?.id, selectedDate])
-
-  const fetcher = useCallback(async () => {
-    if (!user?.id || !selectedDate) return defaultDayData
-    const [mood, food, activity, stateOfMind] = await Promise.all([
-      getMoodEntryByDate(user.id, selectedDate),
-      getFoodEntriesForDate(user.id, selectedDate),
-      getDailyActivityByDate(user.id, selectedDate),
-      getStateOfMindForDate(user.id, selectedDate),
-    ])
-    const moodEntry = (mood as MoodEntry | null) ?? null
-    const foodEntries = (food as FoodEntry[] | null) ?? []
-    const activityEntry = (activity as DailyActivity | null) ?? null
-    return {
-      mood: moodEntry,
-      foodEntries,
-      activity: activityEntry,
-      stateOfMind: stateOfMind ?? [],
-    }
-  }, [user?.id, selectedDate])
-
-  return useFilterQuery<CalendarDayData>(queryKey, fetcher, {
-    enabled: !!(user?.id && selectedDate),
-    initialData: defaultDayData,
+  const { data, isLoading: loading, error, refetch } = useQuery({
+    queryKey: ['calendar-day', userId, selectedDate],
+    queryFn: async () => {
+      if (!userId || !selectedDate) throw new Error('No user or date')
+      const [mood, food, activity, stateOfMind] = await Promise.all([
+        getMoodEntryByDate(userId, selectedDate),
+        getFoodEntriesForDate(userId, selectedDate),
+        getDailyActivityByDate(userId, selectedDate),
+        getStateOfMindForDate(userId, selectedDate),
+      ])
+      return {
+        mood: (mood as MoodEntry | null) ?? null,
+        foodEntries: (food as FoodEntry[] | null) ?? [],
+        activity: (activity as DailyActivity | null) ?? null,
+        stateOfMind: stateOfMind ?? [],
+      }
+    },
+    enabled: !!(userId && selectedDate),
   })
+
+  return { data: data ?? defaultDayData, loading, error: error as Error | null, refetch }
 }

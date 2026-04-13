@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { eachDayOfInterval, format, parseISO } from 'date-fns'
 
 import { useAuth } from '@/lib/auth-context'
@@ -9,7 +9,6 @@ import { createClient } from '@/lib/supabase-browser'
 import { getStateOfMindTrends, getStateOfMindLabelCounts, getStateOfMindAssociationCounts } from '@/lib/database'
 import { WeeklyMetrics } from '@/lib/validations'
 import { Database, FoodEntry, MoodEntry, Insight } from '@/lib/types/database'
-import { useFilterQuery } from '@/hooks/useFilterQuery'
 
 interface DailyData {
   date: string
@@ -65,132 +64,77 @@ export const useInsightsData = () => {
   const { user } = useAuth()
   const { filters } = useFilters()
   const { startDate, endDate } = filters.insights
+  const userId = user?.id
 
-  const queryKey = useMemo(() => ['insights', user?.id, startDate, endDate], [user?.id, startDate, endDate])
+  const { data, isLoading: loading, error, refetch } = useQuery({
+    queryKey: ['insights', userId, startDate, endDate],
+    queryFn: async () => {
+      if (!userId) throw new Error('No user')
+      const supabase = createClient()
+      const start = parseISO(startDate)
+      const end = parseISO(endDate)
 
-  const fetcher = useCallback(async () => {
-    if (!user?.id) return defaultInsightsData
-    const supabase = createClient()
-    const start = parseISO(startDate)
-    const end = parseISO(endDate)
+      const metricsArgs = {
+        user_uuid: userId,
+        start_date: startDate,
+        end_date: endDate,
+      } satisfies Database['public']['Functions']['calculate_weekly_metrics']['Args']
 
-    const metricsArgs = {
-      user_uuid: user.id,
-      start_date: startDate,
-      end_date: endDate,
-    } satisfies Database['public']['Functions']['calculate_weekly_metrics']['Args']
+      const [metricsRes, moodRes, foodRes, insightsRes, valenceTrend, topLabels, topAssociations] = await Promise.all([
+        supabase.rpc('calculate_weekly_metrics', metricsArgs as Database['public']['Functions']['calculate_weekly_metrics']['Args']),
+        supabase.from('mood_entries').select('date, mood_score').eq('user_id', userId).gte('date', startDate).lte('date', endDate).order('date'),
+        supabase.from('food_entries').select('date, calories, macros').eq('user_id', userId).gte('date', startDate).lte('date', endDate),
+        supabase.from('insights').select('*').eq('user_id', userId).eq('period_start', startDate).eq('period_end', endDate).single(),
+        getStateOfMindTrends(userId, startDate, endDate),
+        getStateOfMindLabelCounts(userId, startDate, endDate),
+        getStateOfMindAssociationCounts(userId, startDate, endDate),
+      ])
 
-    const metricsPromise = supabase.rpc(
-      'calculate_weekly_metrics',
-      metricsArgs as Database['public']['Functions']['calculate_weekly_metrics']['Args']
-    )
+      const weeklyMetrics = (metricsRes.data as WeeklyMetrics | null) ?? defaultWeeklyMetrics
+      const moodData = (moodRes.data as MoodEntry[]) || []
+      const foodData = (foodRes.data as FoodEntry[]) || []
 
-    const moodPromise = supabase
-      .from('mood_entries')
-      .select('date, mood_score')
-      .eq('user_id', user.id)
-      .gte('date', startDate)
-      .lte('date', endDate)
-      .order('date')
+      const combinedData: DailyData[] = eachDayOfInterval({ start, end }).map((currentDate) => {
+        const dateStr = format(currentDate, 'yyyy-MM-dd')
+        const shortDate = format(currentDate, 'M/d')
+        const moodEntry = moodData.find((entry) => entry.date === dateStr)
+        const dayCalories = foodData.filter((entry) => entry.date === dateStr).reduce((sum, entry) => sum + (entry.calories || 0), 0)
+        return { date: shortDate, mood: moodEntry?.mood_score || 0, calories: dayCalories }
+      })
 
-    const foodPromise = supabase
-      .from('food_entries')
-      .select('date, calories, macros')
-      .eq('user_id', user.id)
-      .gte('date', startDate)
-      .lte('date', endDate)
-
-    const insightsPromise = supabase
-      .from('insights')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('period_start', startDate)
-      .eq('period_end', endDate)
-      .single()
-
-    const [metricsRes, moodRes, foodRes, insightsRes, valenceTrend, topLabels, topAssociations] = await Promise.all([
-      metricsPromise,
-      moodPromise,
-      foodPromise,
-      insightsPromise,
-      getStateOfMindTrends(user.id, startDate, endDate),
-      getStateOfMindLabelCounts(user.id, startDate, endDate),
-      getStateOfMindAssociationCounts(user.id, startDate, endDate),
-    ])
-
-    const weeklyMetrics = ((metricsRes.data as WeeklyMetrics | null) ?? defaultWeeklyMetrics)
-    const moodData = (moodRes.data as MoodEntry[]) || []
-    const foodData = (foodRes.data as FoodEntry[]) || []
-
-    const combinedData: DailyData[] = eachDayOfInterval({ start, end }).map((currentDate) => {
-      const dateStr = format(currentDate, 'yyyy-MM-dd')
-      const shortDate = format(currentDate, 'M/d')
-      const moodEntry = moodData.find((entry) => entry.date === dateStr)
-      const dayCalories = foodData
-        .filter((entry) => entry.date === dateStr)
-        .reduce((sum, entry) => sum + (entry.calories || 0), 0)
+      const insightRow = (insightsRes.data as Insight | null) ?? null
 
       return {
-        date: shortDate,
-        mood: moodEntry?.mood_score || 0,
-        calories: dayCalories,
+        weeklyMetrics,
+        weeklyData: combinedData,
+        macroData: calculateMacroDistribution(foodData),
+        aiSummary: insightRow?.summary_md ?? null,
+        aiTips: insightRow?.tips_md ?? null,
+        lastGenerated: insightRow?.created_at ? new Date(insightRow.created_at) : null,
+        valenceTrend,
+        topLabels,
+        topAssociations,
       }
-    })
-
-    const macroData = calculateMacroDistribution(foodData)
-
-    const insightRow = (insightsRes.data as Insight | null) ?? null
-
-    return {
-      weeklyMetrics,
-      weeklyData: combinedData,
-      macroData,
-      aiSummary: insightRow?.summary_md ?? null,
-      aiTips: insightRow?.tips_md ?? null,
-      lastGenerated: insightRow?.created_at ? new Date(insightRow.created_at) : null,
-      valenceTrend,
-      topLabels,
-      topAssociations,
-    }
-  }, [user?.id, startDate, endDate])
-
-  return useFilterQuery<InsightsData>(queryKey, fetcher, {
-    enabled: !!user?.id,
-    initialData: defaultInsightsData,
+    },
+    enabled: !!userId,
   })
+
+  return { data: data ?? defaultInsightsData, loading, error: error as Error | null, refetch }
 }
 
 const calculateMacroDistribution = (foodData: FoodEntry[]) => {
   const totals = foodData.reduce(
     (acc, entry) => {
       const macros = entry.macros || { protein: 0, carbs: 0, fat: 0 }
-      return {
-        protein: acc.protein + macros.protein,
-        carbs: acc.carbs + macros.carbs,
-        fat: acc.fat + macros.fat,
-      }
+      return { protein: acc.protein + macros.protein, carbs: acc.carbs + macros.carbs, fat: acc.fat + macros.fat }
     },
     { protein: 0, carbs: 0, fat: 0 }
   )
-
   const total = totals.protein + totals.carbs + totals.fat
   if (total === 0) return defaultMacroData
-
   return [
-    {
-      name: 'Protein',
-      value: Math.round((totals.protein / total) * 100),
-      color: '#3B82F6',
-    },
-    {
-      name: 'Carbs',
-      value: Math.round((totals.carbs / total) * 100),
-      color: '#10B981',
-    },
-    {
-      name: 'Fat',
-      value: Math.round((totals.fat / total) * 100),
-      color: '#F59E0B',
-    },
+    { name: 'Protein', value: Math.round((totals.protein / total) * 100), color: '#3B82F6' },
+    { name: 'Carbs', value: Math.round((totals.carbs / total) * 100), color: '#10B981' },
+    { name: 'Fat', value: Math.round((totals.fat / total) * 100), color: '#F59E0B' },
   ]
 }

@@ -5,6 +5,7 @@ import { AuthProvider } from "@/lib/auth-context"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { FilterProvider } from "@/lib/filter-context"
+import { QueryProvider } from "@/components/query-provider"
 import { ServiceWorkerRegister } from "@/components/service-worker-register"
 import { cn } from "@/lib/utils"
 
@@ -63,12 +64,14 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
-            <FilterProvider>
-              {children}
-              <Toaster />
-            </FilterProvider>
-          </AuthProvider>
+          <QueryProvider>
+            <AuthProvider>
+              <FilterProvider>
+                {children}
+                <Toaster />
+              </FilterProvider>
+            </AuthProvider>
+          </QueryProvider>
         </ThemeProvider>
         <ServiceWorkerRegister />
       </body>
