@@ -2,12 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Activity, Calendar, BarChart3, User } from 'lucide-react'
+import { LayoutDashboard, Activity, HeartPulse, Calendar, BarChart3, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const tabs = [
   { name: 'Home', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Exercise', href: '/exercise', icon: Activity },
+  { name: 'Health', href: '/health', icon: HeartPulse },
   { name: 'Calendar', href: '/calendar', icon: Calendar },
   { name: 'Insights', href: '/insights', icon: BarChart3 },
   { name: 'Profile', href: '/profile', icon: User },

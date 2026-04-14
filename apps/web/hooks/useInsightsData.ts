@@ -1,7 +1,8 @@
 'use client'
 
+import { useCallback, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { eachDayOfInterval, format, parseISO } from 'date-fns'
+import { eachDayOfInterval, format } from 'date-fns'
 
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
@@ -9,6 +10,14 @@ import { createClient } from '@/lib/supabase-browser'
 import { getStateOfMindTrends, getStateOfMindLabelCounts, getStateOfMindAssociationCounts } from '@/lib/database'
 import { WeeklyMetrics } from '@/lib/validations'
 import { Database, FoodEntry, MoodEntry, Insight } from '@/lib/types/database'
+import {
+  RangeMode,
+  computeRangeBounds,
+  formatRangeLabel,
+  normalizeDateForMode,
+  parseAnchorDate,
+  shiftAnchor,
+} from '@/lib/range-utils'
 
 interface DailyData {
   date: string
@@ -28,6 +37,7 @@ interface InsightsData {
   macroData: MacroDatum[]
   aiSummary: string | null
   aiTips: string | null
+  aiReport: string | null
   lastGenerated: Date | null
   valenceTrend: { date: string; avg_valence: number }[]
   topLabels: { label: string; count: number }[]
@@ -54,6 +64,7 @@ export const defaultInsightsData: InsightsData = {
   macroData: defaultMacroData,
   aiSummary: null,
   aiTips: null,
+  aiReport: null,
   lastGenerated: null,
   valenceTrend: [],
   topLabels: [],
@@ -62,17 +73,28 @@ export const defaultInsightsData: InsightsData = {
 
 export const useInsightsData = () => {
   const { user } = useAuth()
-  const { filters } = useFilters()
-  const { startDate, endDate } = filters.insights
+  const { filters, setInsightsFilters } = useFilters()
+  const filterState = filters.insights
   const userId = user?.id
 
+  const anchorDateObj = useMemo(() => parseAnchorDate(filterState.anchorDate), [filterState.anchorDate])
+  const rangeBounds = useMemo(() => computeRangeBounds(filterState.mode, anchorDateObj), [filterState.mode, anchorDateObj])
+  const startDate = useMemo(() => format(rangeBounds.start, 'yyyy-MM-dd'), [rangeBounds.start])
+  const endDate = useMemo(() => format(rangeBounds.end, 'yyyy-MM-dd'), [rangeBounds.end])
+  const rangeLabel = useMemo(
+    () => formatRangeLabel(filterState.mode, rangeBounds.start, rangeBounds.end),
+    [filterState.mode, rangeBounds.start, rangeBounds.end]
+  )
+  const dayCount = useMemo(
+    () => eachDayOfInterval({ start: rangeBounds.start, end: rangeBounds.end }).length,
+    [rangeBounds.start, rangeBounds.end]
+  )
+
   const { data, isLoading: loading, error, refetch } = useQuery({
-    queryKey: ['insights', userId, startDate, endDate],
+    queryKey: ['insights', userId, filterState.mode, filterState.anchorDate, startDate, endDate],
     queryFn: async () => {
       if (!userId) throw new Error('No user')
       const supabase = createClient()
-      const start = parseISO(startDate)
-      const end = parseISO(endDate)
 
       const metricsArgs = {
         user_uuid: userId,
@@ -94,7 +116,7 @@ export const useInsightsData = () => {
       const moodData = (moodRes.data as MoodEntry[]) || []
       const foodData = (foodRes.data as FoodEntry[]) || []
 
-      const combinedData: DailyData[] = eachDayOfInterval({ start, end }).map((currentDate) => {
+      const combinedData: DailyData[] = eachDayOfInterval({ start: rangeBounds.start, end: rangeBounds.end }).map((currentDate) => {
         const dateStr = format(currentDate, 'yyyy-MM-dd')
         const shortDate = format(currentDate, 'M/d')
         const moodEntry = moodData.find((entry) => entry.date === dateStr)
@@ -110,6 +132,7 @@ export const useInsightsData = () => {
         macroData: calculateMacroDistribution(foodData),
         aiSummary: insightRow?.summary_md ?? null,
         aiTips: insightRow?.tips_md ?? null,
+        aiReport: insightRow?.report_md ?? null,
         lastGenerated: insightRow?.created_at ? new Date(insightRow.created_at) : null,
         valenceTrend,
         topLabels,
@@ -119,7 +142,54 @@ export const useInsightsData = () => {
     enabled: !!userId,
   })
 
-  return { data: data ?? defaultInsightsData, loading, error: error as Error | null, refetch }
+  const setRangeMode = useCallback(
+    (mode: RangeMode) => {
+      setInsightsFilters((prev) => {
+        const normalizedAnchor = format(normalizeDateForMode(parseAnchorDate(prev.anchorDate), mode), 'yyyy-MM-dd')
+        return { mode, anchorDate: normalizedAnchor }
+      })
+    },
+    [setInsightsFilters]
+  )
+
+  const setAnchorDate = useCallback(
+    (date: Date) => {
+      setInsightsFilters((prev) => ({
+        ...prev,
+        anchorDate: format(normalizeDateForMode(date, prev.mode), 'yyyy-MM-dd'),
+      }))
+    },
+    [setInsightsFilters]
+  )
+
+  const shiftRange = useCallback(
+    (direction: number) => {
+      setInsightsFilters((prev) => {
+        const base = parseAnchorDate(prev.anchorDate)
+        const shifted = shiftAnchor(base, prev.mode, direction)
+        return { ...prev, anchorDate: format(normalizeDateForMode(shifted, prev.mode), 'yyyy-MM-dd') }
+      })
+    },
+    [setInsightsFilters]
+  )
+
+  return {
+    data: data ?? defaultInsightsData,
+    loading,
+    error: error as Error | null,
+    refetch,
+    range: {
+      mode: filterState.mode,
+      anchorDate: filterState.anchorDate,
+      startDate,
+      endDate,
+      label: rangeLabel,
+      dayCount,
+    },
+    setRangeMode,
+    setAnchorDate,
+    shiftRange,
+  }
 }
 
 const calculateMacroDistribution = (foodData: FoodEntry[]) => {

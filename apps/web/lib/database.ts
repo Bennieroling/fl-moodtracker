@@ -1,7 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase-browser'
-import { MoodEntryInsert, FoodEntryInsert, MealType, ExerciseEvent, HealthMetricsBody, DailyTargets, DEFAULT_DAILY_TARGETS, StateOfMind, EcgReading, HeartRateNotification } from '@/lib/types/database'
+import { MoodEntryInsert, FoodEntryInsert, MealType, ExerciseEvent, HealthMetricsBody, DailyTargets, DEFAULT_DAILY_TARGETS, StateOfMind, EcgReading, HeartRateNotification, SleepEvent } from '@/lib/types/database'
 import { format } from 'date-fns'
 
 const supabase = createClient()
@@ -793,6 +793,49 @@ export async function getEcgReadings(userId: string): Promise<EcgReading[]> {
   } catch (error) {
     console.error('Error fetching ECG readings:', error)
     return []
+  }
+}
+
+// Sleep events
+export async function getSleepEvents(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<SleepEvent[]> {
+  try {
+    const supabaseAny = supabase as any
+    const { data, error } = await supabaseAny
+      .from('sleep_events')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: true })
+
+    if (error) throw error
+    return (data || []) as SleepEvent[]
+  } catch (error) {
+    console.error('Error fetching sleep events:', error)
+    return []
+  }
+}
+
+export async function getLatestSleepEvent(userId: string): Promise<SleepEvent | null> {
+  try {
+    const supabaseAny = supabase as any
+    const { data, error } = await supabaseAny
+      .from('sleep_events')
+      .select('*')
+      .eq('user_id', userId)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (error) throw error
+    return (data || null) as SleepEvent | null
+  } catch (error) {
+    console.error('Error fetching latest sleep event:', error)
+    return null
   }
 }
 

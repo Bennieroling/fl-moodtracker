@@ -1,13 +1,22 @@
 'use client'
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer } from 'react'
-import { format, startOfMonth, subDays } from 'date-fns'
+import { format, startOfMonth } from 'date-fns'
 import { RangeMode, normalizeDateForMode, parseAnchorDate } from '@/lib/range-utils'
 
 const EXERCISE_MODE_KEY = 'exercise_range_mode'
 const EXERCISE_ANCHOR_KEY = 'exercise_anchor_date'
+const HEALTH_MODE_KEY = 'health_range_mode'
+const HEALTH_ANCHOR_KEY = 'health_anchor_date'
+const INSIGHTS_MODE_KEY = 'insights_range_mode'
+const INSIGHTS_ANCHOR_KEY = 'insights_anchor_date'
 
 type ExerciseFilters = {
+  mode: RangeMode
+  anchorDate: string
+}
+
+type HealthFilters = {
   mode: RangeMode
   anchorDate: string
 }
@@ -30,12 +39,13 @@ type DashboardFilters = {
 }
 
 type InsightsFilters = {
-  startDate: string
-  endDate: string
+  mode: RangeMode
+  anchorDate: string
 }
 
 export type FilterState = {
   exercise: ExerciseFilters
+  health: HealthFilters
   calendar: CalendarFilters
   day: DayFilters
   historic: HistoricFilters
@@ -45,6 +55,7 @@ export type FilterState = {
 
 type FilterAction =
   | { type: 'SET_EXERCISE'; payload: ExerciseFilters }
+  | { type: 'SET_HEALTH'; payload: HealthFilters }
   | { type: 'SET_CALENDAR'; payload: CalendarFilters }
   | { type: 'SET_DAY'; payload: DayFilters }
   | { type: 'SET_HISTORIC'; payload: HistoricFilters }
@@ -56,6 +67,10 @@ const todayString = format(new Date(), 'yyyy-MM-dd')
 const initialState: FilterState = {
   exercise: {
     mode: 'day',
+    anchorDate: todayString,
+  },
+  health: {
+    mode: 'week',
     anchorDate: todayString,
   },
   calendar: {
@@ -72,14 +87,15 @@ const initialState: FilterState = {
     date: todayString,
   },
   insights: {
-    startDate: format(subDays(new Date(), 6), 'yyyy-MM-dd'),
-    endDate: todayString,
+    mode: 'week',
+    anchorDate: todayString,
   },
 }
 
 const FilterContext = createContext<{
   filters: FilterState
   setExerciseFilters: (next: ExerciseFilters | ((prev: ExerciseFilters) => ExerciseFilters)) => void
+  setHealthFilters: (next: HealthFilters | ((prev: HealthFilters) => HealthFilters)) => void
   setCalendarFilters: (next: CalendarFilters | ((prev: CalendarFilters) => CalendarFilters)) => void
   setDayFilters: (next: DayFilters | ((prev: DayFilters) => DayFilters)) => void
   setHistoricFilters: (next: HistoricFilters | ((prev: HistoricFilters) => HistoricFilters)) => void
@@ -88,6 +104,7 @@ const FilterContext = createContext<{
 }>({
   filters: initialState,
   setExerciseFilters: () => {},
+  setHealthFilters: () => {},
   setCalendarFilters: () => {},
   setDayFilters: () => {},
   setHistoricFilters: () => {},
@@ -99,6 +116,8 @@ const reducer = (state: FilterState, action: FilterAction): FilterState => {
   switch (action.type) {
     case 'SET_EXERCISE':
       return { ...state, exercise: action.payload }
+    case 'SET_HEALTH':
+      return { ...state, health: action.payload }
     case 'SET_CALENDAR':
       return { ...state, calendar: action.payload }
     case 'SET_DAY':
@@ -128,6 +147,19 @@ export function FilterProvider({ children }: { children: React.ReactNode }) {
       })
     },
     [state.exercise]
+  )
+
+  const setHealthFilters = useCallback(
+    (next: HealthFilters | ((prev: HealthFilters) => HealthFilters)) => {
+      const resolved =
+        typeof next === 'function' ? (next as (prev: HealthFilters) => HealthFilters)(state.health) : next
+      if (resolved === state.health) return
+      dispatch({
+        type: 'SET_HEALTH',
+        payload: resolved,
+      })
+    },
+    [state.health]
   )
 
   const setCalendarFilters = useCallback(
@@ -196,16 +228,39 @@ export function FilterProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const storedMode = window.localStorage.getItem(EXERCISE_MODE_KEY) as RangeMode | null
-    const storedAnchor = window.localStorage.getItem(EXERCISE_ANCHOR_KEY)
-    if (!storedMode && !storedAnchor) return
-    dispatch({
-      type: 'SET_EXERCISE',
-      payload: {
-        mode: storedMode || initialState.exercise.mode,
-        anchorDate: storedAnchor || initialState.exercise.anchorDate,
-      },
-    })
+    const storedExerciseMode = window.localStorage.getItem(EXERCISE_MODE_KEY) as RangeMode | null
+    const storedExerciseAnchor = window.localStorage.getItem(EXERCISE_ANCHOR_KEY)
+    if (storedExerciseMode || storedExerciseAnchor) {
+      dispatch({
+        type: 'SET_EXERCISE',
+        payload: {
+          mode: storedExerciseMode || initialState.exercise.mode,
+          anchorDate: storedExerciseAnchor || initialState.exercise.anchorDate,
+        },
+      })
+    }
+    const storedHealthMode = window.localStorage.getItem(HEALTH_MODE_KEY) as RangeMode | null
+    const storedHealthAnchor = window.localStorage.getItem(HEALTH_ANCHOR_KEY)
+    if (storedHealthMode || storedHealthAnchor) {
+      dispatch({
+        type: 'SET_HEALTH',
+        payload: {
+          mode: storedHealthMode || initialState.health.mode,
+          anchorDate: storedHealthAnchor || initialState.health.anchorDate,
+        },
+      })
+    }
+    const storedInsightsMode = window.localStorage.getItem(INSIGHTS_MODE_KEY) as RangeMode | null
+    const storedInsightsAnchor = window.localStorage.getItem(INSIGHTS_ANCHOR_KEY)
+    if (storedInsightsMode || storedInsightsAnchor) {
+      dispatch({
+        type: 'SET_INSIGHTS',
+        payload: {
+          mode: storedInsightsMode || initialState.insights.mode,
+          anchorDate: storedInsightsAnchor || initialState.insights.anchorDate,
+        },
+      })
+    }
     // Run exactly once on mount to hydrate from localStorage.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -216,17 +271,30 @@ export function FilterProvider({ children }: { children: React.ReactNode }) {
     window.localStorage.setItem(EXERCISE_ANCHOR_KEY, state.exercise.anchorDate)
   }, [state.exercise])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(HEALTH_MODE_KEY, state.health.mode)
+    window.localStorage.setItem(HEALTH_ANCHOR_KEY, state.health.anchorDate)
+  }, [state.health])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(INSIGHTS_MODE_KEY, state.insights.mode)
+    window.localStorage.setItem(INSIGHTS_ANCHOR_KEY, state.insights.anchorDate)
+  }, [state.insights])
+
   const value = useMemo(
     () => ({
       filters: state,
       setExerciseFilters,
+      setHealthFilters,
       setCalendarFilters,
       setDayFilters,
       setHistoricFilters,
       setDashboardFilters,
       setInsightsFilters,
     }),
-    [state, setExerciseFilters, setCalendarFilters, setDayFilters, setHistoricFilters, setDashboardFilters, setInsightsFilters]
+    [state, setExerciseFilters, setHealthFilters, setCalendarFilters, setDayFilters, setHistoricFilters, setDashboardFilters, setInsightsFilters]
   )
 
   return <FilterContext.Provider value={value}>{children}</FilterContext.Provider>

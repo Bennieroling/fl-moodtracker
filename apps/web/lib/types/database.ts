@@ -118,6 +118,7 @@ export interface Database {
           period_end: string;
           summary_md: string | null;
           tips_md: string | null;
+          report_md: string | null;
           metrics: {
             avgMood: number;
             kcalTotal: number;
@@ -134,6 +135,7 @@ export interface Database {
           period_end: string;
           summary_md?: string | null;
           tips_md?: string | null;
+          report_md?: string | null;
           metrics?: {
             avgMood: number;
             kcalTotal: number;
@@ -150,6 +152,7 @@ export interface Database {
           period_end?: string;
           summary_md?: string | null;
           tips_md?: string | null;
+          report_md?: string | null;
           metrics?: {
             avgMood: number;
             kcalTotal: number;
@@ -600,6 +603,23 @@ export interface HeartRateNotification {
   heart_rate: number | null;
   threshold: number | null;
   raw_payload: unknown | null;
+}
+
+export interface SleepEvent {
+  id?: number;
+  user_id: string;
+  date: string;
+  total_sleep_hours: number | null;
+  rem_hours: number | null;
+  core_hours: number | null;
+  deep_hours: number | null;
+  awake_hours: number | null;
+  sleep_start: string | null;
+  sleep_end: string | null;
+  in_bed_start: string | null;
+  in_bed_end: string | null;
+  wrist_temperature: number | null;
+  source: string | null;
 }
 
 export type MoodEntryInsert = Database['public']['Tables']['mood_entries']['Insert'];

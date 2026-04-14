@@ -1,22 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import type { ReactNode } from 'react'
 import { format, parseISO } from 'date-fns'
 import {
   Activity,
   AlertTriangle,
-  CalendarRange,
   Check,
-  ChevronLeft,
-  ChevronRight,
   ChevronDown,
   Flame,
   Footprints,
-  Gauge,
   HeartPulse,
-  Mountain,
-  Timer,
   TrendingUp,
 } from 'lucide-react'
 import {
@@ -24,6 +17,7 @@ import {
   AreaChart,
   Bar,
   BarChart,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -38,33 +32,20 @@ import { ExerciseEvent, WorkoutRouteMeta } from '@/lib/types/database'
 import dynamic from 'next/dynamic'
 
 const WorkoutRouteMap = dynamic(() => import('@/components/workout-route-map').then((m) => m.WorkoutRouteMap), { ssr: false })
-import { RangeMode } from '@/lib/range-utils'
 import { useExerciseData } from '@/hooks/useExerciseData'
-import { useBodyData } from '@/hooks/useBodyData'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Calendar } from '@/components/ui/calendar'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PageHeader } from '@/components/page-header'
+import { RangeControls } from '@/components/range-controls'
 import { MetricTile } from '@/components/metric-tile'
 import { EmptyState as EmptyStateComponent } from '@/components/empty-state'
-import { Scale, Percent } from 'lucide-react'
 
 type AggregateView = 'week' | 'month' | 'year'
-type PageTab = 'activity' | 'body'
 
 export default function ExercisePage() {
   const { user } = useAuth()
-  const [pageTab, setPageTab] = useState<PageTab>('activity')
-  const {
-    weightSeries,
-    bodyFatSeries,
-    latest: latestBody,
-    loading: bodyLoading,
-    error: bodyError,
-  } = useBodyData()
   const {
     workouts,
     dailySeries,
@@ -84,20 +65,12 @@ export default function ExercisePage() {
   const [aggregateView, setAggregateView] = useState<AggregateView>('week')
   const [ecgExpanded, setEcgExpanded] = useState(false)
   const [metricsExpanded, setMetricsExpanded] = useState(false)
-  const anchorDateObj = parseISO(range.anchorDate)
   const rangeStartDate = range.startDate
   const rangeEndDate = range.endDate
   const rangeLabel = range.label
-  const todayStr = format(new Date(), 'yyyy-MM-dd')
-  const rangeIncludesToday = todayStr >= rangeStartDate && todayStr <= rangeEndDate
   const healthPending = workouts.length > 0 && !healthSummary.hasHealthData
   const chartData = dailySeries
   const errorMessage = error?.message ?? null
-
-  const handleDateSelect = (date: Date | undefined) => {
-    if (!date) return
-    setAnchorDate(date)
-  }
 
   if (!user) {
     return (
@@ -132,60 +105,18 @@ export default function ExercisePage() {
     <div className="space-y-6">
       <PageHeader title="Exercise" description="Your activity and workout data" />
 
-      <Tabs value={pageTab} onValueChange={(v) => setPageTab(v as PageTab)}>
-        <TabsList>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
-          <TabsTrigger value="body">Body</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <RangeControls
+        mode={range.mode}
+        anchorDate={range.anchorDate}
+        rangeLabel={rangeLabel}
+        rangeStartDate={rangeStartDate}
+        rangeEndDate={rangeEndDate}
+        onModeChange={setRangeMode}
+        onAnchorDateChange={setAnchorDate}
+        onShift={shiftRange}
+        description="Choose the date granularity and anchor date for the dashboard."
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Data Controls</CardTitle>
-          <CardDescription>Choose the date granularity and anchor date for the dashboard.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Tabs value={range.mode} onValueChange={(value) => setRangeMode(value as RangeMode)}>
-            <TabsList>
-              <TabsTrigger value="day">Day</TabsTrigger>
-              <TabsTrigger value="week">Week</TabsTrigger>
-              <TabsTrigger value="month">Month</TabsTrigger>
-              <TabsTrigger value="year">Year</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => shiftRange(-1)} aria-label="Previous range">
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <CalendarRange className="h-4 w-4" />
-                  <span>{rangeLabel}</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="start" className="p-0">
-                <Calendar
-                  mode="single"
-                  selected={anchorDateObj}
-                  onSelect={handleDateSelect}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-            <Button variant="outline" size="icon" onClick={() => shiftRange(1)} aria-label="Next range">
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            {!rangeIncludesToday && (
-              <Button variant="outline" onClick={() => setAnchorDate(new Date())}>
-                Today
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {pageTab === 'activity' && (<>
       {/* Hero Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <MetricTile
@@ -323,9 +254,10 @@ export default function ExercisePage() {
                     contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
                     labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
                   />
-                  <Bar dataKey="exercise_time_minutes" fill="#2563eb" name="Exercise minutes" />
-                  <Bar dataKey="move_time_minutes" fill="#f97316" name="Move minutes" />
-                  <Bar dataKey="active_energy_kcal" fill="#ef4444" name="Active kcal" />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                  <Bar dataKey="exercise_time_minutes" fill="var(--chart-4)" name="Exercise minutes" />
+                  <Bar dataKey="move_time_minutes" fill="var(--chart-2)" name="Move minutes" />
+                  <Bar dataKey="active_energy_kcal" fill="var(--chart-1)" name="Active kcal" />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -356,6 +288,7 @@ export default function ExercisePage() {
                   contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
                   labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
                 />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
                 <Line
                   yAxisId="left"
                   type="monotone"
@@ -370,7 +303,7 @@ export default function ExercisePage() {
                   yAxisId="right"
                   type="monotone"
                   dataKey="hrv"
-                  stroke="var(--chart-2)"
+                  stroke="var(--chart-4)"
                   strokeWidth={2}
                   dot={false}
                   name="HRV (ms)"
@@ -493,145 +426,7 @@ export default function ExercisePage() {
         </Card>
       )}
 
-      </>)}
-
-      {pageTab === 'body' && (
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle>Current Stats</CardTitle>
-              <CardDescription>
-                {latestBody?.date
-                  ? `Latest measurement on ${format(parseISO(latestBody.date), 'MMM d, yyyy')}`
-                  : 'No measurements synced yet'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <BodyStatTile
-                label="Weight"
-                icon={<Scale className="h-4 w-4 text-muted-foreground" />}
-                value={latestBody?.weight_kg}
-                unit="kg"
-                decimals={1}
-              />
-              <BodyStatTile
-                label="Body Fat"
-                icon={<Percent className="h-4 w-4 text-muted-foreground" />}
-                value={latestBody?.body_fat_pct}
-                unit="%"
-                decimals={1}
-              />
-              <BodyStatTile
-                label="BMI"
-                icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
-                value={latestBody?.bmi}
-                decimals={1}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Scale className="h-5 w-5" />
-                Weight Trend
-              </CardTitle>
-              <CardDescription>
-                Daily weight between {range.startDate} and {range.endDate}.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="h-80">
-              {weightSeries.length ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weightSeries}>
-                      <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} tick={{ fontSize: 11 }} />
-                    <Tooltip
-                      contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
-                      labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="weight_kg"
-                      stroke="var(--chart-1)"
-                      strokeWidth={2}
-                      dot={false}
-                      name="Weight (kg)"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <BodyEmptyState message="No weight data for this range yet." />
-              )}
-            </CardContent>
-          </Card>
-
-          {bodyFatSeries.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Percent className="h-5 w-5" />
-                  Body Fat Trend
-                </CardTitle>
-                <CardDescription>
-                  Daily body fat percentage between {range.startDate} and {range.endDate}.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={bodyFatSeries}>
-                      <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} tick={{ fontSize: 11 }} />
-                    <Tooltip
-                      contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
-                      labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="body_fat_pct"
-                      stroke="var(--chart-2)"
-                      strokeWidth={2}
-                      dot={false}
-                      name="Body Fat (%)"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
-        </>
-      )}
     </div>
-  )
-}
-
-function BodyStatTile({ label, icon, value, unit, decimals }: {
-  label: string
-  icon: ReactNode
-  value: number | string | null | undefined
-  unit?: string
-  decimals?: number
-}) {
-  const hasValue = value !== null && value !== undefined
-  const formatted = hasValue ? `${formatNumber(value, { decimals })}${unit ? ` ${unit}` : ''}` : '--'
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{label}</CardTitle>
-        {icon}
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{formatted}</div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function BodyEmptyState({ message }: { message: string }) {
-  return (
-    <EmptyStateComponent
-      icon={<Scale className="h-8 w-8" />}
-      title={message}
-      description="Weight syncs automatically from Apple Health."
-    />
   )
 }
 
@@ -714,33 +509,6 @@ function formatAggregatePeriod(period: string, bucket: AggregateView) {
     return format(parsed, 'MMMM yyyy')
   }
   return `Week of ${format(parsed, 'MMM d, yyyy')}`
-}
-
-interface SummaryTileProps {
-  label: string
-  icon: ReactNode
-  value: number | string | null | undefined
-  unit?: string
-  description?: string
-  decimals?: number
-  pending?: boolean
-}
-
-function SummaryTile({ label, icon, value, unit, description, decimals, pending }: SummaryTileProps) {
-  const hasValue = value !== null && value !== undefined
-  const formattedValue = hasValue ? `${formatNumber(value, { decimals })}${unit ? ` ${unit}` : ''}` : '--'
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{label}</CardTitle>
-        {icon}
-      </CardHeader>
-      <CardContent className="space-y-1">
-        <div className="text-2xl font-bold">{pending && !hasValue ? 'Pending' : formattedValue}</div>
-        {description && <p className="text-xs text-muted-foreground">{description}</p>}
-      </CardContent>
-    </Card>
-  )
 }
 
 interface WorkoutTileProps {

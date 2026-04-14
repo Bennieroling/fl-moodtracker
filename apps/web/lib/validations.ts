@@ -128,6 +128,7 @@ export const WeeklyMetricsSchema = z.object({
 export const AIInsightsResponseSchema = z.object({
   summary_md: z.string().min(1).max(1000), // 80-150 words roughly
   tips_md: z.string().min(1).max(500), // 3-5 bullet tips
+  report_md: z.string().min(1).max(4000), // 300-500 word narrative
   metrics: WeeklyMetricsSchema,
   provider: ModelProviderSchema,
   raw: z.any(),
@@ -141,6 +142,7 @@ export const InsightSchema = z.object({
   period_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   summary_md: z.string().nullable().optional(),
   tips_md: z.string().nullable().optional(),
+  report_md: z.string().nullable().optional(),
   metrics: WeeklyMetricsSchema.nullable().optional(),
   created_at: z.string().optional(),
 });

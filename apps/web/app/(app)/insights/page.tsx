@@ -1,10 +1,10 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { format, parseISO } from 'date-fns'
+import { useState } from 'react'
+import { format } from 'date-fns'
 import { Sparkles, TrendingUp, Calendar, Brain, BarChart3, Heart } from 'lucide-react'
 import { toast } from 'sonner'
-import { Bar, BarChart, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from 'recharts'
+import { Bar, BarChart, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import Link from 'next/link'
 
 import { Button } from '@/components/ui/button'
@@ -12,22 +12,19 @@ import { Card, CardContent } from '@/components/ui/card'
 import { SummarySkeleton } from '@/components/skeletons/summary-skeleton'
 import { InsightsChartsSkeleton } from '@/components/skeletons/insights-charts-skeleton'
 import { useAuth } from '@/lib/auth-context'
-import { useFilters } from '@/lib/filter-context'
 import { defaultInsightsData, useInsightsData } from '@/hooks/useInsightsData'
 import { PageHeader } from '@/components/page-header'
+import { RangeControls } from '@/components/range-controls'
 import { StandardCardHeader } from '@/components/ui/standard-card-header'
 
 export default function InsightsPage() {
   const { user } = useAuth()
-  const { filters } = useFilters()
-  const { startDate, endDate } = filters.insights
-  const startDateObj = useMemo(() => parseISO(startDate), [startDate])
-  const endDateObj = useMemo(() => parseISO(endDate), [endDate])
-  const { data, loading, error, refetch } = useInsightsData()
+  const { data, loading, error, refetch, range, setRangeMode, setAnchorDate, shiftRange } = useInsightsData()
+  const { startDate, endDate, dayCount, label: rangeLabel } = range
   const [generatingInsights, setGeneratingInsights] = useState(false)
 
   const insights = data ?? defaultInsightsData
-  const { weeklyMetrics, weeklyData, macroData, aiSummary, aiTips, lastGenerated, valenceTrend, topLabels, topAssociations } = insights
+  const { weeklyMetrics, weeklyData, macroData, aiSummary, aiTips, aiReport, lastGenerated, valenceTrend, topLabels, topAssociations } = insights
   const topFoodChartData = weeklyMetrics.topFoods.slice(0, 5).map((food, index) => ({
     name: food,
     value: 5 - index,
@@ -87,7 +84,7 @@ export default function InsightsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Insights"
-        description={`Weekly analytics for ${format(startDateObj, 'MMM d')} - ${format(endDateObj, 'MMM d')}`}
+        description={`Analytics for ${rangeLabel}`}
         action={(
           <Button onClick={generateAIInsights} disabled={generatingInsights || !user}>
             {generatingInsights ? (
@@ -105,13 +102,25 @@ export default function InsightsPage() {
         )}
       />
 
-      {/* Weekly Summary Cards */}
+      <RangeControls
+        mode={range.mode}
+        anchorDate={range.anchorDate}
+        rangeLabel={rangeLabel}
+        rangeStartDate={startDate}
+        rangeEndDate={endDate}
+        onModeChange={setRangeMode}
+        onAnchorDateChange={setAnchorDate}
+        onShift={shiftRange}
+        description="Choose the date granularity and anchor date for analytics."
+      />
+
+      {/* Summary Cards */}
       {loading ? (
         <SummarySkeleton cards={4} className="grid-cols-1 md:grid-cols-4" />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="border-l-4 border-l-blue-500">
-            <StandardCardHeader title="Average Mood" description="Weekly mood average" action={<TrendingUp className="h-4 w-4 text-muted-foreground" />} className="pb-2" />
+            <StandardCardHeader title="Average Mood" description="Mood average" action={<TrendingUp className="h-4 w-4 text-muted-foreground" />} className="pb-2" />
             <CardContent>
               <div className="text-4xl font-bold">{weeklyMetrics.avgMood.toFixed(1)}<span className="text-base text-muted-foreground">/5</span></div>
               <p className="text-xs text-muted-foreground">From {weeklyMetrics.moodEntries} logged moods</p>
@@ -119,21 +128,21 @@ export default function InsightsPage() {
           </Card>
 
           <Card className="border-l-4 border-l-emerald-500">
-            <StandardCardHeader title="Total Calories" description="Weekly intake total" action={<Calendar className="h-4 w-4 text-muted-foreground" />} className="pb-2" />
+            <StandardCardHeader title="Total Calories" description="Intake total" action={<Calendar className="h-4 w-4 text-muted-foreground" />} className="pb-2" />
             <CardContent>
               <div className="text-4xl font-bold">{weeklyMetrics.kcalTotal.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
-                Avg {Math.round(weeklyMetrics.kcalTotal / 7)} kcal per day
+                Avg {Math.round(weeklyMetrics.kcalTotal / Math.max(dayCount, 1))} kcal per day
               </p>
             </CardContent>
           </Card>
 
           <Card className="border-l-4 border-l-orange-500">
-            <StandardCardHeader title="Meals Logged" description="Meal count this week" action={<BarChart3 className="h-4 w-4 text-muted-foreground" />} className="pb-2" />
+            <StandardCardHeader title="Meals Logged" description="Meal count" action={<BarChart3 className="h-4 w-4 text-muted-foreground" />} className="pb-2" />
             <CardContent>
               <div className="text-4xl font-bold">{weeklyMetrics.foodEntries}</div>
               <p className="text-xs text-muted-foreground">
-                {Math.round((weeklyMetrics.foodEntries / 7) * 10) / 10} meals/day
+                {(Math.round((weeklyMetrics.foodEntries / Math.max(dayCount, 1)) * 10) / 10).toFixed(1)} meals/day
               </p>
             </CardContent>
           </Card>
@@ -143,7 +152,7 @@ export default function InsightsPage() {
             <CardContent>
               <div className="text-4xl font-bold">{weeklyMetrics.topFoods.length}</div>
               <p className="text-xs text-muted-foreground">
-                Distinct frequent foods this week
+                Distinct frequent foods this period
               </p>
             </CardContent>
           </Card>
@@ -156,7 +165,7 @@ export default function InsightsPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
-            <StandardCardHeader title={<span className="flex items-center gap-2"><TrendingUp className="h-5 w-5" />Weekly Mood & Calories Trend</span>} description="Daily mood and calories across this period." />
+            <StandardCardHeader title={<span className="flex items-center gap-2"><TrendingUp className="h-5 w-5" />Mood & Calories Trend</span>} description="Daily mood and calories across this period." />
             <CardContent className="h-72">
               {weeklyData.length > 0 && weeklyData.some((day) => day.mood > 0 || day.calories > 0) ? (
                 <ResponsiveContainer width="100%" height="100%">
@@ -165,13 +174,14 @@ export default function InsightsPage() {
                     <YAxis yAxisId="mood" domain={[0, 5]} stroke="var(--muted-foreground)" fontSize={12} />
                     <YAxis yAxisId="calories" orientation="right" stroke="var(--muted-foreground)" fontSize={12} />
                     <Tooltip />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
                     <Line yAxisId="mood" type="monotone" dataKey="mood" name="Mood" stroke="var(--chart-1)" strokeWidth={3} dot={{ r: 4 }} />
                     <Line yAxisId="calories" type="monotone" dataKey="calories" name="Calories" stroke="var(--chart-2)" strokeWidth={3} dot={{ r: 4 }} />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="text-center text-muted-foreground py-16 space-y-3">
-                  <p>No data available for this week</p>
+                  <p>No data available for this period</p>
                   <Button asChild size="sm" variant="outline">
                     <Link href="/dashboard">Log a meal</Link>
                   </Button>
@@ -192,6 +202,7 @@ export default function InsightsPage() {
                       ))}
                     </Pie>
                     <Tooltip formatter={(value) => [`${value}%`, 'Share']} />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
@@ -232,7 +243,7 @@ export default function InsightsPage() {
               </ResponsiveContainer>
             ) : (
               <div className="text-center text-muted-foreground py-16 space-y-3">
-                <p>No food data available for this week</p>
+                <p>No food data available for this period</p>
                 <Button asChild size="sm" variant="outline">
                   <Link href="/dashboard">Log your first meal</Link>
                 </Button>
@@ -315,8 +326,31 @@ export default function InsightsPage() {
       )}
 
       {/* AI-Generated Insights */}
-      {(aiSummary || aiTips) && (
+      {(aiReport || aiSummary || aiTips) && (
         <div className="space-y-4">
+          {aiReport && (
+            <Card className="border-l-4 border-l-primary">
+              <StandardCardHeader
+                title={<span className="flex items-center gap-2"><Sparkles className="h-5 w-5" />AI Report</span>}
+                description="Narrative report cross-referencing nutrition, sleep, activity, mood, and recovery."
+                action={
+                  lastGenerated ? (
+                    <p className="text-xs text-muted-foreground">
+                      Generated {format(lastGenerated, 'MMM d, h:mm a')}
+                    </p>
+                  ) : null
+                }
+              />
+              <CardContent>
+                <div className="prose prose-sm max-w-none">
+                  <div className="text-sm leading-relaxed whitespace-pre-line">
+                    {aiReport}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {aiSummary && (
             <Card className="border-l-4 border-l-primary">
               <StandardCardHeader
