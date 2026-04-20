@@ -103,8 +103,6 @@ need to be backfilled into migrations; see the backlog.
 
 - This repo still contains legacy code and historical artifacts from earlier
   product directions.
-- `supabase/functions/sync-healthfit` reflects an older ingestion pipeline and
-  is not the current documented HAE flow.
 - `docs/` is the maintained reference set; older root-level planning notes may
   be stale.
 

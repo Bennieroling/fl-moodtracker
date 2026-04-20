@@ -7,6 +7,30 @@ import {
   MacrosSchema 
 } from '@/lib/validations'
 
+function validateSupabaseStorageUrl(imageUrl: string) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+
+  if (!supabaseUrl) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL')
+  }
+
+  const url = new URL(imageUrl)
+  const allowedHost = new URL(supabaseUrl).host
+  const isAllowedPath =
+    url.pathname.startsWith('/storage/v1/object/sign/food-photos/') ||
+    url.pathname.startsWith('/storage/v1/object/public/food-photos/')
+
+  if (url.protocol !== 'https:') {
+    return { error: 'https_required' as const }
+  }
+
+  if (url.host !== allowedHost || !isAllowedPath) {
+    return { error: 'unauthorized_host' as const }
+  }
+
+  return { url }
+}
+
 // OpenAI vision analysis
 async function analyzeWithOpenAI(imageUrl: string) {
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -170,11 +194,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const imageUrlResult = validateSupabaseStorageUrl(validatedRequest.imageUrl)
+    if ('error' in imageUrlResult) {
+      return NextResponse.json(
+        { error: imageUrlResult.error },
+        { status: 400 }
+      )
+    }
+
     // Determine which AI provider to use (default to OpenAI, fallback to Gemini)
     let aiResponse
     let provider: 'openai' | 'gemini' = 'openai'
 
-    console.log('AI Vision: Starting analysis for image:', validatedRequest.imageUrl)
+    console.log('AI Vision: Starting analysis for image:', imageUrlResult.url.toString())
     console.log('AI Vision: OpenAI key available:', !!process.env.OPENAI_API_KEY)
     console.log('AI Vision: Gemini key available:', !!process.env.GEMINI_API_KEY)
 
@@ -182,7 +214,7 @@ export async function POST(request: NextRequest) {
       // Try OpenAI first
       if (process.env.OPENAI_API_KEY) {
         console.log('AI Vision: Trying OpenAI analysis')
-        aiResponse = await analyzeWithOpenAI(validatedRequest.imageUrl)
+        aiResponse = await analyzeWithOpenAI(imageUrlResult.url.toString())
         provider = 'openai'
         console.log('AI Vision: OpenAI analysis successful')
       } else {
@@ -194,7 +226,7 @@ export async function POST(request: NextRequest) {
       try {
         if (process.env.GEMINI_API_KEY) {
           console.log('AI Vision: Trying Gemini analysis')
-          aiResponse = await analyzeWithGemini(validatedRequest.imageUrl)
+          aiResponse = await analyzeWithGemini(imageUrlResult.url.toString())
           provider = 'gemini'
           console.log('AI Vision: Gemini analysis successful')
         } else {

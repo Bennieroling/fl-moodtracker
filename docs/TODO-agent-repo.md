@@ -676,6 +676,24 @@ SELECT label, last_used_at FROM hae_ingest_tokens;
 
 Then let the user proceed with their C4 task.
 
+1. Deployed `supabase functions deploy ingest-hae`
+2. HAE on Iphone from Ben updated.
+3. ran
+    ```sql
+    SELECT user_id, COUNT(*) FROM staging_hae_metrics                                                                                                                 
+  WHERE received_at > NOW() - INTERVAL '30 min'                                                                                                                     
+  GROUP BY user_id;  
+    ```
+
+Then:
+```sql
+SELECT label, last_used_at FROM hae_ingest_tokens;
+```
+| label                | last_used_at |
+| -------------------- | ------------ |
+| Primary iPhone (Ben) | null         |
+
+
 ☐ Done
 
 ---

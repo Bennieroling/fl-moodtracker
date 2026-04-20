@@ -44,6 +44,7 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+networklogs.txt
 
 # Database
 *.db
@@ -52,6 +53,8 @@ yarn-error.log*
 # Temporary files
 *.tmp
 *.temp
+google_codenode.json
+id.txt
 
 # Coverage reports
 coverage/
@@ -63,4 +66,3 @@ coverage/
 # Supabase
 .branches
 .temp
-
