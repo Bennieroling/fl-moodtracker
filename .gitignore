@@ -66,3 +66,6 @@ coverage/
 # Supabase
 .branches
 .temp
+
+# notes
+notes.sh
