@@ -30,8 +30,8 @@ has a prerequisite or companion task there, it's called out inline
 
 ## Legend
 
-- 🔒 Security  🐛 Bug  🚧 Multi-user blocker  🧹 Tech debt
-- ✨ Improvement  🧪 Tests/CI  📦 Dep/config  📝 Docs
+- 🔒 Security 🐛 Bug 🚧 Multi-user blocker 🧹 Tech debt
+- ✨ Improvement 🧪 Tests/CI 📦 Dep/config 📝 Docs
 - **S** under 30 min · **M** 1–2 hours · **L** half-day+
 
 ## Current repo verification
@@ -42,6 +42,7 @@ integration references, `.env.example` no longer lists their env vars,
 and `apps/web/lib/rate-limit.ts` is deleted.
 
 Latest local verification from the repo root:
+
 - `npm run lint` ✅ (existing warnings only)
 - `npx tsc --noEmit` ✅
 - `npm run build` ✅
@@ -55,7 +56,7 @@ fetch Google Fonts.
 
 ## Phase P0 — Stop the bleeding (before any feature work)
 
-### R-P0.1 Rotate and rename `SUPABASE_SERVICE_ROLE_KEY`  🔒 S
+### R-P0.1 Rotate and rename `SUPABASE_SERVICE_ROLE_KEY` 🔒 S
 
 **Context**
 
@@ -108,12 +109,12 @@ into client JS at some point with the old name, rotate it in Supabase
 Dashboard → Settings → API, then update the value in `.env.local` and
 Vercel env, and redeploy.
 
-✅ Done 
+✅ Done
 note: "Key value not rotated — residual risk accepted given private repo + no evidence of exposure. JWT signing keys migration deferred to Phase P3."
 
 ---
 
-### R-P0.2 Patch SSRF in `/api/ai/vision`  🔒 S
+### R-P0.2 Patch SSRF in `/api/ai/vision` 🔒 S
 
 **Context**
 
@@ -132,13 +133,13 @@ Options ranked preferred-first:
 2. **Acceptable:** validate the incoming URL is on the project's own
    Supabase storage host:
    ```typescript
-   const url = new URL(imageUrl);
-   const allowedHost = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).host;
+   const url = new URL(imageUrl)
+   const allowedHost = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).host
    if (url.host !== allowedHost) {
-     return NextResponse.json({ error: 'unauthorized_host' }, { status: 400 });
+     return NextResponse.json({ error: 'unauthorized_host' }, { status: 400 })
    }
    if (url.protocol !== 'https:') {
-     return NextResponse.json({ error: 'https_required' }, { status: 400 });
+     return NextResponse.json({ error: 'https_required' }, { status: 400 })
    }
    ```
 3. Add to the route's Zod schema: a URL shape check so non-URLs are
@@ -164,7 +165,7 @@ fetch in both the OpenAI and Gemini paths. Zod schema
 
 ---
 
-### R-P0.3 Delete or gate debug/test DB endpoints  🔒 S
+### R-P0.3 Delete or gate debug/test DB endpoints 🔒 S
 
 **Context**
 
@@ -180,7 +181,7 @@ gate each handler:
 ```typescript
 export async function GET(req: Request) {
   if (process.env.NODE_ENV === 'production') {
-    return new Response(null, { status: 404 });
+    return new Response(null, { status: 404 })
   }
   // ... existing handler
 }
@@ -194,6 +195,7 @@ rg 'api/(debug|test)-db' --type ts
 ```
 
 Post-deploy:
+
 ```bash
 curl -i https://health.festinalente.dev/api/debug-db
 # Expect: 404
@@ -207,11 +209,12 @@ contains only: `ai/{speech,text,insights,vision}`, `storage/sign`,
 
 ---
 
-### R-P0.4 Purge tracked junk from git  🔒 S
+### R-P0.4 Purge tracked junk from git 🔒 S
 
 **Context**
 
 These files are in the repo:
+
 - `networklogs.txt` (252 KB of raw network logs)
 - `google_codenode.json` (personal Apple Watch export, Spanish field
   names, contains HR/timestamps)
@@ -242,6 +245,7 @@ git filter-repo --invert-paths \
 
 **Do not run the filter-repo step without explicit human
 confirmation.** Ask:
+
 - Is the repo private now?
 - Will it ever be public?
 - Are there active collaborators whose clones would be invalidated?
@@ -266,6 +270,7 @@ exist on disk locally (gitignored — safe, no recommit risk).
 
 ⚠️ **Still in git history** before `feaa2cc`. `git filter-repo` not
 yet run. Decision required from user:
+
 - Is the repo private today? (yes, per current state)
 - Will it ever be public? If yes → run filter-repo (destructive,
   force-push, invalidates all clones).
@@ -275,7 +280,7 @@ yet run. Decision required from user:
 
 ---
 
-### R-P0.5 Harden the `ingest-hae` Edge Function  🔒 S
+### R-P0.5 Harden the `ingest-hae` Edge Function 🔒 S
 
 **Context**
 
@@ -288,12 +293,13 @@ Known issues`).
 Delete these three lines from the function:
 
 ```typescript
-console.log("apiKey from env:", apiKey ? `"${apiKey}" (len=${apiKey.length})` : "NOT SET");
-console.log("token from header:", `"${token}" (len=${token.length})`);
-console.log("match:", token === apiKey);
+console.log('apiKey from env:', apiKey ? `"${apiKey}" (len=${apiKey.length})` : 'NOT SET')
+console.log('token from header:', `"${token}" (len=${token.length})`)
+console.log('match:', token === apiKey)
 ```
 
 Redeploy:
+
 ```bash
 supabase functions deploy ingest-hae
 ```
@@ -319,7 +325,7 @@ matches only documentation files.
 
 ---
 
-### R-P0.6 Review `sync-healthfit` Edge Function auth stance  🔒 S
+### R-P0.6 Review `sync-healthfit` Edge Function auth stance 🔒 S
 
 **Context**
 
@@ -360,7 +366,7 @@ is, `supabase functions delete sync-healthfit`.
 
 ## Phase P1 — Pre-production hardening
 
-### R-P1.1 Enforce auth in middleware  🔒 M
+### R-P1.1 Enforce auth in middleware 🔒 M
 
 **Context**
 
@@ -374,13 +380,15 @@ unauthenticated scraping.
 After `supabase.auth.getUser()`:
 
 ```typescript
-const { data: { user } } = await supabase.auth.getUser();
+const {
+  data: { user },
+} = await supabase.auth.getUser()
 
-const publicPaths = ['/login', '/auth', '/_next', '/favicon.ico', '/sw.js', '/manifest.json'];
-const isPublic = publicPaths.some(p => request.nextUrl.pathname.startsWith(p));
+const publicPaths = ['/login', '/auth', '/_next', '/favicon.ico', '/sw.js', '/manifest.json']
+const isPublic = publicPaths.some((p) => request.nextUrl.pathname.startsWith(p))
 
 if (!user && !isPublic) {
-  return NextResponse.redirect(new URL('/login', request.url));
+  return NextResponse.redirect(new URL('/login', request.url))
 }
 ```
 
@@ -400,6 +408,7 @@ to a narrow page subset. Unauthenticated requests are redirected to
 `/login` before protected app routes render.
 
 Local verification:
+
 - `npm run lint` ✅ (existing warnings only)
 - `npm run typecheck` ✅
 - `npm run build` ✅
@@ -411,7 +420,7 @@ production and confirm logged-in browsing still works end-to-end.
 
 ---
 
-### R-P1.2 Centralize error handling + Zod validation  🔒 M
+### R-P1.2 Centralize error handling + Zod validation 🔒 M
 
 **Context**
 
@@ -426,22 +435,22 @@ messages (OpenAI, Gemini) verbatim to clients.
    ```typescript
    export function apiHandler<T>(
      schema: z.ZodSchema<T>,
-     handler: (req: Request, parsed: T) => Promise<Response>
+     handler: (req: Request, parsed: T) => Promise<Response>,
    ) {
      return async (req: Request) => {
-       const requestId = crypto.randomUUID();
+       const requestId = crypto.randomUUID()
        try {
-         const body = await req.json();
-         const parsed = schema.parse(body);
-         return await handler(req, parsed);
+         const body = await req.json()
+         const parsed = schema.parse(body)
+         return await handler(req, parsed)
        } catch (err) {
          if (err instanceof z.ZodError) {
-           return Response.json({ error: 'invalid_input', requestId }, { status: 400 });
+           return Response.json({ error: 'invalid_input', requestId }, { status: 400 })
          }
-         console.error(`[${requestId}]`, err);
-         return Response.json({ error: 'internal_error', requestId }, { status: 500 });
+         console.error(`[${requestId}]`, err)
+         return Response.json({ error: 'internal_error', requestId }, { status: 500 })
        }
-     };
+     }
    }
    ```
 2. Convert routes one at a time (`storage/sign`, `sync`, AI routes).
@@ -461,6 +470,7 @@ messages (OpenAI, Gemini) verbatim to clients.
 Added `apps/web/lib/api-handler.ts` with shared `apiHandler()`,
 `handleApiError()`, `ApiError`, request IDs, and centralized
 console-backed exception logging. Converted:
+
 - `apps/web/app/api/storage/sign/route.ts`
 - `apps/web/app/api/sync/route.ts`
 - `apps/web/app/api/ai/{text,vision,insights}/route.ts`
@@ -471,6 +481,7 @@ console-backed exception logging. Converted:
 and `PUT` now reject cross-user paths with 403.
 
 Verification:
+
 - `apps/web/app/api/storage/sign/route.test.ts` passes happy-path
   coverage
 - bad-schema handling now returns `invalid_input` instead of raw Zod
@@ -481,7 +492,7 @@ Verification:
 
 ---
 
-### R-P1.3 CI: GitHub Actions  🧪 M
+### R-P1.3 CI: GitHub Actions 🧪 M
 
 **Context**
 
@@ -525,6 +536,7 @@ Open a PR with an intentional TS error. CI fails. Fix. CI passes.
 
 **Status (2026-04-21):** ✅ Code side done.
 Created `.github/workflows/ci.yml` with:
+
 - `npm ci`
 - `npm run lint`
 - `npm run typecheck`
@@ -543,7 +555,7 @@ typegen first.
 
 ---
 
-### R-P1.4 Test scaffolding  🧪 M
+### R-P1.4 Test scaffolding 🧪 M
 
 **Context**
 
@@ -577,6 +589,7 @@ npm test
 
 **Status (2026-04-21):** ✅ Done.
 Installed Vitest + Testing Library and added:
+
 - `apps/web/vitest.config.ts`
 - `apps/web/src/test-setup.ts`
 - `apps/web/lib/range-utils.test.ts`
@@ -588,13 +601,14 @@ repo; used `useDashboardData` instead to prove hook scaffolding with
 mocked data dependencies.
 
 Verification:
+
 - `npm test` ✅ (3 passing tests)
 
 ✅ Done
 
 ---
 
-### R-P1.5 Wire Sentry  ✨ M
+### R-P1.5 Wire Sentry ✨ M
 
 **Context**
 
@@ -608,6 +622,7 @@ single-user cost model once there is real usage. Keep request ID
 correlation and plain server/client console logging.
 
 Implementation was backed out cleanly:
+
 - `@sentry/nextjs` is not listed in `apps/web/package.json`
 - Sentry instrumentation/config files are absent
 - `apps/web/next.config.ts` exports plain `nextConfig`
@@ -625,7 +640,7 @@ note: "Skipped per cost-model decision 2026-04-21. Errors visible via Vercel log
 
 ---
 
-### R-P1.6 Rate-limit AI endpoints  ✨ M
+### R-P1.6 Rate-limit AI endpoints ✨ M
 
 **Context**
 
@@ -638,6 +653,7 @@ Do not wire Upstash rate limiting for now. Its free tier does not match
 the current single-user cost model once there is real usage.
 
 Implementation was backed out cleanly:
+
 - `@upstash/ratelimit` and `@upstash/redis` are not listed in
   `apps/web/package.json`
 - `apps/web/lib/rate-limit.ts` is deleted
@@ -661,7 +677,7 @@ note: "Skipped per cost-model decision 2026-04-21. Mitigation: AI routes still r
 
 ---
 
-### R-P1.7 Fix CORS  🔒 S
+### R-P1.7 Fix CORS 🔒 S
 
 **Context**
 
@@ -672,6 +688,7 @@ specific origin, not `*`), but wrong.
 **Change**
 
 Either:
+
 - Remove the `headers` block for `/api/(.*)` entirely (let Next.js
   default same-origin), OR
 - Set the origin to the known frontend:
@@ -698,7 +715,7 @@ deployed app.
 
 ---
 
-### R-P1.8 Remove suspicious Vercel rewrite  🐛 S
+### R-P1.8 Remove suspicious Vercel rewrite 🐛 S
 
 **Context**
 
@@ -735,7 +752,7 @@ dashboard/health/calendar still return the route itself.
 
 ---
 
-### R-P1.9 Tighten security headers  🔒 M
+### R-P1.9 Tighten security headers 🔒 M
 
 **Context**
 
@@ -762,6 +779,7 @@ Next.js nonce support).
 
 **Status (2026-04-21):** Code side done ✅, deploy verify pending.
 Extended `vercel.json` with:
+
 - `Strict-Transport-Security`
 - `Cross-Origin-Opener-Policy`
 - `Cross-Origin-Resource-Policy`
@@ -771,6 +789,7 @@ Existing `X-Content-Type-Options`, `X-Frame-Options`,
 `Referrer-Policy`, and `Permissions-Policy` were preserved.
 
 ⚠️ **Post-deploy verify still needed:**
+
 - redeploy
 - test key flows for CSP regressions
 - check `securityheaders.com`
@@ -781,7 +800,7 @@ Existing `X-Content-Type-Options`, `X-Frame-Options`,
 
 ## Phase C — Multi-user (coordinate with `TODO-manual-supabase.md` Phase C)
 
-### R-C1 Rewrite `ingest-hae` for per-user tokens  🚧 M
+### R-C1 Rewrite `ingest-hae` for per-user tokens 🚧 M
 
 **Context**
 
@@ -800,18 +819,19 @@ In `supabase/functions/ingest-hae/index.ts`:
      .select('user_id')
      .eq('token', token)
      .is('revoked_at', null)
-     .maybeSingle();
+     .maybeSingle()
 
    if (tokenErr || !tokenRow) {
-     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
    }
 
-   const userId = tokenRow.user_id;
+   const userId = tokenRow.user_id
 
    // Fire-and-forget audit trail
-   supabase.from('hae_ingest_tokens')
+   supabase
+     .from('hae_ingest_tokens')
      .update({ last_used_at: new Date().toISOString() })
-     .eq('token', token);
+     .eq('token', token)
    ```
 
 2. Include `user_id: userId` in every row inserted into
@@ -822,6 +842,7 @@ In `supabase/functions/ingest-hae/index.ts`:
    working for a few HAE cycles.)
 
 4. Deploy:
+
    ```bash
    supabase functions deploy ingest-hae
    ```
@@ -847,20 +868,21 @@ Then let the user proceed with their C4 task.
 1. Deployed `supabase functions deploy ingest-hae`
 2. HAE on Iphone from Ben updated.
 3. ran
-    ```sql
-    SELECT user_id, COUNT(*) FROM staging_hae_metrics                                                                                                                 
-  WHERE received_at > NOW() - INTERVAL '30 min'                                                                                                                     
-  GROUP BY user_id;  
-    ```
+   ```sql
+   SELECT user_id, COUNT(*) FROM staging_hae_metrics
+   WHERE received_at > NOW() - INTERVAL '30 min'
+   GROUP BY user_id;
+   ```
 
 Then:
+
 ```sql
 SELECT label, last_used_at FROM hae_ingest_tokens;
 ```
+
 | label                | last_used_at |
 | -------------------- | ------------ |
 | Primary iPhone (Ben) | null         |
-
 
 ☐ Done
 
@@ -868,12 +890,13 @@ SELECT label, last_used_at FROM hae_ingest_tokens;
 
 ## Phase P2 — Production-grade polish
 
-### R-P2.1 Remove `any` escapes and regenerate Supabase types  🧹 M
+### R-P2.1 Remove `any` escapes and regenerate Supabase types 🧹 M
 
 **Context**
 
 `apps/web/eslint.config.mjs:23-37` disables
 `@typescript-eslint/no-explicit-any` for:
+
 - `lib/database.ts`
 - `app/(app)/insights/page.tsx`
 - `app/api/ai/insights/route.ts` (~11 casts alone)
@@ -910,6 +933,7 @@ Supabase clients now know about `state_of_mind`, `ecg_readings`,
 
 Removed the broad `@typescript-eslint/no-explicit-any` overrides from
 `apps/web/eslint.config.mjs` and removed targeted `as any` casts from:
+
 - `apps/web/lib/database.ts`
 - `apps/web/app/api/ai/insights/route.ts`
 
@@ -919,6 +943,7 @@ is not available. Re-run type generation after `supabase login` if the
 live schema needs a full refresh.
 
 Verification:
+
 - `npx tsc --noEmit` ✅
 - `npm run lint` ✅ (existing warnings only, no explicit-any errors)
 
@@ -926,7 +951,7 @@ Verification:
 
 ---
 
-### R-P2.2 Implement profile page handlers (GDPR basics)  🧹 L
+### R-P2.2 Implement profile page handlers (GDPR basics) 🧹 L
 
 **Context**
 
@@ -967,6 +992,7 @@ done).
 
 **Status (2026-04-25):** ✅ Done via pragmatic scope.
 Implemented real saves for the profile page paths that remain visible:
+
 - `Save Profile Changes` now calls `supabase.auth.updateUser(...)`
   and updates `full_name` user metadata.
 - Preferences now load from `user_preferences` and `Save Preferences`
@@ -978,6 +1004,7 @@ profile page until real `/api/me/export` and `/api/me/delete` routes
 exist, so the UI no longer claims export/deletion work happened.
 
 Verification:
+
 - `npx tsc --noEmit` ✅
 - `npm run lint` ✅ (existing warnings only)
 
@@ -985,7 +1012,7 @@ Verification:
 
 ---
 
-### R-P2.3 Expand test coverage to 60%  🧪 L
+### R-P2.3 Expand test coverage to 60% 🧪 L
 
 **Context**
 
@@ -993,12 +1020,12 @@ R-P1.4 set up the pipeline. This task builds actual coverage.
 
 **Change**
 
-| Layer | Tool | Scope |
-|---|---|---|
-| Unit | vitest | All of `lib/` — range-utils, activity, date math, validations |
-| Hooks | vitest + RTL | All 8 `hooks/use*Data.ts` — error/empty/happy paths |
+| Layer      | Tool                          | Scope                                                                         |
+| ---------- | ----------------------------- | ----------------------------------------------------------------------------- |
+| Unit       | vitest                        | All of `lib/` — range-utils, activity, date math, validations                 |
+| Hooks      | vitest + RTL                  | All 8 `hooks/use*Data.ts` — error/empty/happy paths                           |
 | API routes | `next-test-api-route-handler` | Every route in `app/api/**`: 401 without session, 400 on bad input, 200 happy |
-| Smoke E2E | Playwright | login → log mood → see on dashboard → log food → sign out |
+| Smoke E2E  | Playwright                    | login → log mood → see on dashboard → log food → sign out                     |
 
 Target 60% coverage reported by vitest. Block merges below it.
 
@@ -1006,7 +1033,7 @@ Target 60% coverage reported by vitest. Block merges below it.
 
 ---
 
-### R-P2.4 Remove duplicate voice-recorder  🧹 S
+### R-P2.4 Remove duplicate voice-recorder 🧹 S
 
 **Context**
 
@@ -1035,7 +1062,7 @@ deleted.
 
 ---
 
-### R-P2.5 Remove scratch files and dead routes  🧹 S
+### R-P2.5 Remove scratch files and dead routes 🧹 S
 
 **Context**
 
@@ -1054,6 +1081,7 @@ Grep for imports of `design` — none should exist.
 
 **Status (2026-04-25):** ✅ Done.
 Deleted:
+
 - `apps/web/exercise.md`
 - `apps/web/app/(app)/design/page.tsx`
 
@@ -1064,7 +1092,7 @@ page or `exercise.md`.
 
 ---
 
-### R-P2.6 Frontend audit for legacy DB columns  🐛 M
+### R-P2.6 Frontend audit for legacy DB columns 🐛 M
 
 **Context**
 
@@ -1086,6 +1114,7 @@ done
 ```
 
 For each match:
+
 - If it's a genuine read, either (a) migrate the code to the
   replacement column, or (b) flag the column as KEEP in the manual
   file.
@@ -1098,6 +1127,7 @@ file.
 **Status (2026-04-25):** ✅ Audit complete.
 Frontend still reads several candidate legacy columns, so these are
 not safe to drop without a replacement-code pass:
+
 - `total_energy_kcal` — used by `lib/activity.ts`,
   `hooks/useExerciseData.ts`, and `app/(app)/exercise/page.tsx`.
 - `average_heart_rate` — used for ECG display in health/exercise
@@ -1112,9 +1142,11 @@ not safe to drop without a replacement-code pass:
 - `trimp` — used as Training Load in exercise summary.
 
 No frontend matches found for:
+
 - `sheet_row_number`
 
 Type-only matches found for:
+
 - `hr_zone_type`
 - `rpe`
 
@@ -1128,7 +1160,7 @@ until replacement fields are confirmed and the app code is migrated.
 
 ---
 
-### R-P2.7 Fix PWA cache invalidation  🧹 S
+### R-P2.7 Fix PWA cache invalidation 🧹 S
 
 **Context**
 
@@ -1138,6 +1170,7 @@ Deploys don't bust the cache. Users stuck on old assets forever.
 **Change**
 
 Either:
+
 1. **Quick fix:** inject `NEXT_PUBLIC_BUILD_ID` at build time and
    interpolate it into `CACHE_NAME`. Requires a build-time
    preprocessor for `sw.js` (next.config.ts can do this via a
@@ -1154,6 +1187,7 @@ cache name changes per deploy.
 
 **Status (2026-04-25):** ✅ Code side done.
 Implemented the quick fix without adding a PWA dependency:
+
 - `next.config.ts` exposes `NEXT_PUBLIC_BUILD_ID` from an explicit env
   var, Vercel commit SHA, or a build timestamp fallback.
 - `ServiceWorkerRegister` registers `/sw.js?v=<build-id>` with
@@ -1169,11 +1203,12 @@ service worker URL and cache name include the latest build id.
 
 ---
 
-### R-P2.8 Standardize product name  📝 S
+### R-P2.8 Standardize product name 📝 S
 
 **Context**
 
 Name drift:
+
 - `README.md:1` → "fl-moodtracker"
 - `package.json:2` → "web"
 - `vercel.json:3` → "sofi-wellness-web"
@@ -1183,6 +1218,7 @@ Name drift:
 **Change**
 
 Pick **Pulse** (most-used, matches URL-adjacent branding). Update:
+
 - `README.md` title
 - `vercel.json.name` → `pulse-web`
 - `apps/web/package.json.name` → `pulse-web`
@@ -1198,6 +1234,7 @@ rg -i 'fl-moodtracker|sofi-wellness' --type-not md
 
 **Status (2026-04-25):** ✅ Done.
 Standardized repo/app naming around Pulse:
+
 - `README.md` title → `Pulse`
 - `vercel.json.name` → `pulse-web`
 - `apps/web/package.json.name` → `pulse-web`
@@ -1207,6 +1244,7 @@ Standardized repo/app naming around Pulse:
 demo email remains `demo@pulse.app`.
 
 Verification:
+
 - `rg -i 'fl-moodtracker|sofi-wellness' --type-not md` returns no
   non-doc matches.
 
@@ -1214,7 +1252,7 @@ Verification:
 
 ---
 
-### R-P2.9 Dependency cleanup  📦 S
+### R-P2.9 Dependency cleanup 📦 S
 
 **Context**
 
@@ -1261,6 +1299,7 @@ updated manually. The existing lockfile still contains the resolved
 `node_modules/shadcn` entry.
 
 Verification:
+
 - `rg '@jridgewell/gen-mapping' --type ts --type tsx` found no app
   imports.
 - `npm run build` ✅
@@ -1269,7 +1308,7 @@ Verification:
 
 ---
 
-### R-P2.10 Monorepo shape decision  📦 M
+### R-P2.10 Monorepo shape decision 📦 M
 
 **Context**
 
@@ -1292,6 +1331,7 @@ ever ships.
 
 **Status (2026-04-25):** ✅ Done.
 Chose Option A and flattened the web app to the repo root:
+
 - moved tracked app source/config from `apps/web/` to root
 - moved the app `package.json` and `package-lock.json` to root
 - updated CI and README commands to run from root
@@ -1301,7 +1341,7 @@ Chose Option A and flattened the web app to the repo root:
 
 ---
 
-### R-P2.11 Prettier + lint-staged + husky  🧹 S
+### R-P2.11 Prettier + lint-staged + husky 🧹 S
 
 **Change**
 
@@ -1316,17 +1356,26 @@ npx husky init
 Create `.prettierrc` and `.prettierignore`. Run `prettier --write .`
 once to normalize; commit separately (huge diff).
 
-**Status (2026-04-25):** Blocked locally.
-Attempted `npm i -D prettier lint-staged husky`, but npm registry
-access failed with `ENOTFOUND registry.npmjs.org`. These packages are
-not present in the local dependency cache, so this task should resume
-from the install step in a network-enabled terminal.
+**Status (2026-04-25):** ✅ Done.
+Installed `prettier@^3`, `lint-staged@^16`, `husky@^9`. Added
+`.prettierrc` (`semi=false, singleQuote, trailingComma=all,
+printWidth=100`), `.prettierignore` (excludes `.next/`, `node_modules/`,
+`public/`, `supabase/functions/`), and `lint-staged` config in
+`package.json`. `.husky/pre-commit` runs `npx lint-staged`. Format
+pass committed separately (`style: apply prettier formatting`) — 79
+files, no logic changes.
 
-☐ Done
+Verification:
+
+- `npm run lint` ✅ (existing warnings only)
+- `npm test` ✅ (3 passing)
+- `npm run build` ✅
+
+✅ Done
 
 ---
 
-### R-P2.12 Structured logging  ✨ M
+### R-P2.12 Structured logging ✨ M
 
 **Context**
 
@@ -1348,11 +1397,28 @@ hard.
 Vercel log output shows `{ level, time, requestId, message }`
 structured output for each API call.
 
-☐ Done
+**Status (2026-04-25):** ✅ Done.
+Created `lib/logger.ts` — zero-dependency wrapper that emits JSON to
+stdout in production and human-readable prefixed lines in dev. Updated
+`lib/api-handler.ts:captureApiException` to use `logger.error`.
+Replaced all `console.warn` calls in `app/api/ai/{text,vision,insights,
+speech}/route.ts` with `logger.warn` including structured fields.
+
+`requestId` is already generated per-request in `apiHandler()` and
+passed to `captureApiException`. Provider-switch warnings now include
+`{ error: string }` fields.
+
+Verification:
+
+- `npm run typecheck` ✅
+- `npm run lint` ✅
+- `npm test` ✅
+
+✅ Done
 
 ---
 
-### R-P2.13 Env-var inventory doc  📝 S
+### R-P2.13 Env-var inventory doc 📝 S
 
 **Context**
 
@@ -1362,6 +1428,7 @@ rotation policy.
 **Change**
 
 Add `docs/06-env-vars.md`:
+
 - Every env var (name, scope, where it's set, what breaks if
   missing, rotation cadence, last rotated).
 - Cross-link from operations runbook.
@@ -1371,13 +1438,19 @@ Add `docs/06-env-vars.md`:
 A new developer should be able to stand up a dev env from this doc
 alone.
 
-☐ Done
+**Status (2026-04-25):** ✅ Done.
+Created `docs/06-env-vars.md` covering all six variables (including
+`NEXT_PUBLIC_BUILD_ID` with its fallback chain), optional/future vars,
+Vercel setup steps, and security notes. Cross-linked from the doc itself
+to `docs/05-operations-runbook.md` and `.env.example`.
+
+✅ Done
 
 ---
 
 ## Phase F — Follow-ups to manual work
 
-### R-F1 Backfill migration files from live DB  🐛 S
+### R-F1 Backfill migration files from live DB 🐛 S
 
 **Context**
 
@@ -1387,6 +1460,7 @@ F3; this task takes those outputs and commits them as a migration.
 **Change**
 
 Using outputs from manual F3:
+
 1. Create
    `supabase/migrations/<timestamp>_sleep_events_snapshot.sql`
    with the CREATE TABLE / indexes / RLS policies for `sleep_events`.
@@ -1410,7 +1484,7 @@ supabase db reset
 
 ---
 
-### R-F2 Alerting for stale HAE data  ✨ M
+### R-F2 Alerting for stale HAE data ✨ M
 
 **Context**
 
@@ -1420,6 +1494,7 @@ adds external alerting.
 **Change**
 
 Options:
+
 - **Vercel Cron** calls `/api/admin/hae-freshness-check` hourly; the
   route queries the view and POSTs to a webhook (Discord, email) on
   STALE.
@@ -1436,7 +1511,7 @@ Stub a Discord webhook first; full email pipeline later.
 
 These aren't critical. Revisit after the foundation is boring.
 
-### R-P3.1 Real demo mode  ✨ M
+### R-P3.1 Real demo mode ✨ M
 
 `signInDemo()` in `auth-context.tsx:252-298` builds a fake in-memory
 session. API calls will fail. Replace with:
@@ -1448,14 +1523,14 @@ session. API calls will fail. Replace with:
 
 Or gate the current fake flow out of production builds.
 
-### R-P3.2 Remove legacy HealthFit code paths  🧹 M
+### R-P3.2 Remove legacy HealthFit code paths 🧹 M
 
 Audit the repo for anything referencing `sync-healthfit`,
 `google_codenode`, HealthFit-specific column names. If HAE is now
 the sole source of truth, delete the HealthFit Edge Function, its
 config, and the backfill scripts.
 
-### R-P3.3 Move Apple-Watch-specific logic behind an adapter  ✨ L
+### R-P3.3 Move Apple-Watch-specific logic behind an adapter ✨ L
 
 If a second data source (Fitbit, Garmin, manual entry) is ever
 planned, the HAE-specific transformations in
@@ -1463,7 +1538,7 @@ planned, the HAE-specific transformations in
 tight coupling. Introduce a `HealthDataSource` interface and have
 HAE be one implementation.
 
-### R-P3.4 Revisit observability + rate limiting  ✨ M
+### R-P3.4 Revisit observability + rate limiting ✨ M
 
 Sentry and Upstash were deferred on 2026-04-21 because their free
 tiers do not match the current single-user cost model. Reconsider
