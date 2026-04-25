@@ -507,9 +507,182 @@ export interface Database {
         };
         Relationships: never[];
       };
+      state_of_mind: {
+        Row: {
+          id: number;
+          user_id: string;
+          recorded_at: string;
+          kind: string;
+          valence: number;
+          valence_classification: string;
+          labels: string[] | null;
+          associations: string[] | null;
+          source_id: string | null;
+          raw_payload: unknown | null;
+        };
+        Insert: {
+          id?: number;
+          user_id: string;
+          recorded_at: string;
+          kind: string;
+          valence: number;
+          valence_classification: string;
+          labels?: string[] | null;
+          associations?: string[] | null;
+          source_id?: string | null;
+          raw_payload?: unknown | null;
+        };
+        Update: {
+          id?: number;
+          user_id?: string;
+          recorded_at?: string;
+          kind?: string;
+          valence?: number;
+          valence_classification?: string;
+          labels?: string[] | null;
+          associations?: string[] | null;
+          source_id?: string | null;
+          raw_payload?: unknown | null;
+        };
+        Relationships: never[];
+      };
+      ecg_readings: {
+        Row: {
+          id: number;
+          user_id: string;
+          recorded_at: string;
+          classification: string;
+          average_heart_rate: number | null;
+          number_of_measurements: number | null;
+          sampling_frequency: number | null;
+          source: string | null;
+        };
+        Insert: {
+          id?: number;
+          user_id: string;
+          recorded_at: string;
+          classification: string;
+          average_heart_rate?: number | null;
+          number_of_measurements?: number | null;
+          sampling_frequency?: number | null;
+          source?: string | null;
+        };
+        Update: {
+          id?: number;
+          user_id?: string;
+          recorded_at?: string;
+          classification?: string;
+          average_heart_rate?: number | null;
+          number_of_measurements?: number | null;
+          sampling_frequency?: number | null;
+          source?: string | null;
+        };
+        Relationships: never[];
+      };
+      heart_rate_notifications: {
+        Row: {
+          id: number;
+          user_id: string;
+          recorded_at: string;
+          notification_type: string;
+          heart_rate: number | null;
+          threshold: number | null;
+          raw_payload: unknown | null;
+        };
+        Insert: {
+          id?: number;
+          user_id: string;
+          recorded_at: string;
+          notification_type: string;
+          heart_rate?: number | null;
+          threshold?: number | null;
+          raw_payload?: unknown | null;
+        };
+        Update: {
+          id?: number;
+          user_id?: string;
+          recorded_at?: string;
+          notification_type?: string;
+          heart_rate?: number | null;
+          threshold?: number | null;
+          raw_payload?: unknown | null;
+        };
+        Relationships: never[];
+      };
+      sleep_events: {
+        Row: {
+          id: number;
+          user_id: string;
+          date: string;
+          total_sleep_hours: number | null;
+          rem_hours: number | null;
+          core_hours: number | null;
+          deep_hours: number | null;
+          awake_hours: number | null;
+          sleep_start: string | null;
+          sleep_end: string | null;
+          in_bed_start: string | null;
+          in_bed_end: string | null;
+          wrist_temperature: number | null;
+          source: string | null;
+        };
+        Insert: {
+          id?: number;
+          user_id: string;
+          date: string;
+          total_sleep_hours?: number | null;
+          rem_hours?: number | null;
+          core_hours?: number | null;
+          deep_hours?: number | null;
+          awake_hours?: number | null;
+          sleep_start?: string | null;
+          sleep_end?: string | null;
+          in_bed_start?: string | null;
+          in_bed_end?: string | null;
+          wrist_temperature?: number | null;
+          source?: string | null;
+        };
+        Update: {
+          id?: number;
+          user_id?: string;
+          date?: string;
+          total_sleep_hours?: number | null;
+          rem_hours?: number | null;
+          core_hours?: number | null;
+          deep_hours?: number | null;
+          awake_hours?: number | null;
+          sleep_start?: string | null;
+          sleep_end?: string | null;
+          in_bed_start?: string | null;
+          in_bed_end?: string | null;
+          wrist_temperature?: number | null;
+          source?: string | null;
+        };
+        Relationships: never[];
+      };
     };
     Views: {
-      [_ in never]: never
+      v_daily_activity: {
+        Row: {
+          user_id: string;
+          date: string;
+          total_energy_kcal: number | null;
+          active_energy_kcal: number | null;
+          resting_energy_kcal: number | null;
+          steps: number | null;
+          exercise_time_minutes: number | null;
+          move_time_minutes: number | null;
+          stand_time_minutes: number | null;
+          stand_hours: number | null;
+          distance_km: number | null;
+          exercise_kcal: number | null;
+          resting_heart_rate: number | null;
+          hrv: number | null;
+          vo2max: number | null;
+          source: string | null;
+        };
+        Relationships: never[];
+      };
     };
     Functions: {
       calculate_weekly_metrics: {
@@ -571,59 +744,15 @@ export type WorkoutRoute = Database['public']['Tables']['workout_routes']['Row']
 export type WorkoutRouteMeta = Omit<WorkoutRoute, 'route_points'>;
 export type HealthMetricsBody = Database['public']['Tables']['health_metrics_body']['Row'];
 
-export interface StateOfMind {
-  id?: number;
-  user_id: string;
-  recorded_at: string;
-  kind: string;
-  valence: number;
-  valence_classification: string;
-  labels: string[] | null;
-  associations: string[] | null;
-  source_id: string | null;
-  raw_payload: unknown | null;
-}
-
-export interface EcgReading {
-  id?: number;
-  user_id: string;
-  recorded_at: string;
-  classification: string;
-  average_heart_rate: number | null;
-  number_of_measurements: number | null;
-  sampling_frequency: number | null;
-  source: string | null;
-}
-
-export interface HeartRateNotification {
-  id?: number;
-  user_id: string;
-  recorded_at: string;
-  notification_type: string;
-  heart_rate: number | null;
-  threshold: number | null;
-  raw_payload: unknown | null;
-}
-
-export interface SleepEvent {
-  id?: number;
-  user_id: string;
-  date: string;
-  total_sleep_hours: number | null;
-  rem_hours: number | null;
-  core_hours: number | null;
-  deep_hours: number | null;
-  awake_hours: number | null;
-  sleep_start: string | null;
-  sleep_end: string | null;
-  in_bed_start: string | null;
-  in_bed_end: string | null;
-  wrist_temperature: number | null;
-  source: string | null;
-}
+export type DailyActivityView = Database['public']['Views']['v_daily_activity']['Row'];
+export type StateOfMind = Database['public']['Tables']['state_of_mind']['Row'];
+export type EcgReading = Database['public']['Tables']['ecg_readings']['Row'];
+export type HeartRateNotification = Database['public']['Tables']['heart_rate_notifications']['Row'];
+export type SleepEvent = Database['public']['Tables']['sleep_events']['Row'];
 
 export type MoodEntryInsert = Database['public']['Tables']['mood_entries']['Insert'];
 export type FoodEntryInsert = Database['public']['Tables']['food_entries']['Insert'];
+export type FoodEntryUpdate = Database['public']['Tables']['food_entries']['Update'];
 export type InsightInsert = Database['public']['Tables']['insights']['Insert'];
 export type UserPreferencesInsert = Database['public']['Tables']['user_preferences']['Insert'];
 

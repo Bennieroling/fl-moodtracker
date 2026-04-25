@@ -87,6 +87,15 @@ const avg = (arr: Array<Record<string, unknown>>, key: string) => {
   return vals.length > 0 ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null
 }
 
+async function safeData<T>(query: PromiseLike<{ data: T }>): Promise<{ data: T | null }> {
+  try {
+    const { data } = await query
+    return { data }
+  } catch {
+    return { data: null }
+  }
+}
+
 function computePreviousPeriod(periodStart: string, periodEnd: string) {
   const start = new Date(`${periodStart}T00:00:00Z`)
   const end = new Date(`${periodEnd}T00:00:00Z`)
@@ -104,20 +113,8 @@ async function gatherContext(
   periodStart: string,
   periodEnd: string,
 ): Promise<PeriodContext> {
-  const sb = supabase as unknown as {
-    from: (table: string) => {
-      select: (cols: string) => {
-        eq: (c: string, v: string | boolean) => {
-          gte: (c: string, v: string) => { lte: (c: string, v: string) => Promise<{ data: unknown }> }
-          eq?: (c: string, v: string | boolean) => { gte: (c: string, v: string) => { lte: (c: string, v: string) => Promise<{ data: unknown }> } }
-        }
-      }
-    }
-    rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>
-  }
-
   // Core metrics via RPC
-  const { data: metricsResult } = await sb.rpc('calculate_weekly_metrics', {
+  const { data: metricsResult } = await supabase.rpc('calculate_weekly_metrics', {
     user_uuid: userId,
     start_date: periodStart,
     end_date: periodEnd,
@@ -136,41 +133,34 @@ async function gatherContext(
     hrAlertRowsRes,
     ecgRowsRes,
   ] = await Promise.all([
-    (supabase as any).from('health_metrics_daily')
+    safeData(supabase.from('health_metrics_daily')
       .select('steps, exercise_time_minutes, active_energy_kcal, resting_heart_rate, hrv, vo2max')
-      .eq('user_id', userId).gte('date', periodStart).lte('date', periodEnd)
-      .then((r: { data: unknown }) => r).catch(() => ({ data: null })),
-    (supabase as any).from('health_metrics_body')
+      .eq('user_id', userId).gte('date', periodStart).lte('date', periodEnd)),
+    safeData(supabase.from('health_metrics_body')
       .select('weight_kg, body_fat_pct')
-      .eq('user_id', userId).order('date', { ascending: false }).limit(1).maybeSingle()
-      .then((r: { data: unknown }) => r).catch(() => ({ data: null })),
-    (supabase as any).from('state_of_mind')
+      .eq('user_id', userId).order('date', { ascending: false }).limit(1).maybeSingle()),
+    safeData(supabase.from('state_of_mind')
       .select('valence, labels')
       .eq('user_id', userId)
       .gte('recorded_at', `${periodStart}T00:00:00`)
-      .lte('recorded_at', `${periodEnd}T23:59:59`)
-      .then((r: { data: unknown }) => r).catch(() => ({ data: null })),
-    (supabase as any).from('sleep_events')
+      .lte('recorded_at', `${periodEnd}T23:59:59`)),
+    safeData(supabase.from('sleep_events')
       .select('total_sleep_hours, rem_hours, deep_hours, wrist_temperature')
-      .eq('user_id', userId).gte('date', periodStart).lte('date', periodEnd)
-      .then((r: { data: unknown }) => r).catch(() => ({ data: null })),
-    (supabase as any).from('exercise_events')
+      .eq('user_id', userId).gte('date', periodStart).lte('date', periodEnd)),
+    safeData(supabase.from('exercise_events')
       .select('workout_type, total_minutes, duration_seconds, avg_heart_rate, active_energy_kcal, started_at, workout_date')
       .eq('user_id', userId)
-      .gte('workout_date', periodStart).lte('workout_date', periodEnd)
-      .then((r: { data: unknown }) => r).catch(() => ({ data: null })),
-    (supabase as any).from('heart_rate_notifications')
+      .gte('workout_date', periodStart).lte('workout_date', periodEnd)),
+    safeData(supabase.from('heart_rate_notifications')
       .select('notification_type')
       .eq('user_id', userId)
       .gte('recorded_at', `${periodStart}T00:00:00`)
-      .lte('recorded_at', `${periodEnd}T23:59:59`)
-      .then((r: { data: unknown }) => r).catch(() => ({ data: null })),
-    (supabase as any).from('ecg_readings')
+      .lte('recorded_at', `${periodEnd}T23:59:59`)),
+    safeData(supabase.from('ecg_readings')
       .select('classification')
       .eq('user_id', userId)
       .gte('recorded_at', `${periodStart}T00:00:00`)
-      .lte('recorded_at', `${periodEnd}T23:59:59`)
-      .then((r: { data: unknown }) => r).catch(() => ({ data: null })),
+      .lte('recorded_at', `${periodEnd}T23:59:59`)),
   ])
 
   // Health
@@ -490,7 +480,7 @@ export const POST = apiHandler(AIInsightsRequestSchema, async (_request, validat
     // Targets (shared across both periods)
     let targets: DailyTargets = { ...DEFAULT_DAILY_TARGETS }
     try {
-      const { data: prefsRow } = await (supabase as any)
+      const { data: prefsRow } = await supabase
         .from('user_preferences')
         .select('daily_targets')
         .eq('user_id', user.id)
@@ -550,7 +540,7 @@ export const POST = apiHandler(AIInsightsRequestSchema, async (_request, validat
 
     const response = AIInsightsResponseSchema.parse(cleanedResponse)
 
-    const { error: upsertError } = await (supabase as any)
+    const { error: upsertError } = await supabase
       .from('insights')
       .upsert({
         user_id: user.id,

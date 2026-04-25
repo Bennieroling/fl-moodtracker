@@ -20,21 +20,6 @@ const eslintConfig = [
       "next-env.d.ts",
     ],
   },
-  {
-    files: ["lib/database.ts"],
-    rules: {
-      "@typescript-eslint/no-explicit-any": "off",
-    },
-  },
-  {
-    files: [
-      "app/(app)/insights/page.tsx",
-      "app/api/ai/insights/route.ts"
-    ],
-    rules: {
-      "@typescript-eslint/no-explicit-any": "off",
-    },
-  },
 ];
 
 export default eslintConfig;

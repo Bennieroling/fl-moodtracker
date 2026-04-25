@@ -1,7 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase-browser'
-import { MoodEntryInsert, FoodEntryInsert, MealType, ExerciseEvent, HealthMetricsBody, DailyTargets, DEFAULT_DAILY_TARGETS, StateOfMind, EcgReading, HeartRateNotification, SleepEvent } from '@/lib/types/database'
+import { MoodEntryInsert, FoodEntryInsert, FoodEntryUpdate, MealType, ExerciseEvent, HealthMetricsBody, DailyTargets, DEFAULT_DAILY_TARGETS, StateOfMind, EcgReading, HeartRateNotification, SleepEvent, UserPreferences } from '@/lib/types/database'
 import { format } from 'date-fns'
 
 const supabase = createClient()
@@ -248,12 +248,10 @@ export async function getMoodEntriesForMonth(userId: string, year: number, month
 export async function upsertMoodEntry(moodEntry: MoodEntryInsert) {
   try {
     // First try to find existing entry
-    const existing = await getMoodEntryByDate(moodEntry.user_id, moodEntry.date) as any
+    const existing = await getMoodEntryByDate(moodEntry.user_id, moodEntry.date)
     
     if (existing) {
-      // Update existing entry - bypass TypeScript issue temporarily  
-      const supabaseAny = supabase as any
-      const { data, error } = await supabaseAny
+      const { data, error } = await supabase
         .from('mood_entries')
         .update({
           mood_score: moodEntry.mood_score,
@@ -267,9 +265,7 @@ export async function upsertMoodEntry(moodEntry: MoodEntryInsert) {
       if (error) throw error
       return data
     } else {
-      // Insert new entry - bypass TypeScript issue temporarily
-      const supabaseAny = supabase as any
-      const { data, error } = await supabaseAny
+      const { data, error } = await supabase
         .from('mood_entries')
         .insert({
           ...moodEntry,
@@ -327,8 +323,7 @@ export async function getFoodEntriesForDateRange(userId: string, startDate: stri
 
 export async function insertFoodEntry(foodEntry: FoodEntryInsert) {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny
+    const { data, error } = await supabase
       .from('food_entries')
       .insert({
         ...foodEntry,
@@ -346,10 +341,9 @@ export async function insertFoodEntry(foodEntry: FoodEntryInsert) {
   }
 }
 
-export async function updateFoodEntry(id: string, updates: Partial<FoodEntryInsert>) {
+export async function updateFoodEntry(id: string, updates: FoodEntryUpdate) {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny
+    const { data, error } = await supabase
       .from('food_entries')
       .update({
         ...updates,
@@ -385,8 +379,7 @@ export async function deleteFoodEntry(id: string) {
 // Daily activity helpers
 export async function getExerciseEventsForDate(userId: string, date: string): Promise<ExerciseEvent[]> {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny
+    const { data, error } = await supabase
       .from('exercise_events')
       .select('*')
       .eq('user_id', userId)
@@ -407,8 +400,7 @@ export async function getExerciseEventsForRange(
   rangeEndIso: string
 ): Promise<ExerciseEvent[]> {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny
+    const { data, error } = await supabase
       .from('exercise_events')
       .select('*')
       .eq('user_id', userId)
@@ -431,8 +423,7 @@ export async function getDailyActivityRange(
   options: { workouts?: ExerciseEvent[] } = {}
 ): Promise<DailyActivity[]> {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny
+    const { data, error } = await supabase
       .from('v_daily_activity')
       .select('*')
       .eq('user_id', userId)
@@ -474,8 +465,7 @@ export async function getActivityAggregates(
   endDate?: string
 ): Promise<DailyActivityAggregate[]> {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny.rpc('get_activity_aggregates', {
+    const { data, error } = await supabase.rpc('get_activity_aggregates', {
       p_user_id: userId,
       p_period: bucket,
       p_start_date: startDate ?? '1970-01-01',
@@ -522,15 +512,13 @@ export async function getDashboardSummary(userId: string, date: string) {
 
     const [moodEntry, foodEntries] = await Promise.all([moodPromise, foodPromise])
 
-    // Calculate totals - apply type assertion for TypeScript issues
-    const foodEntriesTyped = foodEntries as any[]
-    const totalCalories = foodEntriesTyped.reduce((sum, entry) => {
+    const totalCalories = foodEntries.reduce((sum, entry) => {
       return sum + (entry.calories || 0)
     }, 0)
 
-    const mealsLogged = foodEntriesTyped.length
+    const mealsLogged = foodEntries.length
 
-    const totalMacros = foodEntriesTyped.reduce(
+    const totalMacros = foodEntries.reduce(
       (sum, entry) => {
         const macros = entry.macros || { protein: 0, carbs: 0, fat: 0 }
         return {
@@ -543,7 +531,7 @@ export async function getDashboardSummary(userId: string, date: string) {
     )
 
     return {
-      mood: (moodEntry as any)?.mood_score || null,
+      mood: moodEntry?.mood_score || null,
       totalCalories: Math.round(totalCalories),
       mealsLogged,
       macros: {
@@ -551,7 +539,7 @@ export async function getDashboardSummary(userId: string, date: string) {
         carbs: Math.round(totalMacros.carbs),
         fat: Math.round(totalMacros.fat)
       },
-      foodEntries: foodEntriesTyped
+      foodEntries
     }
   } catch (error) {
     console.error('Error fetching dashboard summary:', error)
@@ -571,8 +559,7 @@ export async function getDashboardSummary(userId: string, date: string) {
 // Daily targets
 export async function getUserTargets(userId: string): Promise<DailyTargets> {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny
+    const { data, error } = await supabase
       .from('user_preferences')
       .select('daily_targets')
       .eq('user_id', userId)
@@ -589,8 +576,7 @@ export async function getUserTargets(userId: string): Promise<DailyTargets> {
 
 export async function updateUserTargets(userId: string, targets: DailyTargets): Promise<void> {
   try {
-    const supabaseAny = supabase as any
-    const { error } = await supabaseAny
+    const { error } = await supabase
       .from('user_preferences')
       .upsert(
         {
@@ -607,6 +593,54 @@ export async function updateUserTargets(userId: string, targets: DailyTargets): 
   }
 }
 
+export type ProfilePreferences = Pick<
+  UserPreferences,
+  | 'units'
+  | 'reminder_enabled'
+  | 'reminder_time'
+  | 'journal_mode_default'
+  | 'notifications_enabled'
+>
+
+export async function getUserPreferences(userId: string): Promise<ProfilePreferences | null> {
+  try {
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('units, reminder_enabled, reminder_time, journal_mode_default, notifications_enabled')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (error) throw error
+    return data
+  } catch (error) {
+    console.error('Error fetching user preferences:', error)
+    return null
+  }
+}
+
+export async function updateUserPreferences(
+  userId: string,
+  preferences: ProfilePreferences
+): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('user_preferences')
+      .upsert(
+        {
+          user_id: userId,
+          ...preferences,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' }
+      )
+
+    if (error) throw error
+  } catch (error) {
+    console.error('Error updating user preferences:', error)
+    throw error
+  }
+}
+
 // Body metrics
 export async function getBodyMetrics(
   userId: string,
@@ -614,8 +648,7 @@ export async function getBodyMetrics(
   endDate: string
 ): Promise<HealthMetricsBody[]> {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny
+    const { data, error } = await supabase
       .from('health_metrics_body')
       .select('*')
       .eq('user_id', userId)
@@ -633,8 +666,7 @@ export async function getBodyMetrics(
 
 export async function getLatestBodyMetrics(userId: string): Promise<HealthMetricsBody | null> {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny
+    const { data, error } = await supabase
       .from('health_metrics_body')
       .select('*')
       .eq('user_id', userId)
@@ -653,8 +685,7 @@ export async function getLatestBodyMetrics(userId: string): Promise<HealthMetric
 // State of Mind
 export async function getStateOfMindForDate(userId: string, date: string): Promise<StateOfMind[]> {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny
+    const { data, error } = await supabase
       .from('state_of_mind')
       .select('*')
       .eq('user_id', userId)
@@ -676,8 +707,7 @@ export async function getStateOfMindTrends(
   endDate: string
 ): Promise<{ date: string; avg_valence: number }[]> {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny
+    const { data, error } = await supabase
       .from('state_of_mind')
       .select('recorded_at, valence')
       .eq('user_id', userId)
@@ -714,8 +744,7 @@ export async function getStateOfMindLabelCounts(
   endDate: string
 ): Promise<{ label: string; count: number }[]> {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny
+    const { data, error } = await supabase
       .from('state_of_mind')
       .select('labels')
       .eq('user_id', userId)
@@ -749,8 +778,7 @@ export async function getStateOfMindAssociationCounts(
   endDate: string
 ): Promise<{ association: string; count: number }[]> {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny
+    const { data, error } = await supabase
       .from('state_of_mind')
       .select('associations')
       .eq('user_id', userId)
@@ -781,8 +809,7 @@ export async function getStateOfMindAssociationCounts(
 // ECG readings
 export async function getEcgReadings(userId: string): Promise<EcgReading[]> {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny
+    const { data, error } = await supabase
       .from('ecg_readings')
       .select('*')
       .eq('user_id', userId)
@@ -803,8 +830,7 @@ export async function getSleepEvents(
   endDate: string
 ): Promise<SleepEvent[]> {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny
+    const { data, error } = await supabase
       .from('sleep_events')
       .select('*')
       .eq('user_id', userId)
@@ -822,8 +848,7 @@ export async function getSleepEvents(
 
 export async function getLatestSleepEvent(userId: string): Promise<SleepEvent | null> {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny
+    const { data, error } = await supabase
       .from('sleep_events')
       .select('*')
       .eq('user_id', userId)
@@ -842,8 +867,7 @@ export async function getLatestSleepEvent(userId: string): Promise<SleepEvent | 
 // Heart rate notifications
 export async function getHeartRateNotifications(userId: string): Promise<HeartRateNotification[]> {
   try {
-    const supabaseAny = supabase as any
-    const { data, error } = await supabaseAny
+    const { data, error } = await supabase
       .from('heart_rate_notifications')
       .select('*')
       .eq('user_id', userId)
@@ -860,23 +884,21 @@ export async function getHeartRateNotifications(userId: string): Promise<HeartRa
 // Profile stats
 export async function getProfileStats(userId: string) {
   try {
-    const supabaseAny = supabase as any
-
     const [foodCount, moodCount, daysActive, streakRow] = await Promise.all([
-      supabaseAny
+      supabase
         .from('food_entries')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId),
-      supabaseAny
+      supabase
         .from('mood_entries')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId),
-      supabaseAny
+      supabase
         .from('health_metrics_daily')
         .select('date', { count: 'exact', head: true })
         .eq('user_id', userId)
         .gt('steps', 0),
-      supabaseAny
+      supabase
         .from('streaks')
         .select('current_streak, longest_streak')
         .eq('user_id', userId)
