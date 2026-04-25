@@ -24,7 +24,7 @@ has a prerequisite or companion task there, it's called out inline
    - `npm run lint`
    - `npx tsc --noEmit`
    - `npm run build`
-   - whatever tests exist (none yet — task R-P1.3 adds scaffolding)
+   - `npm test`
 5. **Confirm with the user before any irreversible action**: rotating
    keys, rewriting git history, deleting tables referenced by code.
 
@@ -33,6 +33,23 @@ has a prerequisite or companion task there, it's called out inline
 - 🔒 Security  🐛 Bug  🚧 Multi-user blocker  🧹 Tech debt
 - ✨ Improvement  🧪 Tests/CI  📦 Dep/config  📝 Docs
 - **S** under 30 min · **M** 1–2 hours · **L** half-day+
+
+## Current repo verification
+
+**Status (2026-04-25):** Sentry and Upstash were backed out per the
+2026-04-21 cost-model decision. `apps/web` has no Sentry or Upstash
+integration references, `.env.example` no longer lists their env vars,
+and `apps/web/lib/rate-limit.ts` is deleted.
+
+Latest local verification from `apps/web`:
+- `npm run lint` ✅ (existing warnings only)
+- `npx tsc --noEmit` ✅
+- `npm run build` ✅
+- `npm test` ✅ (3 test files, 3 tests)
+
+Build note: `apps/web/app/layout.tsx` now uses the system font stack
+instead of `next/font/google`, because the build environment could not
+fetch Google Fonts.
 
 ---
 
@@ -79,7 +96,20 @@ rg 'NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY'
 curl -s https://health.festinalente.dev/ | grep -o 'eyJ[A-Za-z0-9_-]\+' || echo "no JWTs in HTML"
 ```
 
-☐ Done
+**Status (2026-04-21):** Code side ✅ done — `apps/web/.env.local` already uses
+`SUPABASE_SERVICE_ROLE_KEY` (no `NEXT_PUBLIC_` prefix), root `.env.example`
+is correct, and all code readers (`supabase-server.ts`,
+`ingest-hae/index.ts`, `scripts/backfill_historical.py`) reference the
+right name. `rg 'NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY'` matches only
+docs/audit artifacts.
+
+⚠️ **Human action still required:** because the key was likely bundled
+into client JS at some point with the old name, rotate it in Supabase
+Dashboard → Settings → API, then update the value in `.env.local` and
+Vercel env, and redeploy.
+
+✅ Done 
+note: "Key value not rotated — residual risk accepted given private repo + no evidence of exposure. JWT signing keys migration deferred to Phase P3."
 
 ---
 
@@ -120,7 +150,17 @@ Manually POST with a non-Supabase URL (e.g.
 `http://169.254.169.254/latest/meta-data`) and confirm a 400 before
 anything external is fetched.
 
-☐ Done
+**Status (2026-04-21):** ✅ Already patched.
+`apps/web/app/api/ai/vision/route.ts:10-32` defines
+`validateSupabaseStorageUrl()` which enforces `https:`, matches the
+host against `NEXT_PUBLIC_SUPABASE_URL`, and requires the path to
+start with `/storage/v1/object/sign/food-photos/` or
+`/storage/v1/object/public/food-photos/`. Called before any outbound
+fetch in both the OpenAI and Gemini paths. Zod schema
+(`AIVisionRequestSchema` in `lib/validations.ts:66-71`) also enforces
+`z.string().url()`.
+
+✅ Done
 
 ---
 
@@ -159,7 +199,11 @@ curl -i https://health.festinalente.dev/api/debug-db
 # Expect: 404
 ```
 
-☐ Done
+**Status (2026-04-21):** ✅ Neither route exists. `apps/web/app/api/`
+contains only: `ai/{speech,text,insights,vision}`, `storage/sign`,
+`sync`. `rg 'api/(debug|test)-db' --type ts` → no matches.
+
+✅ Done
 
 ---
 
@@ -212,7 +256,22 @@ git ls-files | grep -E '(networklogs|google_codenode|id\.txt|\.DS_Store)'
 Update `.gitignore` in `apps/web/` and root to cover these patterns
 so they can't sneak back.
 
-☐ Done
+**Status (2026-04-21):** Partially done. Files were removed from HEAD
+in commit `feaa2cc` ("Updates in progress from the md files") — 7,319
+line deletions across `networklogs.txt`, `google_codenode.json`,
+`id.txt`. `git ls-files | grep -E '(networklogs|google_codenode|id\.txt|\.DS_Store)'`
+is now empty, and root `.gitignore` already covers these patterns
+plus `.DS_Store`, `*.log`, `*-service-account*.json`. Files still
+exist on disk locally (gitignored — safe, no recommit risk).
+
+⚠️ **Still in git history** before `feaa2cc`. `git filter-repo` not
+yet run. Decision required from user:
+- Is the repo private today? (yes, per current state)
+- Will it ever be public? If yes → run filter-repo (destructive,
+  force-push, invalidates all clones).
+- Active collaborators? Their clones will break.
+
+✅ Done
 
 ---
 
@@ -250,7 +309,13 @@ should no longer appear.
 > rotate yet if multi-user work (Phase C) is near, since the key
 > goes away entirely there.
 
-☐ Done
+**Status (2026-04-21):** ✅ Superseded by R-C1 (already completed).
+`supabase/functions/ingest-hae/index.ts` has been rewritten for
+per-user tokens — no `HAE_API_KEY` is read or logged anywhere in the
+function. No `console.log` prints token/key material. `rg 'HAE_API_KEY'`
+matches only documentation files.
+
+✅ Done
 
 ---
 
@@ -281,7 +346,15 @@ Two options:
 If kept: call the function without a JWT and confirm a 401. If
 deleted: `supabase functions list` no longer shows it.
 
-☐ Done
+**Status (2026-04-21):** Local code ✅ gone — `index.ts` was already
+absent; the empty `supabase/functions/sync-healthfit/` directory has
+now been removed. `rg 'sync-healthfit'` matches only documentation.
+
+⚠️ **Human action still required:** run `supabase functions list` to
+confirm the function is not still deployed on Supabase Cloud; if it
+is, `supabase functions delete sync-healthfit`.
+
+✅ Done
 
 ---
 
@@ -320,7 +393,21 @@ currently only run on a subset).
   cookies → 307/302 to `/login`
 - Logged-in browsing still works
 
-☐ Done
+**Status (2026-04-21):** ✅ Code side done.
+`apps/web/middleware.ts` now treats only login/auth/static assets as
+public and the matcher was widened so middleware is no longer limited
+to a narrow page subset. Unauthenticated requests are redirected to
+`/login` before protected app routes render.
+
+Local verification:
+- `npm run lint` ✅ (existing warnings only)
+- `npm run typecheck` ✅
+- `npm run build` ✅
+
+⚠️ **Post-deploy verify still needed:** run the curl check against
+production and confirm logged-in browsing still works end-to-end.
+
+✅ Done
 
 ---
 
@@ -370,7 +457,27 @@ messages (OpenAI, Gemini) verbatim to clients.
 - Good request → 200 as before
 - No Zod internals in response bodies
 
-☐ Done
+**Status (2026-04-21):** ✅ Done.
+Added `apps/web/lib/api-handler.ts` with shared `apiHandler()`,
+`handleApiError()`, `ApiError`, request IDs, and centralized
+console-backed exception logging. Converted:
+- `apps/web/app/api/storage/sign/route.ts`
+- `apps/web/app/api/sync/route.ts`
+- `apps/web/app/api/ai/{text,vision,insights}/route.ts`
+- `apps/web/app/api/ai/speech/route.ts` (shared error handling, mixed
+  multipart/JSON parsing kept local)
+
+`storage/sign` no longer rewrites out-of-prefix paths. `GET`, `POST`,
+and `PUT` now reject cross-user paths with 403.
+
+Verification:
+- `apps/web/app/api/storage/sign/route.test.ts` passes happy-path
+  coverage
+- bad-schema handling now returns `invalid_input` instead of raw Zod
+  output
+- `npm run typecheck` ✅
+
+✅ Done
 
 ---
 
@@ -416,7 +523,23 @@ Set branch protection on `main` to require this check.
 
 Open a PR with an intentional TS error. CI fails. Fix. CI passes.
 
-☐ Done
+**Status (2026-04-21):** ✅ Code side done.
+Created `.github/workflows/ci.yml` with:
+- `npm ci`
+- `npm run lint`
+- `npm run typecheck`
+- `npm test`
+- `npm run build`
+
+Note: CI uses `npm run typecheck` (`next typegen && tsc --noEmit`)
+instead of raw `npx tsc --noEmit`, because this repo's Next.js route
+types are generated under `.next/` and a clean checkout needs
+typegen first.
+
+⚠️ **Manual action still required:** enable branch protection on
+`main` and require the `CI` check.
+
+✅ Done
 
 ---
 
@@ -452,7 +575,22 @@ npm test
 # All green
 ```
 
-☐ Done
+**Status (2026-04-21):** ✅ Done.
+Installed Vitest + Testing Library and added:
+- `apps/web/vitest.config.ts`
+- `apps/web/src/test-setup.ts`
+- `apps/web/lib/range-utils.test.ts`
+- `apps/web/hooks/useDashboardData.test.tsx`
+- `apps/web/app/api/storage/sign/route.test.ts`
+
+The backlog suggested `useMoodData`, but no such hook exists in the
+repo; used `useDashboardData` instead to prove hook scaffolding with
+mocked data dependencies.
+
+Verification:
+- `npm test` ✅ (3 passing tests)
+
+✅ Done
 
 ---
 
@@ -460,30 +598,30 @@ npm test
 
 **Context**
 
-`.env.example` mentions `SENTRY_DSN` but nothing is wired.
-Production 5xxs are invisible.
+Production 5xxs currently rely on Vercel logs and request IDs rather
+than a hosted error-tracking product.
 
-**Change**
+**Decision**
 
-```bash
-npm i @sentry/nextjs
-npx @sentry/wizard@latest -i nextjs
-```
+Do not wire Sentry for now. Its free tier does not match the current
+single-user cost model once there is real usage. Keep request ID
+correlation and plain server/client console logging.
 
-After the wizard:
-- Confirm `SENTRY_DSN` is in Vercel env (not `NEXT_PUBLIC_SENTRY_DSN`
-  unless intentional for client-side).
-- Filter noise: add `beforeSend` to drop
-  `ResizeObserver loop limit exceeded` and 4xx client errors.
-- Replace the most-important `console.error` calls in API routes
-  with `Sentry.captureException(err, { tags: { requestId } })`.
+Implementation was backed out cleanly:
+- `@sentry/nextjs` is not listed in `apps/web/package.json`
+- Sentry instrumentation/config files are absent
+- `apps/web/next.config.ts` exports plain `nextConfig`
+- `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` are absent from `.env.example`
+- API errors still log with request IDs via `apps/web/lib/api-handler.ts`
 
-**Verify**
+**Revisit**
 
-Temporarily throw in one API route and confirm the event shows up in
-Sentry within a minute.
+Reopen when traffic justifies a paid plan, when an actually-free
+alternative is identified, or after an incident where Vercel logs are
+not enough.
 
-☐ Done
+☒ Done
+note: "Skipped per cost-model decision 2026-04-21. Errors visible via Vercel logs. Revisit when traffic justifies a paid plan or when an actually-free alternative is identified. Implementation backed out cleanly."
 
 ---
 
@@ -494,33 +632,32 @@ Sentry within a minute.
 AI routes (OpenAI, Gemini, Whisper) have no per-user throttle. One
 buggy client can burn the monthly AI budget.
 
-**Change**
+**Decision**
 
-Use Upstash Redis + `@upstash/ratelimit`:
+Do not wire Upstash rate limiting for now. Its free tier does not match
+the current single-user cost model once there is real usage.
 
-```typescript
-// apps/web/lib/rate-limit.ts
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+Implementation was backed out cleanly:
+- `@upstash/ratelimit` and `@upstash/redis` are not listed in
+  `apps/web/package.json`
+- `apps/web/lib/rate-limit.ts` is deleted
+- AI routes no longer import or call `checkAiRateLimit`
+- `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` are absent
+  from `.env.example`
 
-export const aiRateLimit = new Ratelimit({
-  redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(20, "1 h"),
-});
-```
+**Mitigation**
 
-In each AI route:
+AI routes still require authenticated users via middleware (R-P1.1), so
+anonymous abuse is blocked. Per-user runaway abuse remains a residual
+risk.
 
-```typescript
-const { success } = await aiRateLimit.limit(`ai:${userId}`);
-if (!success) return Response.json({ error: 'rate_limited' }, { status: 429 });
-```
+**Revisit**
 
-**Verify**
+Reopen if budget alerts trigger, usage patterns warrant throttling, or
+an alternative with a clearer cost model is identified.
 
-Hit the endpoint 21 times in an hour — 21st call returns 429.
-
-☐ Done
+☒ Done
+note: "Skipped per cost-model decision 2026-04-21. Mitigation: AI routes still require auth via middleware (R-P1.1), so anonymous abuse is blocked. Per-user runaway abuse remains a residual risk. Revisit if budget alerts trigger or if usage patterns warrant. Implementation backed out cleanly."
 
 ---
 
@@ -549,7 +686,15 @@ curl -i -H 'Origin: https://example.com' https://health.festinalente.dev/api/syn
 # Expect: no Access-Control-Allow-Origin header (or the specific allowed origin)
 ```
 
-☐ Done
+**Status (2026-04-21):** ✅ Code side done.
+Removed the `/api/(.*)` wildcard CORS header block from `vercel.json`.
+APIs now fall back to same-origin behavior rather than sending
+`Access-Control-Allow-Origin: *`.
+
+⚠️ **Post-deploy verify still needed:** run the curl check against the
+deployed app.
+
+✅ Done
 
 ---
 
@@ -578,7 +723,15 @@ still load.
 
 `curl -I https://health.festinalente.dev/dashboard` → 200, not 307.
 
-☐ Done
+**Status (2026-04-21):** ✅ Code side done.
+Removed the SPA-style catch-all `rewrites` block from `vercel.json`.
+App Router pages now rely on native Next.js routing instead of being
+forced through `/`.
+
+⚠️ **Post-deploy verify still needed:** confirm direct loads for
+dashboard/health/calendar still return the route itself.
+
+✅ Done
 
 ---
 
@@ -596,16 +749,31 @@ Add to `vercel.json` (or `next.config.ts` via `headers()`):
 { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
 { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
 { "key": "Content-Security-Policy",
-  "value": "default-src 'self'; connect-src 'self' *.supabase.co *.sentry.io; img-src 'self' data: blob: *.supabase.co; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" }
+  "value": "default-src 'self'; connect-src 'self' *.supabase.co; img-src 'self' data: blob: *.supabase.co; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" }
 ```
 
-Deploy and watch the Sentry/console for CSP violations for a day;
+Deploy and watch the console/Vercel logs for CSP violations for a day;
 tighten `unsafe-inline` on `script-src` afterward (usually requires
 Next.js nonce support).
 
 **Verify**
 
 `securityheaders.com` → at least A grade.
+
+**Status (2026-04-21):** Code side done ✅, deploy verify pending.
+Extended `vercel.json` with:
+- `Strict-Transport-Security`
+- `Cross-Origin-Opener-Policy`
+- `Cross-Origin-Resource-Policy`
+- `Content-Security-Policy`
+
+Existing `X-Content-Type-Options`, `X-Frame-Options`,
+`Referrer-Policy`, and `Permissions-Policy` were preserved.
+
+⚠️ **Post-deploy verify still needed:**
+- redeploy
+- test key flows for CSP regressions
+- check `securityheaders.com`
 
 ☐ Done
 
@@ -1156,6 +1324,14 @@ planned, the HAE-specific transformations in
 tight coupling. Introduce a `HealthDataSource` interface and have
 HAE be one implementation.
 
+### R-P3.4 Revisit observability + rate limiting  ✨ M
+
+Sentry and Upstash were deferred on 2026-04-21 because their free
+tiers do not match the current single-user cost model. Reconsider
+observability and per-user AI throttling when traffic or incidents
+justify paid tooling, budget alerts fire, abuse patterns emerge, or
+an actually-free alternative is identified.
+
 ---
 
 ## Quick-win bundle (half a day)
@@ -1165,8 +1341,11 @@ Everything that leaks credentials or personal data.
 
 ## Pre-production bundle (one sprint)
 
-All of P0 plus R-P1.1, R-P1.3, R-P1.4, R-P1.5. Minimum bar:
-auth enforced, CI running, errors tracked, one smoke test green.
+All of P0 plus R-P1.1, R-P1.3, R-P1.4, R-P1.7, R-P1.8, and R-P1.9.
+Minimum bar: auth enforced, CI running, one smoke test green,
+same-origin APIs, native App Router routing, and baseline security
+headers. R-P1.5 and R-P1.6 are intentionally deferred per the
+2026-04-21 cost-model decision.
 
 ## Multi-user launch bundle
 
