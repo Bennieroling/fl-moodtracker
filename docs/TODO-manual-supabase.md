@@ -1276,7 +1276,7 @@ SELECT sync_hae_to_production();
 -- Expect: status string reflects both users
 ```
 
-☐ Done
+✅ Done
 
 ---
 
@@ -1304,7 +1304,7 @@ WHERE conrelid = 'health_metrics_daily'::regclass AND contype = 'u';
 -- Expect: constraint(s) on (user_id, date), none on (date) alone
 ```
 
-☐ Done
+ ✅ Done
 
 ---
 
@@ -1334,7 +1334,23 @@ WHERE table_schema = 'public'
 -- Expect: 0 rows (or only tables you intentionally left defaulted)
 ```
 
-☐ Done
+✅ Done
+
+✅ C6 done. Phase C complete.
+Phase C recap (multi-user foundation shipped):
+
+- C1 ✅ hae_ingest_tokens table + seed token
+- C2 ✅ user_id added to all 3 staging tables
+- C3 ✅ Per-user unique constraints on staging
+- R-C1 ✅ ingest-hae edge function token-based auth (via Claude Code)
+- C4 ✅ sync_hae_to_production() rewritten for multi-user + audit log + per-user error handling
+- C5 ✅ (no-op — never had the bug; redundant indexes cleaned up as bonus)
+- C6 ✅ Hardcoded UUID defaults dropped
+
+Plus added during the session:
+
+sync_audit_log table (new, fills gap that F2 will later complete)
+Duplicate index cleanup on health_metrics_daily (bonus D4 progress)
 
 ---
 

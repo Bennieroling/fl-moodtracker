@@ -14,10 +14,10 @@ psql "postgresql://postgres:yKqoaTZWM1Qtf3gnwqNU@db.sxawzzcpmiakltfjpzcn.supabas
   psql "postgresql://postgres.sxawzzcpmiakltfjpzcn:yKqoaTZWM1Qtf3gnwqNU@aws-1-eu-central-1.pooler.supabase.com:5432/postgres" \
     -f /Users/benvandijk/fl-moodtracker/temp/fix_calculate_weekly_metrics.sql
 
-tt6X6HZunBF3ddwWxKJ5
+Ym5fHzLvkyt1RNP9D5Zx
 
-psql "postgresql://postgres.sxawzzcpmiakltfjpzcn:tt6X6HZunBF3ddwWxKJ5@aws-1-eu-central-1.pooler.supabase.com:5432/postgres" \
-     -f /Users/benvandijk/fl-moodtracker/temp/c4_sync_hae_multi_user.sql
+psql "postgresql://postgres.sxawzzcpmiakltfjpzcn:Ym5fHzLvkyt1RNP9D5Zx@aws-1-eu-central-1.pooler.supabase.com:5432/postgres" \
+  -f /Users/benvandijk/fl-moodtracker/temp/c4_sync_hae_multi_user.sql
 
 psql "postgresql://postgres.sxawzzcpmiakltfjpzcn:YOUR_PASSWORD@aws-1-eu-central-1.pooler.supabase.com:5432/postgres" \
   -c "SELECT grantee, table_name, privilege_type FROM information_schema.role_table_grants WHERE table_schema = 'public' AND grantee IN ('anon', 'authenticated') ORDER BY grantee, table_name, privilege_type;"

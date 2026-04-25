@@ -1,8 +1,15 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/login', '/offline']
-const PUBLIC_PREFIXES = ['/auth']
+const PUBLIC_PATHS = [
+  '/login',
+  '/offline',
+  '/favicon.ico',
+  '/manifest.json',
+  '/sw.js',
+  '/browserconfig.xml',
+]
+const PUBLIC_PREFIXES = ['/auth', '/_next', '/icons/']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -45,6 +52,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|manifest.json|sw.js|browserconfig.xml|icons/|.*\\..*).*)',
+    '/((?!_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|xml|txt)$).*)',
   ],
 }
