@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { ApiError, handleApiError } from '@/lib/api-handler'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { 
   AISpeechRequestSchema, 
@@ -177,6 +178,8 @@ async function processWithOpenAI(audioUrl: string) {
 // In production, you'd want to use a separate transcription service
 
 export async function POST(request: NextRequest) {
+  const requestId = crypto.randomUUID()
+
   try {
     // Check content type
     const contentType = request.headers.get('content-type')
@@ -195,10 +198,7 @@ export async function POST(request: NextRequest) {
       const date = formData.get('date') as string
       
       if (!audioFile || !userId) {
-        return NextResponse.json(
-          { error: 'Missing audio file or user ID' },
-          { status: 400 }
-        )
+        throw new ApiError(400, 'invalid_input')
       }
 
       // Convert the FormData to our request structure
@@ -218,19 +218,13 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      throw new ApiError(401, 'unauthorized')
     }
 
     // Verify user matches request
     const requestUserId = validatedRequest.audioFile ? validatedRequest.userId : validatedRequest.userId
     if (user.id !== requestUserId) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      )
+      throw new ApiError(403, 'forbidden')
     }
 
     // Process audio with AI provider (primarily OpenAI for Whisper)
@@ -255,10 +249,7 @@ export async function POST(request: NextRequest) {
       console.warn('OpenAI failed:', openaiError)
       
       // Gemini fallback is limited for audio processing
-      return NextResponse.json(
-        { error: 'Speech processing failed - OpenAI Whisper required for audio transcription' },
-        { status: 500 }
-      )
+      throw new ApiError(500, 'internal_error')
     }
 
     // Validate and structure the response
@@ -288,20 +279,7 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(response)
-
   } catch (error) {
-    console.error('AI Speech API error:', error)
-    
-    if (error instanceof Error && error.message.includes('ZodError')) {
-      return NextResponse.json(
-        { error: 'Invalid request format' },
-        { status: 400 }
-      )
-    }
-
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return handleApiError(error, requestId)
   }
 }

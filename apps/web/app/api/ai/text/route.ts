@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import { ApiError, apiHandler } from '@/lib/api-handler'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import {
   AITextRequestSchema,
@@ -78,11 +79,8 @@ Description: ${text}`
   return JSON.parse(jsonMatch[0])
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    const { text, userId, meal } = AITextRequestSchema.parse(body)
-
+export const POST = apiHandler(AITextRequestSchema, async (_request, parsed) => {
+    const { text, userId, meal } = parsed
     const supabase = await createServerSupabaseClient()
     const {
       data: { user },
@@ -90,11 +88,11 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      throw new ApiError(401, 'unauthorized')
     }
 
     if (user.id !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      throw new ApiError(403, 'forbidden')
     }
 
     let analysis
@@ -113,12 +111,8 @@ export async function POST(request: NextRequest) {
     const validated = AITextResponseSchema.parse({
       ...analysis,
       provider,
+      raw: analysis,
     })
 
     return NextResponse.json(validated)
-  } catch (error) {
-    console.error('AI text analysis error:', error)
-    const message = error instanceof Error ? error.message : 'Unexpected error'
-    return NextResponse.json({ error: message }, { status: 500 })
-  }
-}
+})

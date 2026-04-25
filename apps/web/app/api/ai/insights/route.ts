@@ -1,15 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import { ApiError, apiHandler } from '@/lib/api-handler'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import {
   AIInsightsRequestSchema,
   AIInsightsResponseSchema,
   WeeklyMetricsSchema
 } from '@/lib/validations'
-import { Database } from '@/lib/types/database'
 import { DEFAULT_DAILY_TARGETS } from '@/lib/types/database'
-
-type MoodEntry = Database['public']['Tables']['mood_entries']['Row']
-type FoodEntry = Database['public']['Tables']['food_entries']['Row']
 
 // ── Context types ───────────────────────────────────────────────────
 interface HealthContext {
@@ -474,20 +471,16 @@ async function generateWithGemini(userMessage: string) {
 }
 
 // ── Route handler ───────────────────────────────────────────────────
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    const validatedRequest = AIInsightsRequestSchema.parse(body)
-
+export const POST = apiHandler(AIInsightsRequestSchema, async (_request, validatedRequest) => {
     const supabase = await createServerSupabaseClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      throw new ApiError(401, 'unauthorized')
     }
 
     if (user.id !== validatedRequest.userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      throw new ApiError(403, 'forbidden')
     }
 
     const periodStart = validatedRequest.periodStart
@@ -536,8 +529,7 @@ export async function POST(request: NextRequest) {
           throw new Error('Gemini API key not available')
         }
       } catch (geminiError) {
-        console.error('Both AI providers failed:', { openaiError, geminiError })
-        return NextResponse.json({ error: 'AI insights generation failed' }, { status: 500 })
+        throw new ApiError(500, 'internal_error', JSON.stringify({ openaiError, geminiError }))
       }
     }
 
@@ -575,14 +567,4 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(response)
-
-  } catch (error) {
-    console.error('AI Insights API error:', error)
-
-    if (error instanceof Error && error.message.includes('ZodError')) {
-      return NextResponse.json({ error: 'Invalid request format' }, { status: 400 })
-    }
-
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
-}
+})

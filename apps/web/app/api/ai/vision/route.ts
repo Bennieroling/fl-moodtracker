@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import { ApiError, apiHandler } from '@/lib/api-handler'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { 
   AIVisionRequestSchema, 
@@ -73,12 +74,10 @@ async function analyzeWithOpenAI(imageUrl: string) {
 
   if (!response.ok) {
     const errorText = await response.text()
-    console.error('OpenAI API error:', response.status, errorText)
     throw new Error(`OpenAI API error: ${response.status} - ${errorText}`)
   }
 
   const data = await response.json()
-  console.log('OpenAI response data:', JSON.stringify(data, null, 2))
   const content = data.choices[0]?.message?.content
   
   if (!content) {
@@ -86,13 +85,9 @@ async function analyzeWithOpenAI(imageUrl: string) {
   }
 
   try {
-    console.log('OpenAI content to parse:', content)
-    // Remove markdown code blocks if present
     const cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    console.log('Cleaned OpenAI content:', cleanContent)
     return JSON.parse(cleanContent)
   } catch (parseError) {
-    console.error('Failed to parse OpenAI content as JSON:', content)
     throw new Error(`Failed to parse OpenAI response as JSON: ${parseError}`)
   }
 }
@@ -110,7 +105,6 @@ async function analyzeWithGemini(imageUrl: string) {
   const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg'
 
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`
-  console.log('Gemini API URL:', geminiUrl.replace(process.env.GEMINI_API_KEY!, '[REDACTED]'))
   
   const response = await fetch(geminiUrl, {
     method: 'POST',
@@ -146,7 +140,6 @@ async function analyzeWithGemini(imageUrl: string) {
 
   if (!response.ok) {
     const errorText = await response.text()
-    console.error('Gemini API error:', response.status, errorText)
     throw new Error(`Gemini API error: ${response.status} - ${errorText}`)
   }
 
@@ -169,75 +162,50 @@ async function analyzeWithGemini(imageUrl: string) {
   }
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    // Parse and validate request
-    const body = await request.json()
-    const validatedRequest = AIVisionRequestSchema.parse(body)
-
+export const POST = apiHandler(AIVisionRequestSchema, async (_request, validatedRequest) => {
     // Verify authentication
     const supabase = await createServerSupabaseClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      throw new ApiError(401, 'unauthorized')
     }
 
     // Verify user matches request
     if (user.id !== validatedRequest.userId) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      )
+      throw new ApiError(403, 'forbidden')
     }
 
     const imageUrlResult = validateSupabaseStorageUrl(validatedRequest.imageUrl)
     if ('error' in imageUrlResult) {
-      return NextResponse.json(
-        { error: imageUrlResult.error },
-        { status: 400 }
-      )
+      const errorCode = imageUrlResult.error ?? 'invalid_input'
+      throw new ApiError(400, errorCode)
     }
 
     // Determine which AI provider to use (default to OpenAI, fallback to Gemini)
     let aiResponse
     let provider: 'openai' | 'gemini' = 'openai'
 
-    console.log('AI Vision: Starting analysis for image:', imageUrlResult.url.toString())
-    console.log('AI Vision: OpenAI key available:', !!process.env.OPENAI_API_KEY)
-    console.log('AI Vision: Gemini key available:', !!process.env.GEMINI_API_KEY)
-
     try {
       // Try OpenAI first
       if (process.env.OPENAI_API_KEY) {
-        console.log('AI Vision: Trying OpenAI analysis')
         aiResponse = await analyzeWithOpenAI(imageUrlResult.url.toString())
         provider = 'openai'
-        console.log('AI Vision: OpenAI analysis successful')
       } else {
         throw new Error('OpenAI API key not available')
       }
     } catch (openaiError) {
-      console.warn('AI Vision: OpenAI failed, trying Gemini:', openaiError)
+      console.warn('AI Vision: OpenAI failed, trying Gemini', openaiError)
       
       try {
         if (process.env.GEMINI_API_KEY) {
-          console.log('AI Vision: Trying Gemini analysis')
           aiResponse = await analyzeWithGemini(imageUrlResult.url.toString())
           provider = 'gemini'
-          console.log('AI Vision: Gemini analysis successful')
         } else {
           throw new Error('Gemini API key not available')
         }
       } catch (geminiError) {
-        console.error('AI Vision: Both AI providers failed:', { openaiError, geminiError })
-        return NextResponse.json(
-          { error: 'AI analysis failed' },
-          { status: 500 }
-        )
+        throw new ApiError(500, 'internal_error', JSON.stringify({ openaiError, geminiError }))
       }
     }
 
@@ -264,20 +232,4 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(response)
-
-  } catch (error) {
-    console.error('AI Vision API error:', error)
-    
-    if (error instanceof Error && error.message.includes('ZodError')) {
-      return NextResponse.json(
-        { error: 'Invalid request format' },
-        { status: 400 }
-      )
-    }
-
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
-}
+})
