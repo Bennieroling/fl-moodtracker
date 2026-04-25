@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ApiError, handleApiError } from '@/lib/api-handler'
+import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import {
   AISpeechRequestSchema,
@@ -251,7 +252,7 @@ export async function POST(request: NextRequest) {
         throw new Error('OpenAI API key not available')
       }
     } catch (openaiError) {
-      console.warn('OpenAI failed:', openaiError)
+      logger.warn('Speech: OpenAI failed, trying Gemini', { error: String(openaiError) })
 
       // Gemini fallback is limited for audio processing
       throw new ApiError(500, 'internal_error')
@@ -266,7 +267,7 @@ export async function POST(request: NextRequest) {
           try {
             return FoodItemSchema.parse(food)
           } catch {
-            console.warn('Invalid food item, skipping:', food)
+            logger.warn('Speech: invalid food item, skipping', { food })
             return null
           }
         })

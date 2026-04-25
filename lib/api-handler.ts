@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { logger } from './logger'
 
 export class ApiError extends Error {
   constructor(
@@ -28,7 +29,7 @@ export function jsonError(
 }
 
 export function captureApiException(error: unknown, requestId: string) {
-  console.error(`[${requestId}]`, error)
+  logger.error('unhandled api error', { requestId, error: String(error) })
 }
 
 export function handleApiError(error: unknown, requestId: string) {

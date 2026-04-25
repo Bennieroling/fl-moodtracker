@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { ApiError, apiHandler } from '@/lib/api-handler'
+import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { AITextRequestSchema, AITextResponseSchema } from '@/lib/validations'
 
@@ -103,7 +104,7 @@ export const POST = apiHandler(AITextRequestSchema, async (_request, parsed) => 
     analysis = await analyzeTextWithOpenAI(text, meal)
     provider = 'openai'
   } catch (error) {
-    console.warn('OpenAI text analysis failed, attempting Gemini', error)
+    logger.warn('OpenAI text analysis failed, attempting Gemini', { error: String(error) })
     analysis = await analyzeTextWithGemini(text, meal)
     provider = 'gemini'
   }

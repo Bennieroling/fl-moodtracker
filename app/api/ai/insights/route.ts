@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { ApiError, apiHandler } from '@/lib/api-handler'
+import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import {
   AIInsightsRequestSchema,
@@ -560,7 +561,7 @@ export const POST = apiHandler(AIInsightsRequestSchema, async (_request, validat
       targets = { ...DEFAULT_DAILY_TARGETS, ...prefsRow.daily_targets }
     }
   } catch (e) {
-    console.warn('Failed to fetch user targets:', e)
+    logger.warn('Failed to fetch user targets', { error: String(e) })
   }
 
   const [currentContext, previousContext] = await Promise.all([
@@ -581,7 +582,7 @@ export const POST = apiHandler(AIInsightsRequestSchema, async (_request, validat
       throw new Error('OpenAI API key not available')
     }
   } catch (openaiError) {
-    console.warn('OpenAI failed, trying Gemini:', openaiError)
+    logger.warn('OpenAI failed, trying Gemini', { error: String(openaiError) })
     try {
       if (process.env.GEMINI_API_KEY) {
         aiResponse = await generateWithGemini(userMessage)
@@ -628,7 +629,7 @@ export const POST = apiHandler(AIInsightsRequestSchema, async (_request, validat
   )
 
   if (upsertError) {
-    console.warn('Failed to store insights in database:', upsertError)
+    logger.warn('Failed to store insights in database', { error: String(upsertError) })
   }
 
   return NextResponse.json(response)

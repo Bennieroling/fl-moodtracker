@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { ApiError, apiHandler } from '@/lib/api-handler'
+import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import {
   AIVisionRequestSchema,
@@ -203,7 +204,7 @@ export const POST = apiHandler(AIVisionRequestSchema, async (_request, validated
       throw new Error('OpenAI API key not available')
     }
   } catch (openaiError) {
-    console.warn('AI Vision: OpenAI failed, trying Gemini', openaiError)
+    logger.warn('AI Vision: OpenAI failed, trying Gemini', { error: String(openaiError) })
 
     try {
       if (process.env.GEMINI_API_KEY) {
@@ -224,7 +225,7 @@ export const POST = apiHandler(AIVisionRequestSchema, async (_request, validated
         try {
           return FoodItemSchema.parse(food)
         } catch {
-          console.warn('Invalid food item, skipping:', food)
+          logger.warn('AI Vision: invalid food item, skipping', { food })
           return null
         }
       })
