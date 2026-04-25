@@ -1,4 +1,5 @@
-const CACHE_NAME = 'pulse-v1'
+const buildVersion = new URL(self.location.href).searchParams.get('v') || 'dev'
+const CACHE_NAME = `pulse-${buildVersion}`
 const STATIC_CACHE_URLS = [
   '/',
   '/dashboard',

@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 
+const buildId =
+  process.env.NEXT_PUBLIC_BUILD_ID ??
+  process.env.VERCEL_GIT_COMMIT_SHA ??
+  Date.now().toString()
+
 const nextConfig: NextConfig = {
   // Fix for hydration issues with ThemeProvider
   transpilePackages: ['next-themes'],
@@ -12,6 +17,10 @@ const nextConfig: NextConfig = {
   
   // Compression
   compress: true,
+
+  env: {
+    NEXT_PUBLIC_BUILD_ID: buildId,
+  },
   
   // Image optimization
   images: {

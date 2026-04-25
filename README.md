@@ -1,4 +1,4 @@
-# fl-moodtracker
+# Pulse
 
 Health tracking app built with Next.js and Supabase.
 
@@ -9,7 +9,7 @@ functions from earlier iterations.
 
 ## What is in this repo
 
-- `apps/web` — Next.js web app
+- root app files (`app/`, `components/`, `lib/`, `package.json`) — Next.js web app
 - `supabase/migrations` — database schema and migration history
 - `supabase/functions` — Supabase Edge Functions and shared helpers
 - `scripts` — one-off utilities
@@ -48,7 +48,6 @@ Start here:
 ### Install
 
 ```bash
-cd apps/web
 npm install
 ```
 
@@ -69,13 +68,12 @@ Notes:
 - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are required for
   the app to boot.
 - AI keys are only needed for AI-backed routes and features.
-- Some older files in the repo still reference previous env naming conventions.
-  Treat the app code in `apps/web` as the source of truth.
+- Some older planning notes may reference previous env naming conventions.
+  Treat the root app code as the source of truth.
 
 ### Run the web app
 
 ```bash
-cd apps/web
 npm run dev
 ```
 
@@ -84,7 +82,6 @@ The default Next.js dev URL is usually `http://localhost:3000`.
 ### Useful commands
 
 ```bash
-cd apps/web
 npm run lint
 npm run build
 ```

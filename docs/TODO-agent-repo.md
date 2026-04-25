@@ -41,13 +41,13 @@ has a prerequisite or companion task there, it's called out inline
 integration references, `.env.example` no longer lists their env vars,
 and `apps/web/lib/rate-limit.ts` is deleted.
 
-Latest local verification from `apps/web`:
+Latest local verification from the repo root:
 - `npm run lint` ✅ (existing warnings only)
 - `npx tsc --noEmit` ✅
 - `npm run build` ✅
 - `npm test` ✅ (3 test files, 3 tests)
 
-Build note: `apps/web/app/layout.tsx` now uses the system font stack
+Build note: `app/layout.tsx` now uses the system font stack
 instead of `next/font/google`, because the build environment could not
 fetch Google Fonts.
 
@@ -1152,7 +1152,20 @@ Option 2 is more work but removes a class of bugs.
 Deploy, open DevTools → Application → Service Workers → confirm the
 cache name changes per deploy.
 
-☐ Done
+**Status (2026-04-25):** ✅ Code side done.
+Implemented the quick fix without adding a PWA dependency:
+- `next.config.ts` exposes `NEXT_PUBLIC_BUILD_ID` from an explicit env
+  var, Vercel commit SHA, or a build timestamp fallback.
+- `ServiceWorkerRegister` registers `/sw.js?v=<build-id>` with
+  root scope.
+- `public/sw.js` derives `CACHE_NAME` from that query string, so each
+  deploy uses a new cache and activation deletes old `pulse-*` caches.
+
+⚠️ **Post-deploy verify still needed:** after deploy, open DevTools →
+Application → Service Workers / Cache Storage and confirm the active
+service worker URL and cache name include the latest build id.
+
+✅ Done
 
 ---
 
@@ -1183,7 +1196,21 @@ rg -i 'fl-moodtracker|sofi-wellness' --type-not md
 # Expect: no matches (or only acknowledged exceptions like git URL)
 ```
 
-☐ Done
+**Status (2026-04-25):** ✅ Done.
+Standardized repo/app naming around Pulse:
+- `README.md` title → `Pulse`
+- `vercel.json.name` → `pulse-web`
+- `apps/web/package.json.name` → `pulse-web`
+- `apps/web/package-lock.json` package metadata → `pulse-web`
+
+`apps/web/public/sw.js` already uses `pulse-*` cache names, and the
+demo email remains `demo@pulse.app`.
+
+Verification:
+- `rg -i 'fl-moodtracker|sofi-wellness' --type-not md` returns no
+  non-doc matches.
+
+✅ Done
 
 ---
 
@@ -1219,7 +1246,26 @@ npm run build
 # bundle size unchanged or smaller
 ```
 
-☐ Done
+**Status (2026-04-25):** ✅ Done.
+No app code imports `@jridgewell/gen-mapping` directly, so it was
+removed as a direct dependency. It remains only as a transitive
+dependency in `package-lock.json`.
+
+`shadcn` is a CLI-only dependency for this project, so it was moved
+from `dependencies` to `devDependencies`.
+
+Note: `npm install --save-dev shadcn@^4.2.0` could not complete in
+this sandbox because npm registry access is blocked, so the
+package metadata and lockfile top-level dependency sections were
+updated manually. The existing lockfile still contains the resolved
+`node_modules/shadcn` entry.
+
+Verification:
+- `rg '@jridgewell/gen-mapping' --type ts --type tsx` found no app
+  imports.
+- `npm run build` ✅
+
+✅ Done
 
 ---
 
@@ -1244,7 +1290,14 @@ if a second app (e.g. mobile) is planned.
 Without user input, default to A — it's easier to reverse if mobile
 ever ships.
 
-☐ Done
+**Status (2026-04-25):** ✅ Done.
+Chose Option A and flattened the web app to the repo root:
+- moved tracked app source/config from `apps/web/` to root
+- moved the app `package.json` and `package-lock.json` to root
+- updated CI and README commands to run from root
+- left generated/local artifacts untracked and out of git
+
+✅ Done
 
 ---
 
@@ -1253,7 +1306,6 @@ ever ships.
 **Change**
 
 ```bash
-cd apps/web
 npm i -D prettier lint-staged husky
 npx husky init
 # Add to package.json:
@@ -1263,6 +1315,12 @@ npx husky init
 
 Create `.prettierrc` and `.prettierignore`. Run `prettier --write .`
 once to normalize; commit separately (huge diff).
+
+**Status (2026-04-25):** Blocked locally.
+Attempted `npm i -D prettier lint-staged husky`, but npm registry
+access failed with `ENOTFOUND registry.npmjs.org`. These packages are
+not present in the local dependency cache, so this task should resume
+from the install step in a network-enabled terminal.
 
 ☐ Done
 
@@ -1278,7 +1336,7 @@ hard.
 **Change**
 
 1. Add `pino` (or Vercel's recommended logger).
-2. Create `apps/web/lib/logger.ts` that attaches `request_id` per
+2. Create `lib/logger.ts` that attaches `request_id` per
    request (generated in middleware, forwarded via request headers
    or async context).
 3. Replace `console.error` → `logger.error` in API routes.
