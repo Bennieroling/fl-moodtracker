@@ -1024,7 +1024,14 @@ rg -l "from.*upload/simple-voice-recorder'" --type ts --type tsx
 Delete whichever isn't imported. If both are imported in different
 places, consolidate (pick one, migrate callers).
 
-☐ Done
+**Status (2026-04-25):** ✅ Done.
+`apps/web/components/upload/voice-recorder.tsx` is the implementation
+exported by `components/upload/index.ts` and used by
+`components/entry/log-food-card.tsx`. The unused
+`apps/web/components/upload/simple-voice-recorder.tsx` file was
+deleted.
+
+✅ Done
 
 ---
 
@@ -1045,7 +1052,15 @@ rm -rf apps/web/app/\(app\)/design
 
 Grep for imports of `design` — none should exist.
 
-☐ Done
+**Status (2026-04-25):** ✅ Done.
+Deleted:
+- `apps/web/exercise.md`
+- `apps/web/app/(app)/design/page.tsx`
+
+`rg` found no remaining imports or route links for the scratch design
+page or `exercise.md`.
+
+✅ Done
 
 ---
 
@@ -1080,7 +1095,36 @@ For each match:
 Report findings back to the user in a summary comment on the manual
 file.
 
-☐ Done
+**Status (2026-04-25):** ✅ Audit complete.
+Frontend still reads several candidate legacy columns, so these are
+not safe to drop without a replacement-code pass:
+- `total_energy_kcal` — used by `lib/activity.ts`,
+  `hooks/useExerciseData.ts`, and `app/(app)/exercise/page.tsx`.
+- `average_heart_rate` — used for ECG display in health/exercise
+  pages.
+- `distance_km` — used across exercise charts, workout details,
+  calendar activity, and aggregation helpers.
+- `vo2max` — used in exercise summaries and AI insights.
+- `avg_hr`, `min_hr`, `max_hr` — used as fallback workout HR fields
+  in `app/(app)/exercise/page.tsx`.
+- `total_minutes`, `move_minutes` — used for workout/activity
+  aggregation fallbacks.
+- `trimp` — used as Training Load in exercise summary.
+
+No frontend matches found for:
+- `sheet_row_number`
+
+Type-only matches found for:
+- `hr_zone_type`
+- `rpe`
+
+`exercise_minutes` matches refer to daily target naming, not the
+legacy activity column.
+
+Recommendation for manual D1/D2: keep the frontend-read columns above
+until replacement fields are confirmed and the app code is migrated.
+
+✅ Done
 
 ---
 
