@@ -31,7 +31,10 @@ import { DailyActivityAggregate } from '@/lib/database'
 import { ExerciseEvent, WorkoutRouteMeta } from '@/lib/types/database'
 import dynamic from 'next/dynamic'
 
-const WorkoutRouteMap = dynamic(() => import('@/components/workout-route-map').then((m) => m.WorkoutRouteMap), { ssr: false })
+const WorkoutRouteMap = dynamic(
+  () => import('@/components/workout-route-map').then((m) => m.WorkoutRouteMap),
+  { ssr: false },
+)
 import { useExerciseData } from '@/hooks/useExerciseData'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -159,15 +162,55 @@ export default function ExercisePage() {
           className="w-full justify-between text-muted-foreground"
         >
           <span>{metricsExpanded ? 'Hide metrics' : 'Show more metrics'}</span>
-          <ChevronDown className={`h-4 w-4 transition-transform ${metricsExpanded ? 'rotate-180' : ''}`} />
+          <ChevronDown
+            className={`h-4 w-4 transition-transform ${metricsExpanded ? 'rotate-180' : ''}`}
+          />
         </Button>
         {metricsExpanded && (
           <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricTile label="HRV" value={healthSummary.hrvAvg} unit="ms" size="sm" pending={healthPending && healthSummary.hrvAvg === null} />
-            <MetricTile label="VO2 Max" value={healthSummary.vo2maxAvg != null ? Number(healthSummary.vo2maxAvg).toFixed(1) : null} unit="ml/kg/min" size="sm" pending={healthPending && healthSummary.vo2maxAvg === null} />
-            <MetricTile label="Distance" value={exerciseSummary.distance != null ? Number(exerciseSummary.distance).toFixed(2) : null} unit="km" size="sm" />
-            <MetricTile label="Stand Hours" value={healthSummary.standHoursAvg != null ? Number(healthSummary.standHoursAvg).toFixed(1) : null} unit="hr/day" size="sm" pending={healthPending && healthSummary.standHoursAvg === null} />
-            <MetricTile label="Move Minutes" value={exerciseSummary.moveMinutes} unit="min" size="sm" />
+            <MetricTile
+              label="HRV"
+              value={healthSummary.hrvAvg}
+              unit="ms"
+              size="sm"
+              pending={healthPending && healthSummary.hrvAvg === null}
+            />
+            <MetricTile
+              label="VO2 Max"
+              value={
+                healthSummary.vo2maxAvg != null ? Number(healthSummary.vo2maxAvg).toFixed(1) : null
+              }
+              unit="ml/kg/min"
+              size="sm"
+              pending={healthPending && healthSummary.vo2maxAvg === null}
+            />
+            <MetricTile
+              label="Distance"
+              value={
+                exerciseSummary.distance != null
+                  ? Number(exerciseSummary.distance).toFixed(2)
+                  : null
+              }
+              unit="km"
+              size="sm"
+            />
+            <MetricTile
+              label="Stand Hours"
+              value={
+                healthSummary.standHoursAvg != null
+                  ? Number(healthSummary.standHoursAvg).toFixed(1)
+                  : null
+              }
+              unit="hr/day"
+              size="sm"
+              pending={healthPending && healthSummary.standHoursAvg === null}
+            />
+            <MetricTile
+              label="Move Minutes"
+              value={exerciseSummary.moveMinutes}
+              unit="min"
+              size="sm"
+            />
             <MetricTile label="Elevation" value={exerciseSummary.elevation} unit="m" size="sm" />
             <MetricTile label="Training Load" value={exerciseSummary.trimp} size="sm" />
           </div>
@@ -190,7 +233,11 @@ export default function ExercisePage() {
           ) : (
             <div className="space-y-4">
               {workouts.map((workout) => (
-                <WorkoutTile key={`${workout.id}-${workout.started_at}`} workout={workout} route={routesByWorkoutId.get(workout.id)} />
+                <WorkoutTile
+                  key={`${workout.id}-${workout.started_at}`}
+                  workout={workout}
+                  route={routesByWorkoutId.get(workout.id)}
+                />
               ))}
             </div>
           )}
@@ -204,7 +251,9 @@ export default function ExercisePage() {
               <TrendingUp className="h-5 w-5" />
               Steps & Distance Trend
             </CardTitle>
-            <CardDescription>Every day between {rangeStartDate} and {rangeEndDate}.</CardDescription>
+            <CardDescription>
+              Every day between {rangeStartDate} and {rangeEndDate}.
+            </CardDescription>
           </CardHeader>
           <CardContent className="h-80">
             {chartData.length ? (
@@ -216,12 +265,25 @@ export default function ExercisePage() {
                       <stop offset="95%" stopColor="#34d399" stopOpacity={0.1} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} tick={{ fontSize: 11 }} />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(value) => format(parseISO(value), 'MM/dd')}
+                    tick={{ fontSize: 11 }}
+                  />
                   <Tooltip
-                    contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
+                    contentStyle={{
+                      background: 'var(--background)',
+                      border: '1px solid var(--border)',
+                    }}
                     labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
                   />
-                  <Area type="monotone" dataKey="steps" stroke="#10b981" fill="url(#steps)" name="Steps" />
+                  <Area
+                    type="monotone"
+                    dataKey="steps"
+                    stroke="#10b981"
+                    fill="url(#steps)"
+                    name="Steps"
+                  />
                   <Area
                     type="monotone"
                     dataKey="distance_km"
@@ -243,19 +305,32 @@ export default function ExercisePage() {
               <Flame className="h-5 w-5" />
               Movement Minutes vs Active Energy
             </CardTitle>
-            <CardDescription>Range-based comparison between workouts and energy output.</CardDescription>
+            <CardDescription>
+              Range-based comparison between workouts and energy output.
+            </CardDescription>
           </CardHeader>
           <CardContent className="h-80">
             {chartData.length ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
-                  <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} tick={{ fontSize: 11 }} />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(value) => format(parseISO(value), 'MM/dd')}
+                    tick={{ fontSize: 11 }}
+                  />
                   <Tooltip
-                    contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
+                    contentStyle={{
+                      background: 'var(--background)',
+                      border: '1px solid var(--border)',
+                    }}
                     labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
                   />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-                  <Bar dataKey="exercise_time_minutes" fill="var(--chart-4)" name="Exercise minutes" />
+                  <Bar
+                    dataKey="exercise_time_minutes"
+                    fill="var(--chart-4)"
+                    name="Exercise minutes"
+                  />
                   <Bar dataKey="move_time_minutes" fill="var(--chart-2)" name="Move minutes" />
                   <Bar dataKey="active_energy_kcal" fill="var(--chart-1)" name="Active kcal" />
                 </BarChart>
@@ -281,11 +356,18 @@ export default function ExercisePage() {
           {chartData.some((d) => d.resting_heart_rate != null || d.hrv != null) ? (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
-                <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} tick={{ fontSize: 11 }} />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(value) => format(parseISO(value), 'MM/dd')}
+                  tick={{ fontSize: 11 }}
+                />
                 <YAxis yAxisId="left" orientation="left" domain={['auto', 'auto']} hide />
                 <YAxis yAxisId="right" orientation="right" domain={['auto', 'auto']} hide />
                 <Tooltip
-                  contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
+                  contentStyle={{
+                    background: 'var(--background)',
+                    border: '1px solid var(--border)',
+                  }}
                   labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
@@ -319,14 +401,19 @@ export default function ExercisePage() {
 
       <Card>
         <CardContent className="pt-6">
-          <Tabs value={aggregateView} onValueChange={(value) => setAggregateView(value as AggregateView)}>
+          <Tabs
+            value={aggregateView}
+            onValueChange={(value) => setAggregateView(value as AggregateView)}
+          >
             <TabsList>
               <TabsTrigger value="week">Weekly</TabsTrigger>
               <TabsTrigger value="month">Monthly</TabsTrigger>
               <TabsTrigger value="year">Yearly</TabsTrigger>
             </TabsList>
             <TabsContent value="week">{renderAggregateTable(aggregates.week, 'week')}</TabsContent>
-            <TabsContent value="month">{renderAggregateTable(aggregates.month, 'month')}</TabsContent>
+            <TabsContent value="month">
+              {renderAggregateTable(aggregates.month, 'month')}
+            </TabsContent>
             <TabsContent value="year">{renderAggregateTable(aggregates.year, 'year')}</TabsContent>
           </Tabs>
         </CardContent>
@@ -339,18 +426,24 @@ export default function ExercisePage() {
               <AlertTriangle className="h-5 w-5" />
               Heart Rate Alerts
             </CardTitle>
-            <CardDescription>Notifications triggered by unusual heart rate readings.</CardDescription>
+            <CardDescription>
+              Notifications triggered by unusual heart rate readings.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             {heartRateNotifications.map((notification, i) => (
-              <div key={i} className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30">
+              <div
+                key={i}
+                className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30"
+              >
                 <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
                 <div className="text-sm">
                   <p className="font-medium text-red-800 dark:text-red-200">
                     {format(parseISO(notification.recorded_at), 'MMM d, yyyy @ h:mm a')}
                   </p>
                   <p className="text-red-700 dark:text-red-300">
-                    {notification.notification_type} — {notification.heart_rate} bpm (threshold: {notification.threshold})
+                    {notification.notification_type} — {notification.heart_rate} bpm (threshold:{' '}
+                    {notification.threshold})
                   </p>
                 </div>
               </div>
@@ -384,7 +477,8 @@ export default function ExercisePage() {
                 <p className="font-medium">{ecgReadings[0].classification}</p>
                 <p className="text-sm text-muted-foreground">
                   {format(parseISO(ecgReadings[0].recorded_at), 'MMM d, yyyy @ h:mm a')}
-                  {ecgReadings[0].average_heart_rate && ` — ${Math.round(ecgReadings[0].average_heart_rate)} bpm avg`}
+                  {ecgReadings[0].average_heart_rate &&
+                    ` — ${Math.round(ecgReadings[0].average_heart_rate)} bpm avg`}
                 </p>
               </div>
               <Badge variant="outline">Latest</Badge>
@@ -399,13 +493,20 @@ export default function ExercisePage() {
                   onClick={() => setEcgExpanded(!ecgExpanded)}
                   className="w-full justify-between"
                 >
-                  <span>{ecgReadings.length - 1} older reading{ecgReadings.length > 2 ? 's' : ''}</span>
-                  <ChevronDown className={`h-4 w-4 transition-transform ${ecgExpanded ? 'rotate-180' : ''}`} />
+                  <span>
+                    {ecgReadings.length - 1} older reading{ecgReadings.length > 2 ? 's' : ''}
+                  </span>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${ecgExpanded ? 'rotate-180' : ''}`}
+                  />
                 </Button>
                 {ecgExpanded && (
                   <div className="space-y-2">
                     {ecgReadings.slice(1).map((reading, i) => (
-                      <div key={i} className="flex items-center gap-3 rounded-xl border p-3 text-sm">
+                      <div
+                        key={i}
+                        className="flex items-center gap-3 rounded-xl border p-3 text-sm"
+                      >
                         {reading.classification === 'Sinus Rhythm' ? (
                           <Check className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />
                         ) : (
@@ -414,7 +515,8 @@ export default function ExercisePage() {
                         <span className="font-medium">{reading.classification}</span>
                         <span className="text-muted-foreground ml-auto">
                           {format(parseISO(reading.recorded_at), 'MMM d, yyyy')}
-                          {reading.average_heart_rate && ` — ${Math.round(reading.average_heart_rate)} bpm`}
+                          {reading.average_heart_rate &&
+                            ` — ${Math.round(reading.average_heart_rate)} bpm`}
                         </span>
                       </div>
                     ))}
@@ -425,15 +527,11 @@ export default function ExercisePage() {
           </CardContent>
         </Card>
       )}
-
     </div>
   )
 }
 
-function formatNumber(
-  value: number | string | null | undefined,
-  opts: { decimals?: number } = {}
-) {
+function formatNumber(value: number | string | null | undefined, opts: { decimals?: number } = {}) {
   if (value === null || value === undefined) return '--'
   const decimals = opts.decimals ?? 0
   const numeric = Number(value)
@@ -469,32 +567,32 @@ const renderAggregateTable = (data: DailyActivityAggregate[], bucket: AggregateV
         ))}
       </div>
       <div className="hidden overflow-x-auto md:block">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-muted-foreground">
-            <th className="py-2">Period</th>
-            <th className="py-2">Active kcal</th>
-            <th className="py-2">Total energy</th>
-            <th className="py-2">Exercise (min)</th>
-            <th className="py-2">Move (min)</th>
-            <th className="py-2">Steps</th>
-            <th className="py-2">Distance (km)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((row) => (
-            <tr key={`${bucket}-${row.period}`} className="border-t">
-              <td className="py-2 font-medium">{formatAggregatePeriod(row.period, bucket)}</td>
-              <td className="py-2">{formatNumber(row.active_energy_kcal)}</td>
-              <td className="py-2">{formatNumber(row.total_energy_kcal)}</td>
-              <td className="py-2">{formatNumber(row.exercise_time_minutes)}</td>
-              <td className="py-2">{formatNumber(row.move_time_minutes)}</td>
-              <td className="py-2">{formatNumber(row.steps)}</td>
-              <td className="py-2">{formatNumber(row.distance_km, { decimals: 2 })}</td>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-muted-foreground">
+              <th className="py-2">Period</th>
+              <th className="py-2">Active kcal</th>
+              <th className="py-2">Total energy</th>
+              <th className="py-2">Exercise (min)</th>
+              <th className="py-2">Move (min)</th>
+              <th className="py-2">Steps</th>
+              <th className="py-2">Distance (km)</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.map((row) => (
+              <tr key={`${bucket}-${row.period}`} className="border-t">
+                <td className="py-2 font-medium">{formatAggregatePeriod(row.period, bucket)}</td>
+                <td className="py-2">{formatNumber(row.active_energy_kcal)}</td>
+                <td className="py-2">{formatNumber(row.total_energy_kcal)}</td>
+                <td className="py-2">{formatNumber(row.exercise_time_minutes)}</td>
+                <td className="py-2">{formatNumber(row.move_time_minutes)}</td>
+                <td className="py-2">{formatNumber(row.steps)}</td>
+                <td className="py-2">{formatNumber(row.distance_km, { decimals: 2 })}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )
@@ -523,7 +621,9 @@ function WorkoutTile({ workout, route }: WorkoutTileProps) {
       ? format(parseISO(`${workout.workout_date}T00:00:00`), 'EEE, MMM d')
       : 'Unknown start'
 
-  const totalMinutes = workout.total_minutes ?? (workout.duration_seconds ? Math.round(workout.duration_seconds / 60) : null)
+  const totalMinutes =
+    workout.total_minutes ??
+    (workout.duration_seconds ? Math.round(workout.duration_seconds / 60) : null)
   const avgHr = workout.avg_heart_rate ?? workout.avg_hr
   const maxHr = workout.max_heart_rate ?? workout.max_hr
   const minHr = workout.min_heart_rate ?? workout.min_hr
@@ -594,7 +694,7 @@ function WorkoutTile({ workout, route }: WorkoutTileProps) {
                   style={{ width: `${(zone.seconds / totalZoneSeconds) * 100}%` }}
                   title={`${zone.label}: ${Math.round(zone.seconds / 60)} min`}
                 />
-              ) : null
+              ) : null,
             )}
           </div>
           <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-[11px] text-muted-foreground">

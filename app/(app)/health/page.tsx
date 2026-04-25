@@ -132,17 +132,29 @@ export default function HealthPage() {
             {sleepEvents.length ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={sleepEvents}>
-                  <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} tick={{ fontSize: 11 }} />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(value) => format(parseISO(value), 'MM/dd')}
+                    tick={{ fontSize: 11 }}
+                  />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip
-                    contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
+                    contentStyle={{
+                      background: 'var(--background)',
+                      border: '1px solid var(--border)',
+                    }}
                     labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
                   />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
                   <Bar dataKey="deep_hours" stackId="sleep" fill="var(--chart-4)" name="Deep (h)" />
                   <Bar dataKey="core_hours" stackId="sleep" fill="var(--chart-3)" name="Core (h)" />
                   <Bar dataKey="rem_hours" stackId="sleep" fill="var(--chart-5)" name="REM (h)" />
-                  <Bar dataKey="awake_hours" stackId="sleep" fill="var(--chart-2)" name="Awake (h)" />
+                  <Bar
+                    dataKey="awake_hours"
+                    stackId="sleep"
+                    fill="var(--chart-2)"
+                    name="Awake (h)"
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -203,12 +215,26 @@ export default function HealthPage() {
             {weightSeries.length ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={weightSeries}>
-                  <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} tick={{ fontSize: 11 }} />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(value) => format(parseISO(value), 'MM/dd')}
+                    tick={{ fontSize: 11 }}
+                  />
                   <Tooltip
-                    contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
+                    contentStyle={{
+                      background: 'var(--background)',
+                      border: '1px solid var(--border)',
+                    }}
                     labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
                   />
-                  <Line type="monotone" dataKey="weight_kg" stroke="var(--chart-1)" strokeWidth={2} dot={false} name="Weight (kg)" />
+                  <Line
+                    type="monotone"
+                    dataKey="weight_kg"
+                    stroke="var(--chart-1)"
+                    strokeWidth={2}
+                    dot={false}
+                    name="Weight (kg)"
+                  />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
@@ -223,12 +249,26 @@ export default function HealthPage() {
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={bodyFatSeries}>
-                  <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} tick={{ fontSize: 11 }} />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(value) => format(parseISO(value), 'MM/dd')}
+                    tick={{ fontSize: 11 }}
+                  />
                   <Tooltip
-                    contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
+                    contentStyle={{
+                      background: 'var(--background)',
+                      border: '1px solid var(--border)',
+                    }}
                     labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
                   />
-                  <Line type="monotone" dataKey="body_fat_pct" stroke="var(--chart-2)" strokeWidth={2} dot={false} name="Body Fat (%)" />
+                  <Line
+                    type="monotone"
+                    dataKey="body_fat_pct"
+                    stroke="var(--chart-2)"
+                    strokeWidth={2}
+                    dot={false}
+                    name="Body Fat (%)"
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -254,10 +294,17 @@ export default function HealthPage() {
             {hasHrData ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={hrHrvSeries}>
-                  <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} tick={{ fontSize: 11 }} />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(value) => format(parseISO(value), 'MM/dd')}
+                    tick={{ fontSize: 11 }}
+                  />
                   <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11 }} />
                   <Tooltip
-                    contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
+                    contentStyle={{
+                      background: 'var(--background)',
+                      border: '1px solid var(--border)',
+                    }}
                     labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
                   />
                   <Line
@@ -295,7 +342,8 @@ export default function HealthPage() {
                       {format(parseISO(notification.recorded_at), 'MMM d, yyyy @ h:mm a')}
                     </p>
                     <p className="text-red-700 dark:text-red-300">
-                      {notification.notification_type} — {notification.heart_rate} bpm (threshold: {notification.threshold})
+                      {notification.notification_type} — {notification.heart_rate} bpm (threshold:{' '}
+                      {notification.threshold})
                     </p>
                   </div>
                 </div>
@@ -321,10 +369,17 @@ export default function HealthPage() {
           {hasHrvData ? (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={hrHrvSeries}>
-                <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} tick={{ fontSize: 11 }} />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(value) => format(parseISO(value), 'MM/dd')}
+                  tick={{ fontSize: 11 }}
+                />
                 <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11 }} />
                 <Tooltip
-                  contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
+                  contentStyle={{
+                    background: 'var(--background)',
+                    border: '1px solid var(--border)',
+                  }}
                   labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
                 />
                 <Line
@@ -339,7 +394,10 @@ export default function HealthPage() {
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <EmptyState icon={<Activity className="h-8 w-8" />} title="No HRV data for this range." />
+            <EmptyState
+              icon={<Activity className="h-8 w-8" />}
+              title="No HRV data for this range."
+            />
           )}
         </CardContent>
       </Card>
@@ -370,7 +428,8 @@ export default function HealthPage() {
                   <p className="font-medium">{ecgReadings[0].classification}</p>
                   <p className="text-sm text-muted-foreground">
                     {format(parseISO(ecgReadings[0].recorded_at), 'MMM d, yyyy @ h:mm a')}
-                    {ecgReadings[0].average_heart_rate && ` — ${Math.round(ecgReadings[0].average_heart_rate)} bpm avg`}
+                    {ecgReadings[0].average_heart_rate &&
+                      ` — ${Math.round(ecgReadings[0].average_heart_rate)} bpm avg`}
                   </p>
                 </div>
                 <Badge variant="outline">Latest</Badge>
@@ -383,13 +442,20 @@ export default function HealthPage() {
                     onClick={() => setEcgExpanded(!ecgExpanded)}
                     className="w-full justify-between"
                   >
-                    <span>{ecgReadings.length - 1} older reading{ecgReadings.length > 2 ? 's' : ''}</span>
-                    <ChevronDown className={`h-4 w-4 transition-transform ${ecgExpanded ? 'rotate-180' : ''}`} />
+                    <span>
+                      {ecgReadings.length - 1} older reading{ecgReadings.length > 2 ? 's' : ''}
+                    </span>
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${ecgExpanded ? 'rotate-180' : ''}`}
+                    />
                   </Button>
                   {ecgExpanded && (
                     <div className="space-y-2">
                       {ecgReadings.slice(1).map((reading, i) => (
-                        <div key={i} className="flex items-center gap-3 rounded-xl border p-3 text-sm">
+                        <div
+                          key={i}
+                          className="flex items-center gap-3 rounded-xl border p-3 text-sm"
+                        >
                           {reading.classification === 'Sinus Rhythm' ? (
                             <Check className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />
                           ) : (
@@ -398,7 +464,8 @@ export default function HealthPage() {
                           <span className="font-medium">{reading.classification}</span>
                           <span className="text-muted-foreground ml-auto">
                             {format(parseISO(reading.recorded_at), 'MMM d, yyyy')}
-                            {reading.average_heart_rate && ` — ${Math.round(reading.average_heart_rate)} bpm`}
+                            {reading.average_heart_rate &&
+                              ` — ${Math.round(reading.average_heart_rate)} bpm`}
                           </span>
                         </div>
                       ))}
@@ -426,10 +493,17 @@ export default function HealthPage() {
           {wristTempSeries.length ? (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={wristTempSeries}>
-                <XAxis dataKey="date" tickFormatter={(value) => format(parseISO(value), 'MM/dd')} tick={{ fontSize: 11 }} />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(value) => format(parseISO(value), 'MM/dd')}
+                  tick={{ fontSize: 11 }}
+                />
                 <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11 }} />
                 <Tooltip
-                  contentStyle={{ background: 'var(--background)', border: '1px solid var(--border)' }}
+                  contentStyle={{
+                    background: 'var(--background)',
+                    border: '1px solid var(--border)',
+                  }}
                   labelFormatter={(value) => format(parseISO(value as string), 'MMM d, yyyy')}
                 />
                 <Line

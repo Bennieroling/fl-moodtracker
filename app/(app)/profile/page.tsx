@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -33,7 +33,13 @@ import {
   Zap,
   Target,
 } from 'lucide-react'
-import { getUserTargets, updateUserTargets, getProfileStats, getUserPreferences, updateUserPreferences } from '@/lib/database'
+import {
+  getUserTargets,
+  updateUserTargets,
+  getProfileStats,
+  getUserPreferences,
+  updateUserPreferences,
+} from '@/lib/database'
 import { createClient } from '@/lib/supabase-browser'
 import { DailyTargets, DEFAULT_DAILY_TARGETS } from '@/lib/types/database'
 import { useTheme } from 'next-themes'
@@ -59,7 +65,7 @@ interface UserStats {
 export default function ProfilePage() {
   const { user, signOut } = useAuth()
   const { theme, setTheme } = useTheme()
-  
+
   const [preferences, setPreferences] = useState<UserPreferences>({
     units: 'metric',
     reminderEnabled: true,
@@ -67,7 +73,7 @@ export default function ProfilePage() {
     journalModeDefault: false,
     notificationsEnabled: true,
   })
-  
+
   const [userStats, setUserStats] = useState<UserStats>({
     totalEntries: 0,
     longestStreak: 0,
@@ -75,7 +81,7 @@ export default function ProfilePage() {
     joinDate: '',
     totalDays: 0,
   })
-  
+
   const [displayName, setDisplayName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
@@ -125,9 +131,11 @@ export default function ProfilePage() {
     setIsSyncing(true)
     try {
       const res = await fetch('/api/sync', { method: 'POST' })
-      const body = (await res.json().catch(() => null)) as
-        | { ok?: boolean; message?: string; error?: string }
-        | null
+      const body = (await res.json().catch(() => null)) as {
+        ok?: boolean
+        message?: string
+        error?: string
+      } | null
 
       if (!res.ok || !body?.ok) {
         throw new Error(body?.error ?? `Sync failed (${res.status})`)
@@ -148,7 +156,7 @@ export default function ProfilePage() {
     if (user) {
       // Set display name from user metadata or email
       setDisplayName(user.user_metadata?.full_name || user.email?.split('@')[0] || '')
-      
+
       getUserPreferences(user.id).then((savedPreferences) => {
         if (!savedPreferences) return
         setPreferences({
@@ -159,7 +167,7 @@ export default function ProfilePage() {
           notificationsEnabled: savedPreferences.notifications_enabled,
         })
       })
-      
+
       // Load user stats from Supabase
       getProfileStats(user.id).then((stats) => {
         setUserStats({
@@ -212,7 +220,11 @@ export default function ProfilePage() {
 
   const getUserInitials = () => {
     if (displayName) {
-      return displayName.split(' ').map(n => n[0]).join('').toUpperCase()
+      return displayName
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
     }
     return user?.email?.[0]?.toUpperCase() || 'U'
   }
@@ -222,7 +234,7 @@ export default function ProfilePage() {
     return new Date(userStats.joinDate).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
     })
   }
 
@@ -335,10 +347,10 @@ export default function ProfilePage() {
           {/* Units */}
           <div className="space-y-2">
             <Label>Units</Label>
-            <Select 
-              value={preferences.units} 
-              onValueChange={(value: 'metric' | 'imperial') => 
-                setPreferences(prev => ({ ...prev, units: value }))
+            <Select
+              value={preferences.units}
+              onValueChange={(value: 'metric' | 'imperial') =>
+                setPreferences((prev) => ({ ...prev, units: value }))
               }
             >
               <SelectTrigger>
@@ -359,12 +371,14 @@ export default function ProfilePage() {
                 <p className="text-sm text-muted-foreground">Get reminded to log your meals</p>
               </div>
               <Button
-                variant={preferences.reminderEnabled ? "default" : "outline"}
+                variant={preferences.reminderEnabled ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setPreferences(prev => ({ 
-                  ...prev, 
-                  reminderEnabled: !prev.reminderEnabled 
-                }))}
+                onClick={() =>
+                  setPreferences((prev) => ({
+                    ...prev,
+                    reminderEnabled: !prev.reminderEnabled,
+                  }))
+                }
               >
                 {preferences.reminderEnabled ? 'Enabled' : 'Disabled'}
               </Button>
@@ -377,10 +391,12 @@ export default function ProfilePage() {
                   id="reminderTime"
                   type="time"
                   value={preferences.reminderTime}
-                  onChange={(e) => setPreferences(prev => ({ 
-                    ...prev, 
-                    reminderTime: e.target.value 
-                  }))}
+                  onChange={(e) =>
+                    setPreferences((prev) => ({
+                      ...prev,
+                      reminderTime: e.target.value,
+                    }))
+                  }
                 />
               </div>
             )}
@@ -390,15 +406,19 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <Label>Push Notifications</Label>
-              <p className="text-sm text-muted-foreground">Receive insights and streak notifications</p>
+              <p className="text-sm text-muted-foreground">
+                Receive insights and streak notifications
+              </p>
             </div>
             <Button
-              variant={preferences.notificationsEnabled ? "default" : "outline"}
+              variant={preferences.notificationsEnabled ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setPreferences(prev => ({ 
-                ...prev, 
-                notificationsEnabled: !prev.notificationsEnabled 
-              }))}
+              onClick={() =>
+                setPreferences((prev) => ({
+                  ...prev,
+                  notificationsEnabled: !prev.notificationsEnabled,
+                }))
+              }
             >
               <Bell className="h-4 w-4 mr-1" />
               {preferences.notificationsEnabled ? 'On' : 'Off'}
@@ -409,17 +429,25 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <Label>Private Mode by Default</Label>
-              <p className="text-sm text-muted-foreground">New entries won&apos;t be included in insights</p>
+              <p className="text-sm text-muted-foreground">
+                New entries won&apos;t be included in insights
+              </p>
             </div>
             <Button
-              variant={preferences.journalModeDefault ? "default" : "outline"}
+              variant={preferences.journalModeDefault ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setPreferences(prev => ({ 
-                ...prev, 
-                journalModeDefault: !prev.journalModeDefault 
-              }))}
+              onClick={() =>
+                setPreferences((prev) => ({
+                  ...prev,
+                  journalModeDefault: !prev.journalModeDefault,
+                }))
+              }
             >
-              {preferences.journalModeDefault ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {preferences.journalModeDefault ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
             </Button>
           </div>
 
@@ -569,7 +597,6 @@ export default function ProfilePage() {
               Sign Out
             </Button>
           </div>
-
         </CardContent>
       </Card>
     </div>

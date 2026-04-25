@@ -56,15 +56,24 @@ export function RecentEntriesList({
                 <div className="flex items-center space-x-4">
                   <span className="text-2xl">{entry.food_labels?.[0] ? '🍽️' : '📝'}</span>
                   <div>
-                    <div className="font-medium">{entry.food_labels?.join(', ') || 'Food entry'}</div>
+                    <div className="font-medium">
+                      {entry.food_labels?.join(', ') || 'Food entry'}
+                    </div>
                     <div className="text-sm text-muted-foreground">
                       {entry.meal} • {format(new Date(entry.created_at), 'MMM d, h:mm a')}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary">{entry.calories ? `${entry.calories} cal` : 'No cal data'}</Badge>
-                  <Button variant="ghost" size="icon" onClick={() => onEditEntry(entry)} aria-label="Edit entry">
+                  <Badge variant="secondary">
+                    {entry.calories ? `${entry.calories} cal` : 'No cal data'}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onEditEntry(entry)}
+                    aria-label="Edit entry"
+                  >
                     <Edit className="h-4 w-4" />
                   </Button>
                   <Button
@@ -85,7 +94,13 @@ export function RecentEntriesList({
               <p>{emptyTitle}</p>
               <p className="text-sm">{emptyDescription}</p>
               {emptyCtaLabel && onEmptyCta ? (
-                <Button type="button" variant="outline" size="sm" className="mt-4" onClick={onEmptyCta}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-4"
+                  onClick={onEmptyCta}
+                >
                   {emptyCtaLabel}
                 </Button>
               ) : null}

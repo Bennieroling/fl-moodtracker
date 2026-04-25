@@ -16,11 +16,7 @@ export interface ApiContext {
   requestId: string
 }
 
-type JsonHandler<T> = (
-  request: NextRequest,
-  parsed: T,
-  context: ApiContext,
-) => Promise<Response>
+type JsonHandler<T> = (request: NextRequest, parsed: T, context: ApiContext) => Promise<Response>
 
 export function jsonError(
   status: number,
@@ -28,10 +24,7 @@ export function jsonError(
   requestId: string,
   init?: Record<string, unknown>,
 ) {
-  return NextResponse.json(
-    { error, requestId, ...init },
-    { status },
-  )
+  return NextResponse.json({ error, requestId, ...init }, { status })
 }
 
 export function captureApiException(error: unknown, requestId: string) {
@@ -54,18 +47,12 @@ export function handleApiError(error: unknown, requestId: string) {
   return jsonError(500, 'internal_error', requestId)
 }
 
-export async function parseJsonBody<T>(
-  request: NextRequest,
-  schema: z.ZodSchema<T>,
-) {
+export async function parseJsonBody<T>(request: NextRequest, schema: z.ZodSchema<T>) {
   const body = await request.json()
   return schema.parse(body)
 }
 
-export function apiHandler<T>(
-  schema: z.ZodSchema<T>,
-  handler: JsonHandler<T>,
-) {
+export function apiHandler<T>(schema: z.ZodSchema<T>, handler: JsonHandler<T>) {
   return async (request: NextRequest) => {
     const requestId = crypto.randomUUID()
 

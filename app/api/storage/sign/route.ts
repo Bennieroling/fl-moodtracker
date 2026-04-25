@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import {
-  ApiError,
-  apiHandler,
-  handleApiError,
-  jsonError,
-} from '@/lib/api-handler'
+import { ApiError, apiHandler, handleApiError, jsonError } from '@/lib/api-handler'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import {
-  SignedURLRequestSchema,
-  SignedURLResponseSchema,
-} from '@/lib/validations'
+import { SignedURLRequestSchema, SignedURLResponseSchema } from '@/lib/validations'
 
 const ALLOWED_BUCKETS = ['food-photos', 'voice-notes'] as const
 

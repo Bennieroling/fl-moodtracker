@@ -29,19 +29,37 @@ export function useHealthData() {
   const { filters, setHealthFilters } = useFilters()
   const filterState = filters.health
 
-  const anchorDateObj = useMemo(() => parseAnchorDate(filterState.anchorDate), [filterState.anchorDate])
-  const rangeBounds = useMemo(() => computeRangeBounds(filterState.mode, anchorDateObj), [filterState.mode, anchorDateObj])
+  const anchorDateObj = useMemo(
+    () => parseAnchorDate(filterState.anchorDate),
+    [filterState.anchorDate],
+  )
+  const rangeBounds = useMemo(
+    () => computeRangeBounds(filterState.mode, anchorDateObj),
+    [filterState.mode, anchorDateObj],
+  )
   const rangeStartDate = useMemo(() => format(rangeBounds.start, 'yyyy-MM-dd'), [rangeBounds.start])
   const rangeEndDate = useMemo(() => format(rangeBounds.end, 'yyyy-MM-dd'), [rangeBounds.end])
   const rangeLabel = useMemo(
     () => formatRangeLabel(filterState.mode, rangeBounds.start, rangeBounds.end),
-    [filterState.mode, rangeBounds.start, rangeBounds.end]
+    [filterState.mode, rangeBounds.start, rangeBounds.end],
   )
 
   const userId = user?.id
 
-  const { data, isLoading: loading, error, refetch } = useQuery({
-    queryKey: ['health', userId, filterState.mode, filterState.anchorDate, rangeStartDate, rangeEndDate],
+  const {
+    data,
+    isLoading: loading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: [
+      'health',
+      userId,
+      filterState.mode,
+      filterState.anchorDate,
+      rangeStartDate,
+      rangeEndDate,
+    ],
     queryFn: async () => {
       if (!userId) throw new Error('No user')
       const [
@@ -87,7 +105,7 @@ export function useHealthData() {
       bodySeries
         .filter((row) => row.weight_kg != null)
         .map((row) => ({ date: row.date, weight_kg: Number(row.weight_kg) })),
-    [bodySeries]
+    [bodySeries],
   )
 
   const bodyFatSeries = useMemo(
@@ -95,7 +113,7 @@ export function useHealthData() {
       bodySeries
         .filter((row) => row.body_fat_pct != null)
         .map((row) => ({ date: row.date, body_fat_pct: Number(row.body_fat_pct) })),
-    [bodySeries]
+    [bodySeries],
   )
 
   const healthSummary = useMemo(() => {
@@ -114,7 +132,9 @@ export function useHealthData() {
       }
     }
     return {
-      restingHeartRateAvg: restingHeartRateCount ? restingHeartRateTotal / restingHeartRateCount : null,
+      restingHeartRateAvg: restingHeartRateCount
+        ? restingHeartRateTotal / restingHeartRateCount
+        : null,
       hrvAvg: hrvCount ? hrvTotal / hrvCount : null,
     }
   }, [dailyActivity])
@@ -127,9 +147,18 @@ export function useHealthData() {
     let deepSum = 0
     let deepCount = 0
     for (const row of sleepEvents) {
-      if (row.total_sleep_hours != null) { totalSum += Number(row.total_sleep_hours); totalCount++ }
-      if (row.rem_hours != null) { remSum += Number(row.rem_hours); remCount++ }
-      if (row.deep_hours != null) { deepSum += Number(row.deep_hours); deepCount++ }
+      if (row.total_sleep_hours != null) {
+        totalSum += Number(row.total_sleep_hours)
+        totalCount++
+      }
+      if (row.rem_hours != null) {
+        remSum += Number(row.rem_hours)
+        remCount++
+      }
+      if (row.deep_hours != null) {
+        deepSum += Number(row.deep_hours)
+        deepCount++
+      }
     }
     return {
       totalAvg: totalCount ? totalSum / totalCount : null,
@@ -143,17 +172,20 @@ export function useHealthData() {
       sleepEvents
         .filter((row) => row.wrist_temperature != null)
         .map((row) => ({ date: row.date, wrist_temperature: Number(row.wrist_temperature) })),
-    [sleepEvents]
+    [sleepEvents],
   )
 
   const setRangeMode = useCallback(
     (mode: RangeMode) => {
       setHealthFilters((prev) => {
-        const normalizedAnchor = format(normalizeDateForMode(parseAnchorDate(prev.anchorDate), mode), 'yyyy-MM-dd')
+        const normalizedAnchor = format(
+          normalizeDateForMode(parseAnchorDate(prev.anchorDate), mode),
+          'yyyy-MM-dd',
+        )
         return { mode, anchorDate: normalizedAnchor }
       })
     },
-    [setHealthFilters]
+    [setHealthFilters],
   )
 
   const setAnchorDate = useCallback(
@@ -163,7 +195,7 @@ export function useHealthData() {
         anchorDate: format(normalizeDateForMode(date, prev.mode), 'yyyy-MM-dd'),
       }))
     },
-    [setHealthFilters]
+    [setHealthFilters],
   )
 
   const shiftRange = useCallback(
@@ -171,10 +203,13 @@ export function useHealthData() {
       setHealthFilters((prev) => {
         const base = parseAnchorDate(prev.anchorDate)
         const shifted = shiftAnchor(base, prev.mode, direction)
-        return { ...prev, anchorDate: format(normalizeDateForMode(shifted, prev.mode), 'yyyy-MM-dd') }
+        return {
+          ...prev,
+          anchorDate: format(normalizeDateForMode(shifted, prev.mode), 'yyyy-MM-dd'),
+        }
       })
     },
-    [setHealthFilters]
+    [setHealthFilters],
   )
 
   return {

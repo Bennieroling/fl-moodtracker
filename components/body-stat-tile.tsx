@@ -11,7 +11,9 @@ interface BodyStatTileProps {
 
 export function BodyStatTile({ label, icon, value, unit, decimals }: BodyStatTileProps) {
   const hasValue = value !== null && value !== undefined
-  const formatted = hasValue ? `${formatNumber(value, { decimals })}${unit ? ` ${unit}` : ''}` : '--'
+  const formatted = hasValue
+    ? `${formatNumber(value, { decimals })}${unit ? ` ${unit}` : ''}`
+    : '--'
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -25,10 +27,7 @@ export function BodyStatTile({ label, icon, value, unit, decimals }: BodyStatTil
   )
 }
 
-function formatNumber(
-  value: number | string | null | undefined,
-  opts: { decimals?: number } = {}
-) {
+function formatNumber(value: number | string | null | undefined, opts: { decimals?: number } = {}) {
   if (value === null || value === undefined) return '--'
   const decimals = opts.decimals ?? 0
   const numeric = Number(value)

@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import { ApiError, apiHandler } from '@/lib/api-handler'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { 
-  AIVisionRequestSchema, 
+import {
+  AIVisionRequestSchema,
   AIVisionResponseSchema,
   FoodItemSchema,
-  MacrosSchema 
+  MacrosSchema,
 } from '@/lib/validations'
 
 function validateSupabaseStorageUrl(imageUrl: string) {
@@ -37,7 +37,7 @@ async function analyzeWithOpenAI(imageUrl: string) {
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -51,25 +51,25 @@ async function analyzeWithOpenAI(imageUrl: string) {
             "nutrition": {"calories": 500, "macros": {"protein": 25, "carbs": 60, "fat": 15}}
           }
           
-          Be accurate with calorie estimates and include confidence scores (0-1). Focus on main food items visible.`
+          Be accurate with calorie estimates and include confidence scores (0-1). Focus on main food items visible.`,
         },
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: 'Analyze this food image and provide nutrition information.'
+              text: 'Analyze this food image and provide nutrition information.',
             },
             {
               type: 'image_url',
-              image_url: { url: imageUrl }
-            }
-          ]
-        }
+              image_url: { url: imageUrl },
+            },
+          ],
+        },
       ],
       max_tokens: 500,
-      temperature: 0.3
-    })
+      temperature: 0.3,
+    }),
   })
 
   if (!response.ok) {
@@ -79,13 +79,16 @@ async function analyzeWithOpenAI(imageUrl: string) {
 
   const data = await response.json()
   const content = data.choices[0]?.message?.content
-  
+
   if (!content) {
     throw new Error('No content returned from OpenAI')
   }
 
   try {
-    const cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+    const cleanContent = content
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .trim()
     return JSON.parse(cleanContent)
   } catch (parseError) {
     throw new Error(`Failed to parse OpenAI response as JSON: ${parseError}`)
@@ -105,37 +108,39 @@ async function analyzeWithGemini(imageUrl: string) {
   const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg'
 
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`
-  
+
   const response = await fetch(geminiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      contents: [{
-        parts: [
-          {
-            text: `Analyze this food image and return a JSON response with:
+      contents: [
+        {
+          parts: [
+            {
+              text: `Analyze this food image and return a JSON response with:
             {
               "foods": [{"label": "food name", "confidence": 0.9, "quantity": "estimated portion"}],
               "nutrition": {"calories": 500, "macros": {"protein": 25, "carbs": 60, "fat": 15}}
             }
             
-            Be accurate with calorie estimates and include confidence scores (0-1). Focus on main food items visible. Return only valid JSON.`
-          },
-          {
-            inline_data: {
-              mime_type: mimeType,
-              data: base64Image
-            }
-          }
-        ]
-      }],
+            Be accurate with calorie estimates and include confidence scores (0-1). Focus on main food items visible. Return only valid JSON.`,
+            },
+            {
+              inline_data: {
+                mime_type: mimeType,
+                data: base64Image,
+              },
+            },
+          ],
+        },
+      ],
       generationConfig: {
         temperature: 0.3,
-        maxOutputTokens: 500
-      }
-    })
+        maxOutputTokens: 500,
+      },
+    }),
   })
 
   if (!response.ok) {
@@ -145,7 +150,7 @@ async function analyzeWithGemini(imageUrl: string) {
 
   const data = await response.json()
   const content = data.candidates?.[0]?.content?.parts?.[0]?.text
-  
+
   if (!content) {
     throw new Error('No content returned from Gemini')
   }
@@ -163,73 +168,79 @@ async function analyzeWithGemini(imageUrl: string) {
 }
 
 export const POST = apiHandler(AIVisionRequestSchema, async (_request, validatedRequest) => {
-    // Verify authentication
-    const supabase = await createServerSupabaseClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      throw new ApiError(401, 'unauthorized')
-    }
+  // Verify authentication
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
 
-    // Verify user matches request
-    if (user.id !== validatedRequest.userId) {
-      throw new ApiError(403, 'forbidden')
-    }
+  if (authError || !user) {
+    throw new ApiError(401, 'unauthorized')
+  }
 
-    const imageUrlResult = validateSupabaseStorageUrl(validatedRequest.imageUrl)
-    if ('error' in imageUrlResult) {
-      const errorCode = imageUrlResult.error ?? 'invalid_input'
-      throw new ApiError(400, errorCode)
-    }
+  // Verify user matches request
+  if (user.id !== validatedRequest.userId) {
+    throw new ApiError(403, 'forbidden')
+  }
 
-    // Determine which AI provider to use (default to OpenAI, fallback to Gemini)
-    let aiResponse
-    let provider: 'openai' | 'gemini' = 'openai'
+  const imageUrlResult = validateSupabaseStorageUrl(validatedRequest.imageUrl)
+  if ('error' in imageUrlResult) {
+    const errorCode = imageUrlResult.error ?? 'invalid_input'
+    throw new ApiError(400, errorCode)
+  }
+
+  // Determine which AI provider to use (default to OpenAI, fallback to Gemini)
+  let aiResponse
+  let provider: 'openai' | 'gemini' = 'openai'
+
+  try {
+    // Try OpenAI first
+    if (process.env.OPENAI_API_KEY) {
+      aiResponse = await analyzeWithOpenAI(imageUrlResult.url.toString())
+      provider = 'openai'
+    } else {
+      throw new Error('OpenAI API key not available')
+    }
+  } catch (openaiError) {
+    console.warn('AI Vision: OpenAI failed, trying Gemini', openaiError)
 
     try {
-      // Try OpenAI first
-      if (process.env.OPENAI_API_KEY) {
-        aiResponse = await analyzeWithOpenAI(imageUrlResult.url.toString())
-        provider = 'openai'
+      if (process.env.GEMINI_API_KEY) {
+        aiResponse = await analyzeWithGemini(imageUrlResult.url.toString())
+        provider = 'gemini'
       } else {
-        throw new Error('OpenAI API key not available')
+        throw new Error('Gemini API key not available')
       }
-    } catch (openaiError) {
-      console.warn('AI Vision: OpenAI failed, trying Gemini', openaiError)
-      
-      try {
-        if (process.env.GEMINI_API_KEY) {
-          aiResponse = await analyzeWithGemini(imageUrlResult.url.toString())
-          provider = 'gemini'
-        } else {
-          throw new Error('Gemini API key not available')
+    } catch (geminiError) {
+      throw new ApiError(500, 'internal_error', JSON.stringify({ openaiError, geminiError }))
+    }
+  }
+
+  // Validate and structure the response
+  const foods =
+    aiResponse.foods
+      ?.map((food: unknown) => {
+        try {
+          return FoodItemSchema.parse(food)
+        } catch {
+          console.warn('Invalid food item, skipping:', food)
+          return null
         }
-      } catch (geminiError) {
-        throw new ApiError(500, 'internal_error', JSON.stringify({ openaiError, geminiError }))
-      }
-    }
+      })
+      .filter(Boolean) || []
 
-    // Validate and structure the response
-    const foods = aiResponse.foods?.map((food: unknown) => {
-      try {
-        return FoodItemSchema.parse(food)
-      } catch {
-        console.warn('Invalid food item, skipping:', food)
-        return null
-      }
-    }).filter(Boolean) || []
+  const nutrition = {
+    calories: aiResponse.nutrition?.calories || 0,
+    macros: MacrosSchema.parse(aiResponse.nutrition?.macros || { protein: 0, carbs: 0, fat: 0 }),
+  }
 
-    const nutrition = {
-      calories: aiResponse.nutrition?.calories || 0,
-      macros: MacrosSchema.parse(aiResponse.nutrition?.macros || { protein: 0, carbs: 0, fat: 0 })
-    }
+  const response = AIVisionResponseSchema.parse({
+    foods,
+    nutrition,
+    provider,
+    raw: aiResponse,
+  })
 
-    const response = AIVisionResponseSchema.parse({
-      foods,
-      nutrition,
-      provider,
-      raw: aiResponse
-    })
-
-    return NextResponse.json(response)
+  return NextResponse.json(response)
 })

@@ -9,7 +9,12 @@ interface StandardCardHeaderProps {
   className?: string
 }
 
-export function StandardCardHeader({ title, description, action, className }: StandardCardHeaderProps) {
+export function StandardCardHeader({
+  title,
+  description,
+  action,
+  className,
+}: StandardCardHeaderProps) {
   return (
     <CardHeader className={cn('space-y-1', className)}>
       <div className="flex items-start justify-between gap-4">

@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server'
 import { ApiError, apiHandler } from '@/lib/api-handler'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import {
-  AITextRequestSchema,
-  AITextResponseSchema,
-} from '@/lib/validations'
+import { AITextRequestSchema, AITextResponseSchema } from '@/lib/validations'
 
 async function analyzeTextWithOpenAI(text: string, mealHint?: string) {
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -44,7 +41,10 @@ Use the provided meal hint if it makes sense; otherwise infer meal type from con
   const data = await response.json()
   const content = data.choices?.[0]?.message?.content
   if (!content) throw new Error('OpenAI returned no content')
-  const clean = content.replace(/```json\s*/g, '').replace(/```/g, '').trim()
+  const clean = content
+    .replace(/```json\s*/g, '')
+    .replace(/```/g, '')
+    .trim()
   return JSON.parse(clean)
 }
 
@@ -63,7 +63,7 @@ Description: ${text}`
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { temperature: 0.2, maxOutputTokens: 600 },
       }),
-    }
+    },
   )
 
   if (!response.ok) {
@@ -80,39 +80,39 @@ Description: ${text}`
 }
 
 export const POST = apiHandler(AITextRequestSchema, async (_request, parsed) => {
-    const { text, userId, meal } = parsed
-    const supabase = await createServerSupabaseClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
+  const { text, userId, meal } = parsed
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
 
-    if (authError || !user) {
-      throw new ApiError(401, 'unauthorized')
-    }
+  if (authError || !user) {
+    throw new ApiError(401, 'unauthorized')
+  }
 
-    if (user.id !== userId) {
-      throw new ApiError(403, 'forbidden')
-    }
+  if (user.id !== userId) {
+    throw new ApiError(403, 'forbidden')
+  }
 
-    let analysis
-    let provider: 'openai' | 'gemini' = 'openai'
+  let analysis
+  let provider: 'openai' | 'gemini' = 'openai'
 
-    try {
-      if (!process.env.OPENAI_API_KEY) throw new Error('Missing OpenAI key')
-      analysis = await analyzeTextWithOpenAI(text, meal)
-      provider = 'openai'
-    } catch (error) {
-      console.warn('OpenAI text analysis failed, attempting Gemini', error)
-      analysis = await analyzeTextWithGemini(text, meal)
-      provider = 'gemini'
-    }
+  try {
+    if (!process.env.OPENAI_API_KEY) throw new Error('Missing OpenAI key')
+    analysis = await analyzeTextWithOpenAI(text, meal)
+    provider = 'openai'
+  } catch (error) {
+    console.warn('OpenAI text analysis failed, attempting Gemini', error)
+    analysis = await analyzeTextWithGemini(text, meal)
+    provider = 'gemini'
+  }
 
-    const validated = AITextResponseSchema.parse({
-      ...analysis,
-      provider,
-      raw: analysis,
-    })
+  const validated = AITextResponseSchema.parse({
+    ...analysis,
+    provider,
+    raw: analysis,
+  })
 
-    return NextResponse.json(validated)
+  return NextResponse.json(validated)
 })

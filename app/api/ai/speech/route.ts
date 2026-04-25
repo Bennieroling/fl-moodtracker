@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ApiError, handleApiError } from '@/lib/api-handler'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { 
-  AISpeechRequestSchema, 
+import {
+  AISpeechRequestSchema,
   AISpeechResponseSchema,
   MealTypeSchema,
   FoodItemSchema,
-  MacrosSchema 
+  MacrosSchema,
 } from '@/lib/validations'
 
 // OpenAI Whisper transcription and GPT analysis (from File)
@@ -19,9 +19,9 @@ async function processWithOpenAIFile(audioFile: File) {
   const transcriptionResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
     },
-    body: formData
+    body: formData,
   })
 
   if (!transcriptionResponse.ok) {
@@ -39,7 +39,7 @@ async function processWithOpenAIFile(audioFile: File) {
   const analysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -54,16 +54,16 @@ async function processWithOpenAIFile(audioFile: File) {
             "nutrition": {"calories": 500, "macros": {"protein": 25, "carbs": 60, "fat": 15}}
           }
           
-          Determine the meal type from context clues (time, food types, etc.). Be accurate with food identification and calorie estimates.`
+          Determine the meal type from context clues (time, food types, etc.). Be accurate with food identification and calorie estimates.`,
         },
         {
           role: 'user',
-          content: `Analyze this meal description: "${transcript}"`
-        }
+          content: `Analyze this meal description: "${transcript}"`,
+        },
       ],
       max_tokens: 500,
-      temperature: 0.3
-    })
+      temperature: 0.3,
+    }),
   })
 
   if (!analysisResponse.ok) {
@@ -72,7 +72,7 @@ async function processWithOpenAIFile(audioFile: File) {
 
   const analysisData = await analysisResponse.json()
   const content = analysisData.choices[0]?.message?.content
-  
+
   if (!content) {
     throw new Error('No analysis content returned from OpenAI')
   }
@@ -81,7 +81,7 @@ async function processWithOpenAIFile(audioFile: File) {
     const parsed = JSON.parse(content)
     return {
       transcript,
-      analysis: parsed
+      analysis: parsed,
     }
   } catch {
     throw new Error('Failed to parse OpenAI analysis response as JSON')
@@ -104,9 +104,9 @@ async function processWithOpenAI(audioUrl: string) {
   const transcriptionResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
     },
-    body: formData
+    body: formData,
   })
 
   if (!transcriptionResponse.ok) {
@@ -124,7 +124,7 @@ async function processWithOpenAI(audioUrl: string) {
   const analysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -139,16 +139,16 @@ async function processWithOpenAI(audioUrl: string) {
             "nutrition": {"calories": 500, "macros": {"protein": 25, "carbs": 60, "fat": 15}}
           }
           
-          Determine the meal type from context clues (time, food types, etc.). Be accurate with food identification and calorie estimates.`
+          Determine the meal type from context clues (time, food types, etc.). Be accurate with food identification and calorie estimates.`,
         },
         {
           role: 'user',
-          content: `Analyze this meal description: "${transcript}"`
-        }
+          content: `Analyze this meal description: "${transcript}"`,
+        },
       ],
       max_tokens: 500,
-      temperature: 0.3
-    })
+      temperature: 0.3,
+    }),
   })
 
   if (!analysisResponse.ok) {
@@ -157,7 +157,7 @@ async function processWithOpenAI(audioUrl: string) {
 
   const analysisData = await analysisResponse.json()
   const content = analysisData.choices[0]?.message?.content
-  
+
   if (!content) {
     throw new Error('No analysis content returned from OpenAI')
   }
@@ -166,7 +166,7 @@ async function processWithOpenAI(audioUrl: string) {
     const parsed = JSON.parse(content)
     return {
       transcript,
-      analysis: parsed
+      analysis: parsed,
     }
   } catch {
     throw new Error('Failed to parse OpenAI analysis response as JSON')
@@ -189,14 +189,14 @@ export async function POST(request: NextRequest) {
       userId: string
       date?: string
     }
-    
+
     if (contentType?.includes('multipart/form-data')) {
       // Handle FormData from voice recorder
       const formData = await request.formData()
       const audioFile = formData.get('audio') as File
       const userId = formData.get('userId') as string
       const date = formData.get('date') as string
-      
+
       if (!audioFile || !userId) {
         throw new ApiError(400, 'invalid_input')
       }
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
       validatedRequest = {
         audioFile: audioFile,
         userId: userId,
-        date: date
+        date: date,
       }
     } else {
       // Handle JSON request (existing flow)
@@ -215,14 +215,19 @@ export async function POST(request: NextRequest) {
 
     // Verify authentication
     const supabase = await createServerSupabaseClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
     if (authError || !user) {
       throw new ApiError(401, 'unauthorized')
     }
 
     // Verify user matches request
-    const requestUserId = validatedRequest.audioFile ? validatedRequest.userId : validatedRequest.userId
+    const requestUserId = validatedRequest.audioFile
+      ? validatedRequest.userId
+      : validatedRequest.userId
     if (user.id !== requestUserId) {
       throw new ApiError(403, 'forbidden')
     }
@@ -247,26 +252,31 @@ export async function POST(request: NextRequest) {
       }
     } catch (openaiError) {
       console.warn('OpenAI failed:', openaiError)
-      
+
       // Gemini fallback is limited for audio processing
       throw new ApiError(500, 'internal_error')
     }
 
     // Validate and structure the response
     const meal = MealTypeSchema.parse(result.analysis.meal)
-    
-    const foods = result.analysis.foods?.map((food: unknown) => {
-      try {
-        return FoodItemSchema.parse(food)
-      } catch {
-        console.warn('Invalid food item, skipping:', food)
-        return null
-      }
-    }).filter(Boolean) || []
+
+    const foods =
+      result.analysis.foods
+        ?.map((food: unknown) => {
+          try {
+            return FoodItemSchema.parse(food)
+          } catch {
+            console.warn('Invalid food item, skipping:', food)
+            return null
+          }
+        })
+        .filter(Boolean) || []
 
     const nutrition = {
       calories: result.analysis.nutrition?.calories || 0,
-      macros: MacrosSchema.parse(result.analysis.nutrition?.macros || { protein: 0, carbs: 0, fat: 0 })
+      macros: MacrosSchema.parse(
+        result.analysis.nutrition?.macros || { protein: 0, carbs: 0, fat: 0 },
+      ),
     }
 
     const response = AISpeechResponseSchema.parse({
@@ -275,7 +285,7 @@ export async function POST(request: NextRequest) {
       nutrition,
       transcript: result.transcript,
       provider,
-      raw: result.analysis
+      raw: result.analysis,
     })
 
     return NextResponse.json(response)

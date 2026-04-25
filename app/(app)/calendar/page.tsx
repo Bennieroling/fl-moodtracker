@@ -10,7 +10,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ChevronLeft, ChevronRight, Edit, Trash2 } from 'lucide-react'
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, addDays, subDays } from 'date-fns'
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameMonth,
+  isSameDay,
+  addMonths,
+  subMonths,
+  parseISO,
+  isBefore,
+  addDays,
+  subDays,
+} from 'date-fns'
 import { MoodEntry, FoodEntry, MealType, StateOfMind } from '@/lib/types/database'
 import { toast } from 'sonner'
 import { upsertMoodEntry, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
@@ -20,21 +33,51 @@ import { MacroDisplay } from '@/components/macro-display'
 import { StandardCardHeader } from '@/components/ui/standard-card-header'
 
 const moodEmojis = [
-  { score: 1, emoji: '😢', label: 'Very Bad', color: 'bg-red-100 border-red-300 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-200' },
-  { score: 2, emoji: '😞', label: 'Bad', color: 'bg-orange-100 border-orange-300 text-orange-800 dark:bg-orange-900/30 dark:border-orange-700 dark:text-orange-200' },
-  { score: 3, emoji: '😐', label: 'Okay', color: 'bg-yellow-100 border-yellow-300 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-700 dark:text-yellow-200' },
-  { score: 4, emoji: '🙂', label: 'Good', color: 'bg-green-100 border-green-300 text-green-800 dark:bg-green-900/30 dark:border-green-700 dark:text-green-200' },
-  { score: 5, emoji: '😄', label: 'Great', color: 'bg-green-200 border-green-400 text-green-900 dark:bg-green-900/45 dark:border-green-600 dark:text-green-100' },
+  {
+    score: 1,
+    emoji: '😢',
+    label: 'Very Bad',
+    color:
+      'bg-red-100 border-red-300 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-200',
+  },
+  {
+    score: 2,
+    emoji: '😞',
+    label: 'Bad',
+    color:
+      'bg-orange-100 border-orange-300 text-orange-800 dark:bg-orange-900/30 dark:border-orange-700 dark:text-orange-200',
+  },
+  {
+    score: 3,
+    emoji: '😐',
+    label: 'Okay',
+    color:
+      'bg-yellow-100 border-yellow-300 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-700 dark:text-yellow-200',
+  },
+  {
+    score: 4,
+    emoji: '🙂',
+    label: 'Good',
+    color:
+      'bg-green-100 border-green-300 text-green-800 dark:bg-green-900/30 dark:border-green-700 dark:text-green-200',
+  },
+  {
+    score: 5,
+    emoji: '😄',
+    label: 'Great',
+    color:
+      'bg-green-200 border-green-400 text-green-900 dark:bg-green-900/45 dark:border-green-600 dark:text-green-100',
+  },
 ]
 
 function getMoodEmoji(score: number | undefined): string {
   if (!score) return ''
-  return moodEmojis.find(m => m.score === score)?.emoji || ''
+  return moodEmojis.find((m) => m.score === score)?.emoji || ''
 }
 
 function getMoodColor(score: number | undefined): string {
   if (!score) return ''
-  return moodEmojis.find(m => m.score === score)?.color || ''
+  return moodEmojis.find((m) => m.score === score)?.color || ''
 }
 
 function getMoodLabel(score: number | undefined): string {
@@ -44,12 +87,18 @@ function getMoodLabel(score: number | undefined): string {
 
 const valenceColor = (classification: string) => {
   switch (classification) {
-    case 'very_unpleasant': return '#EF4444'
-    case 'slightly_unpleasant': return '#F59E0B'
-    case 'neutral': return '#6B7280'
-    case 'slightly_pleasant': return '#34D399'
-    case 'very_pleasant': return '#10B981'
-    default: return '#6B7280'
+    case 'very_unpleasant':
+      return '#EF4444'
+    case 'slightly_unpleasant':
+      return '#F59E0B'
+    case 'neutral':
+      return '#6B7280'
+    case 'slightly_pleasant':
+      return '#34D399'
+    case 'very_pleasant':
+      return '#10B981'
+    default:
+      return '#6B7280'
   }
 }
 
@@ -60,29 +109,29 @@ function formatMetric(value: number | null | undefined, options: Intl.NumberForm
 
 function calculateCurrentStreak(moodEntries: MoodEntry[]): number {
   if (moodEntries.length === 0) return 0
-  
+
   // Sort entries by date descending (newest first)
-  const sortedEntries = [...moodEntries].sort((a, b) => 
-    isBefore(parseISO(a.date), parseISO(b.date)) ? 1 : -1
+  const sortedEntries = [...moodEntries].sort((a, b) =>
+    isBefore(parseISO(a.date), parseISO(b.date)) ? 1 : -1,
   )
-  
+
   const today = new Date()
   const todayString = format(today, 'yyyy-MM-dd')
-  
+
   // Check if today has an entry
-  const hasTodayEntry = sortedEntries.some(entry => entry.date === todayString)
-  
+  const hasTodayEntry = sortedEntries.some((entry) => entry.date === todayString)
+
   // If today doesn't have an entry, streak is 0
   if (!hasTodayEntry) return 0
-  
+
   let streak = 0
   let currentDate = today
-  
+
   // Count consecutive days backward from today
   while (true) {
     const dateString = format(currentDate, 'yyyy-MM-dd')
-    const hasEntry = sortedEntries.some(entry => entry.date === dateString)
-    
+    const hasEntry = sortedEntries.some((entry) => entry.date === dateString)
+
     if (hasEntry) {
       streak++
       currentDate = subDays(currentDate, 1)
@@ -90,25 +139,25 @@ function calculateCurrentStreak(moodEntries: MoodEntry[]): number {
       break
     }
   }
-  
+
   return streak
 }
 
 function calculateBestStreak(moodEntries: MoodEntry[]): number {
   if (moodEntries.length === 0) return 0
-  
+
   // Sort entries by date ascending (oldest first)
-  const sortedEntries = [...moodEntries].sort((a, b) => 
-    isBefore(parseISO(a.date), parseISO(b.date)) ? -1 : 1
+  const sortedEntries = [...moodEntries].sort((a, b) =>
+    isBefore(parseISO(a.date), parseISO(b.date)) ? -1 : 1,
   )
-  
+
   let maxStreak = 0
   let currentStreak = 0
   let previousDate: Date | null = null
-  
+
   for (const entry of sortedEntries) {
     const currentDate = parseISO(entry.date)
-    
+
     if (previousDate === null) {
       // First entry
       currentStreak = 1
@@ -123,13 +172,13 @@ function calculateBestStreak(moodEntries: MoodEntry[]): number {
         currentStreak = 1
       }
     }
-    
+
     previousDate = currentDate
   }
-  
+
   // Don't forget to check the final streak
   maxStreak = Math.max(maxStreak, currentStreak)
-  
+
   return maxStreak
 }
 
@@ -153,7 +202,11 @@ export default function CalendarPage() {
     note: '',
   })
   const [selectedMood, setSelectedMood] = useState<number | null>(null)
-  const { data: monthEntries, loading: monthLoading, refetch: refetchMonth } = useCalendarMonthData()
+  const {
+    data: monthEntries,
+    loading: monthLoading,
+    refetch: refetchMonth,
+  } = useCalendarMonthData()
   const { data: dayData, loading: dayLoading, refetch: refetchDay } = useCalendarDayData()
   const moodEntries = monthEntries || []
   const dailyMoodEntry = dayData?.mood ?? null
@@ -176,14 +229,17 @@ export default function CalendarPage() {
   const paddingDays = Array(startDay).fill(null)
 
   // Convert mood entries to a lookup map for easy access
-  const moodData = moodEntries.reduce((acc, entry) => {
-    acc[entry.date] = entry.mood_score
-    return acc
-  }, {} as Record<string, number>)
+  const moodData = moodEntries.reduce(
+    (acc, entry) => {
+      acc[entry.date] = entry.mood_score
+      return acc
+    },
+    {} as Record<string, number>,
+  )
 
   const handleDayClick = (dateKey: string) => {
     if (!user) return
-    
+
     setCalendarFilters((prev) => ({ ...prev, selectedDate: dateKey }))
     setDailySummaryOpen(true)
   }
@@ -198,7 +254,9 @@ export default function CalendarPage() {
 
     event.preventDefault()
     const targetDate = format(addDays(day, offset), 'yyyy-MM-dd')
-    const targetButton = document.querySelector<HTMLButtonElement>(`button[data-date="${targetDate}"]`)
+    const targetButton = document.querySelector<HTMLButtonElement>(
+      `button[data-date="${targetDate}"]`,
+    )
     if (targetButton) {
       targetButton.focus()
     }
@@ -235,7 +293,9 @@ export default function CalendarPage() {
     } catch (error) {
       console.error('Error saving mood from calendar modal:', error)
       setSelectedMood(previousMood)
-      toast.error('Error saving mood', { description: 'There was a problem saving your mood. Please try again.' })
+      toast.error('Error saving mood', {
+        description: 'There was a problem saving your mood. Please try again.',
+      })
     }
   }
 
@@ -276,7 +336,9 @@ export default function CalendarPage() {
       toast.success('Entry updated', { description: 'Your food entry was updated for this day.' })
     } catch (error) {
       console.error('Error updating calendar entry:', error)
-      toast.error('Error updating entry', { description: 'There was a problem updating this entry.' })
+      toast.error('Error updating entry', {
+        description: 'There was a problem updating this entry.',
+      })
     }
   }
 
@@ -290,7 +352,9 @@ export default function CalendarPage() {
       toast.success('Entry deleted', { description: 'The food entry was removed.' })
     } catch (error) {
       console.error('Error deleting calendar entry:', error)
-      toast.error('Error deleting entry', { description: 'There was a problem deleting this entry.' })
+      toast.error('Error deleting entry', {
+        description: 'There was a problem deleting this entry.',
+      })
     }
   }
 
@@ -298,11 +362,11 @@ export default function CalendarPage() {
     <div className="space-y-6">
       <PageHeader
         title="Calendar"
-        action={(
+        action={
           <Button onClick={goToToday} variant="outline">
             Today
           </Button>
-        )}
+        }
       />
 
       {/* Calendar */}
@@ -377,11 +441,7 @@ export default function CalendarPage() {
                     <span className={`text-sm ${isToday ? 'font-bold' : ''}`}>
                       {format(day, 'd')}
                     </span>
-                    {mood && (
-                      <span className="text-lg">
-                        {getMoodEmoji(mood)}
-                      </span>
-                    )}
+                    {mood && <span className="text-lg">{getMoodEmoji(mood)}</span>}
                   </div>
                 </button>
               )
@@ -409,17 +469,14 @@ export default function CalendarPage() {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-primary">
-                {moodEntries.length}
-              </div>
+              <div className="text-2xl font-bold text-primary">{moodEntries.length}</div>
               <div className="text-sm text-muted-foreground">Days Logged</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">
-                {moodEntries.length > 0 
+                {moodEntries.length > 0
                   ? `${(moodEntries.reduce((sum, entry) => sum + entry.mood_score, 0) / moodEntries.length).toFixed(1)} ${getMoodEmoji(Math.round(moodEntries.reduce((sum, entry) => sum + entry.mood_score, 0) / moodEntries.length))}`
-                  : '—'
-                }
+                  : '—'}
               </div>
               <div className="text-sm text-muted-foreground">Avg Mood</div>
             </div>
@@ -452,10 +509,12 @@ export default function CalendarPage() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {selectedDate ? format(parseISO(selectedDate), 'EEEE, MMMM d, yyyy') : 'Daily Summary'}
+              {selectedDate
+                ? format(parseISO(selectedDate), 'EEEE, MMMM d, yyyy')
+                : 'Daily Summary'}
             </DialogTitle>
           </DialogHeader>
-          
+
           {dayLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -465,7 +524,9 @@ export default function CalendarPage() {
               {/* Compact Summary Strip */}
               <div className="flex items-center justify-between rounded-xl border bg-card px-4 py-3 text-sm">
                 <div className="text-center">
-                  <p className="text-lg font-bold">{dailyFoodEntries.reduce((sum, entry) => sum + (entry.calories || 0), 0)}</p>
+                  <p className="text-lg font-bold">
+                    {dailyFoodEntries.reduce((sum, entry) => sum + (entry.calories || 0), 0)}
+                  </p>
                   <p className="text-[10px] text-muted-foreground">kcal</p>
                 </div>
                 <div className="text-center">
@@ -473,7 +534,9 @@ export default function CalendarPage() {
                   <p className="text-[10px] text-muted-foreground">meals</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-lg">{dailyMoodEntry ? getMoodEmoji(dailyMoodEntry.mood_score) : '—'}</p>
+                  <p className="text-lg">
+                    {dailyMoodEntry ? getMoodEmoji(dailyMoodEntry.mood_score) : '—'}
+                  </p>
                   <p className="text-[10px] text-muted-foreground">mood</p>
                 </div>
                 <div className="text-center">
@@ -484,13 +547,19 @@ export default function CalendarPage() {
                         carbs: acc.carbs + (entry.macros?.carbs || 0),
                         fat: acc.fat + (entry.macros?.fat || 0),
                       }),
-                      { protein: 0, carbs: 0, fat: 0 }
+                      { protein: 0, carbs: 0, fat: 0 },
                     )
-                    return <MacroDisplay macros={{
-                      protein: Math.round(totalMacros.protein),
-                      carbs: Math.round(totalMacros.carbs),
-                      fat: Math.round(totalMacros.fat),
-                    }} compact className="text-center" />
+                    return (
+                      <MacroDisplay
+                        macros={{
+                          protein: Math.round(totalMacros.protein),
+                          carbs: Math.round(totalMacros.carbs),
+                          fat: Math.round(totalMacros.fat),
+                        }}
+                        compact
+                        className="text-center"
+                      />
+                    )
                   })()}
                   <p className="text-[10px] text-muted-foreground">macros</p>
                 </div>
@@ -498,12 +567,17 @@ export default function CalendarPage() {
 
               {/* Exercise Summary */}
               <Card>
-                <StandardCardHeader title="Exercise Summary" description="Movement and activity metrics for the day." />
+                <StandardCardHeader
+                  title="Exercise Summary"
+                  description="Movement and activity metrics for the day."
+                />
                 <CardContent>
                   {dailyActivity ? (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-primary">{formatMetric(dailyActivity.steps)}</div>
+                        <div className="text-2xl font-bold text-primary">
+                          {formatMetric(dailyActivity.steps)}
+                        </div>
                         <div className="text-sm text-muted-foreground">Steps</div>
                       </div>
                       <div className="text-center">
@@ -535,7 +609,10 @@ export default function CalendarPage() {
 
               {/* Mood Section */}
               <Card>
-                <StandardCardHeader title="Mood" description="Update or review how you felt on this day." />
+                <StandardCardHeader
+                  title="Mood"
+                  description="Update or review how you felt on this day."
+                />
                 <CardContent className="space-y-4">
                   <MoodPicker selectedMood={currentMood} onMoodSelect={handleMoodSelect} />
                   {dailyMoodEntry ? (
@@ -552,7 +629,10 @@ export default function CalendarPage() {
 
               {/* State of Mind */}
               <Card>
-                <StandardCardHeader title="State of Mind" description="Apple Health mood entries for this date." />
+                <StandardCardHeader
+                  title="State of Mind"
+                  description="Apple Health mood entries for this date."
+                />
                 <CardContent>
                   {dailyStateOfMind.length > 0 ? (
                     <div className="space-y-3">
@@ -573,7 +653,10 @@ export default function CalendarPage() {
                           {som.labels && som.labels.length > 0 && (
                             <div className="flex flex-wrap gap-1">
                               {som.labels.map((label) => (
-                                <span key={label} className="rounded-full border bg-muted/50 px-2 py-0.5 text-xs">
+                                <span
+                                  key={label}
+                                  className="rounded-full border bg-muted/50 px-2 py-0.5 text-xs"
+                                >
                                   {label}
                                 </span>
                               ))}
@@ -588,14 +671,19 @@ export default function CalendarPage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground text-center">No State of Mind data</p>
+                    <p className="text-sm text-muted-foreground text-center">
+                      No State of Mind data
+                    </p>
                   )}
                 </CardContent>
               </Card>
 
               {/* Food Entries */}
               <Card>
-                <StandardCardHeader title="Food Entries" description="Meals and notes recorded for this date." />
+                <StandardCardHeader
+                  title="Food Entries"
+                  description="Meals and notes recorded for this date."
+                />
                 <CardContent>
                   {dailyFoodEntries.length > 0 ? (
                     <div className="space-y-4">
@@ -626,13 +714,19 @@ export default function CalendarPage() {
                                   <span className="font-medium">{entry.calories} cal</span>
                                   {entry.macros && (
                                     <span className="text-muted-foreground">
-                                      Protein:{entry.macros.protein}g Carbs:{entry.macros.carbs}g Fat:{entry.macros.fat}g
+                                      Protein:{entry.macros.protein}g Carbs:{entry.macros.carbs}g
+                                      Fat:{entry.macros.fat}g
                                     </span>
                                   )}
                                 </div>
                               )}
                               <div className="flex items-center gap-2 pt-2">
-                                <Button variant="ghost" size="icon" onClick={() => handleEditEntry(entry)} aria-label="Edit entry">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleEditEntry(entry)}
+                                  aria-label="Edit entry"
+                                >
                                   <Edit className="h-4 w-4" />
                                 </Button>
                                 <Button
@@ -647,7 +741,7 @@ export default function CalendarPage() {
                               </div>
                             </div>
                           </div>
-                          
+
                           {index < dailyFoodEntries.length - 1 && <Separator className="my-4" />}
                         </div>
                       ))}

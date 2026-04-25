@@ -6,10 +6,26 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Camera, Upload, Loader2, X, Image as ImageIcon, Edit, Check, Plus, Trash2 } from 'lucide-react'
+import {
+  Camera,
+  Upload,
+  Loader2,
+  X,
+  Image as ImageIcon,
+  Edit,
+  Check,
+  Plus,
+  Trash2,
+} from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { MealTypeSchema, AIVisionResponseSchema, type AIVisionResponse } from '@/lib/validations'
 import { toast } from 'sonner'
@@ -41,7 +57,9 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
   const [editedProtein, setEditedProtein] = useState<number>(0)
   const [editedCarbs, setEditedCarbs] = useState<number>(0)
   const [editedFat, setEditedFat] = useState<number>(0)
-  const [editedFoods, setEditedFoods] = useState<Array<{ label: string; confidence: number; quantity?: string }>>([])
+  const [editedFoods, setEditedFoods] = useState<
+    Array<{ label: string; confidence: number; quantity?: string }>
+  >([])
   const [photoUrl, setPhotoUrl] = useState<string>('')
 
   // Reset state
@@ -55,121 +73,125 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
   }, [])
 
   // Handle file selection
-  const handleFileSelect = useCallback(async (file: File) => {
-    if (!user) {
-      toast.error('Please log in to upload photos')
-      return
-    }
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setError('Please select an image file')
-      return
-    }
-
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      setError('Image size must be less than 10MB')
-      return
-    }
-
-    setError(null)
-    setIsUploading(true)
-
-    try {
-      // Create preview
-      const previewUrl = URL.createObjectURL(file)
-      setPreview(previewUrl)
-
-      // Generate signed upload URL
-      const uploadPath = `${user.id}/${Date.now()}-${file.name}`
-      const signResponse = await fetch('/api/storage/sign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bucket: 'food-photos',
-          path: uploadPath,
-          expiresIn: 3600
-        })
-      })
-
-      if (!signResponse.ok) {
-        throw new Error('Failed to get upload URL')
+  const handleFileSelect = useCallback(
+    async (file: File) => {
+      if (!user) {
+        toast.error('Please log in to upload photos')
+        return
       }
 
-      const { signedUrl } = await signResponse.json()
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please select an image file')
+        return
+      }
 
-      // Upload file to Supabase Storage
-      const uploadResponse = await fetch(signedUrl, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Image size must be less than 10MB')
+        return
+      }
+
+      setError(null)
+      setIsUploading(true)
+
+      try {
+        // Create preview
+        const previewUrl = URL.createObjectURL(file)
+        setPreview(previewUrl)
+
+        // Generate signed upload URL
+        const uploadPath = `${user.id}/${Date.now()}-${file.name}`
+        const signResponse = await fetch('/api/storage/sign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bucket: 'food-photos',
+            path: uploadPath,
+            expiresIn: 3600,
+          }),
+        })
+
+        if (!signResponse.ok) {
+          throw new Error('Failed to get upload URL')
         }
-      })
 
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload image')
-      }
+        const { signedUrl } = await signResponse.json()
 
-      // Get public URL for AI analysis
-      const publicUrlResponse = await fetch(`/api/storage/sign?bucket=food-photos&path=${uploadPath}&expiresIn=3600`)
-      if (!publicUrlResponse.ok) {
-        throw new Error('Failed to get image URL for analysis')
-      }
-
-      const { signedUrl: imageUrl } = await publicUrlResponse.json()
-
-      setIsUploading(false)
-      setIsAnalyzing(true)
-
-      // Analyze image with AI
-      const analysisResponse = await fetch('/api/ai/vision', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageUrl,
-          userId: user.id,
-          date,
-          meal: MealTypeSchema.parse(meal)
+        // Upload file to Supabase Storage
+        const uploadResponse = await fetch(signedUrl, {
+          method: 'PUT',
+          body: file,
+          headers: {
+            'Content-Type': file.type,
+          },
         })
-      })
 
-      if (!analysisResponse.ok) {
-        const errorText = await analysisResponse.text()
-        console.error('AI Vision API Error:', {
-          status: analysisResponse.status,
-          statusText: analysisResponse.statusText,
-          body: errorText
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload image')
+        }
+
+        // Get public URL for AI analysis
+        const publicUrlResponse = await fetch(
+          `/api/storage/sign?bucket=food-photos&path=${uploadPath}&expiresIn=3600`,
+        )
+        if (!publicUrlResponse.ok) {
+          throw new Error('Failed to get image URL for analysis')
+        }
+
+        const { signedUrl: imageUrl } = await publicUrlResponse.json()
+
+        setIsUploading(false)
+        setIsAnalyzing(true)
+
+        // Analyze image with AI
+        const analysisResponse = await fetch('/api/ai/vision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageUrl,
+            userId: user.id,
+            date,
+            meal: MealTypeSchema.parse(meal),
+          }),
         })
-        throw new Error(`Failed to analyze image: ${analysisResponse.status} - ${errorText}`)
+
+        if (!analysisResponse.ok) {
+          const errorText = await analysisResponse.text()
+          console.error('AI Vision API Error:', {
+            status: analysisResponse.status,
+            statusText: analysisResponse.statusText,
+            body: errorText,
+          })
+          throw new Error(`Failed to analyze image: ${analysisResponse.status} - ${errorText}`)
+        }
+
+        const analysisResult = await analysisResponse.json()
+        const validatedResult = AIVisionResponseSchema.parse(analysisResult)
+
+        setAnalysis(validatedResult)
+        setPhotoUrl(imageUrl)
+
+        // Initialize editing state with AI results
+        setEditedMeal(meal)
+        setEditedCalories(validatedResult.nutrition.calories)
+        setEditedProtein(validatedResult.nutrition.macros.protein)
+        setEditedCarbs(validatedResult.nutrition.macros.carbs)
+        setEditedFat(validatedResult.nutrition.macros.fat)
+        setEditedFoods(validatedResult.foods)
+
+        toast.success('Photo analyzed successfully! Please review and confirm.')
+      } catch (err) {
+        console.error('Photo upload/analysis error:', err)
+        setError(err instanceof Error ? err.message : 'Upload failed')
+        toast.error('Failed to process photo')
+      } finally {
+        setIsUploading(false)
+        setIsAnalyzing(false)
       }
-
-      const analysisResult = await analysisResponse.json()
-      const validatedResult = AIVisionResponseSchema.parse(analysisResult)
-
-      setAnalysis(validatedResult)
-      setPhotoUrl(imageUrl)
-
-      // Initialize editing state with AI results
-      setEditedMeal(meal)
-      setEditedCalories(validatedResult.nutrition.calories)
-      setEditedProtein(validatedResult.nutrition.macros.protein)
-      setEditedCarbs(validatedResult.nutrition.macros.carbs)
-      setEditedFat(validatedResult.nutrition.macros.fat)
-      setEditedFoods(validatedResult.foods)
-
-      toast.success('Photo analyzed successfully! Please review and confirm.')
-
-    } catch (err) {
-      console.error('Photo upload/analysis error:', err)
-      setError(err instanceof Error ? err.message : 'Upload failed')
-      toast.error('Failed to process photo')
-    } finally {
-      setIsUploading(false)
-      setIsAnalyzing(false)
-    }
-  }, [user, meal, date])
+    },
+    [user, meal, date],
+  )
 
   // Submit the final result
   const submitResult = useCallback(() => {
@@ -184,12 +206,21 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
         macros: {
           protein: editedProtein,
           carbs: editedCarbs,
-          fat: editedFat
-        }
+          fat: editedFat,
+        },
       },
-      photoUrl: photoUrl
+      photoUrl: photoUrl,
     })
-  }, [analysis, onAnalysisComplete, editedCalories, editedProtein, editedCarbs, editedFat, editedFoods, photoUrl])
+  }, [
+    analysis,
+    onAnalysisComplete,
+    editedCalories,
+    editedProtein,
+    editedCarbs,
+    editedFat,
+    editedFoods,
+    photoUrl,
+  ])
 
   // Start editing
   const startEditing = () => {
@@ -199,7 +230,7 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
   // Cancel editing
   const cancelEditing = () => {
     if (!analysis) return
-    
+
     // Reset to original values
     setEditedMeal(meal)
     setEditedCalories(analysis.nutrition.calories)
@@ -260,7 +291,7 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
       />
 
       {!preview && (
-        <Card 
+        <Card
           className="border-dashed border-2 cursor-pointer hover:border-primary/50 transition-colors"
           onDragOver={handleDragOver}
           onDrop={handleDrop}
@@ -273,7 +304,7 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
                 Take a photo or upload from your gallery
               </p>
             </div>
-            
+
             <div className="flex flex-col sm:flex-row gap-2 justify-center">
               <Button onClick={handleTakePhoto} disabled={isLoading}>
                 <Camera className="h-4 w-4 mr-2" />
@@ -356,8 +387,8 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
                             onChange={(e) =>
                               setEditedFoods((prev) =>
                                 prev.map((item, itemIndex) =>
-                                  itemIndex === index ? { ...item, label: e.target.value } : item
-                                )
+                                  itemIndex === index ? { ...item, label: e.target.value } : item,
+                                ),
                               )
                             }
                           />
@@ -368,7 +399,11 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
                             type="button"
                             variant="ghost"
                             size="icon"
-                            onClick={() => setEditedFoods((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
+                            onClick={() =>
+                              setEditedFoods((prev) =>
+                                prev.filter((_, itemIndex) => itemIndex !== index),
+                              )
+                            }
                             aria-label="Remove detected food"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -379,7 +414,9 @@ export function PhotoUploader({ meal, date, onAnalysisComplete, className }: Pho
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setEditedFoods((prev) => [...prev, { label: '', confidence: 1 }])}
+                        onClick={() =>
+                          setEditedFoods((prev) => [...prev, { label: '', confidence: 1 }])
+                        }
                       >
                         <Plus className="h-4 w-4 mr-2" />
                         Add Food

@@ -37,19 +37,17 @@ export default function OnboardingPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from('user_preferences')
-        .upsert(
-          {
-            user_id: user.id,
-            onboarding_completed: true,
-            onboarding_preferred_method: preferredMethod,
-            onboarding_completed_at: new Date().toISOString(),
-            reminder_time: reminderTime,
-            reminder_enabled: true,
-          },
-          { onConflict: 'user_id' }
-        )
+      const { error } = await supabase.from('user_preferences').upsert(
+        {
+          user_id: user.id,
+          onboarding_completed: true,
+          onboarding_preferred_method: preferredMethod,
+          onboarding_completed_at: new Date().toISOString(),
+          reminder_time: reminderTime,
+          reminder_enabled: true,
+        },
+        { onConflict: 'user_id' },
+      )
       if (error) throw error
       // Cache hint so the dashboard redirect check can skip a round-trip.
       window.localStorage.setItem(storageKey, JSON.stringify(payload))
@@ -82,19 +80,35 @@ export default function OnboardingPage() {
         <CardContent className="space-y-6">
           {step === 1 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Button variant={preferredMethod === 'photo' ? 'default' : 'outline'} className="justify-start" onClick={() => setPreferredMethod('photo')}>
+              <Button
+                variant={preferredMethod === 'photo' ? 'default' : 'outline'}
+                className="justify-start"
+                onClick={() => setPreferredMethod('photo')}
+              >
                 <Camera className="h-4 w-4 mr-2" />
                 Photo
               </Button>
-              <Button variant={preferredMethod === 'voice' ? 'default' : 'outline'} className="justify-start" onClick={() => setPreferredMethod('voice')}>
+              <Button
+                variant={preferredMethod === 'voice' ? 'default' : 'outline'}
+                className="justify-start"
+                onClick={() => setPreferredMethod('voice')}
+              >
                 <Mic className="h-4 w-4 mr-2" />
                 Voice
               </Button>
-              <Button variant={preferredMethod === 'text' ? 'default' : 'outline'} className="justify-start" onClick={() => setPreferredMethod('text')}>
+              <Button
+                variant={preferredMethod === 'text' ? 'default' : 'outline'}
+                className="justify-start"
+                onClick={() => setPreferredMethod('text')}
+              >
                 <Type className="h-4 w-4 mr-2" />
                 Text
               </Button>
-              <Button variant={preferredMethod === 'manual' ? 'default' : 'outline'} className="justify-start" onClick={() => setPreferredMethod('manual')}>
+              <Button
+                variant={preferredMethod === 'manual' ? 'default' : 'outline'}
+                className="justify-start"
+                onClick={() => setPreferredMethod('manual')}
+              >
                 <Sparkles className="h-4 w-4 mr-2" />
                 Manual
               </Button>
@@ -121,7 +135,8 @@ export default function OnboardingPage() {
           {step === 3 ? (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                You are ready. The next screen opens Dashboard so you can log your first meal immediately.
+                You are ready. The next screen opens Dashboard so you can log your first meal
+                immediately.
               </p>
               <Button type="button" variant="secondary" onClick={() => router.push('/dashboard')}>
                 <Check className="h-4 w-4 mr-2" />
@@ -131,7 +146,12 @@ export default function OnboardingPage() {
           ) : null}
 
           <div className="flex items-center justify-between pt-2">
-            <Button type="button" variant="ghost" disabled={step === 1} onClick={() => setStep((prev) => Math.max(1, prev - 1))}>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={step === 1}
+              onClick={() => setStep((prev) => Math.max(1, prev - 1))}
+            >
               Back
             </Button>
             {step < 3 ? (

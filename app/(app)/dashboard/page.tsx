@@ -14,19 +14,33 @@ import { getTotalBurnedCalories } from '@/lib/activity'
 import { createClient } from '@/lib/supabase-browser'
 import { MealType, FoodEntry } from '@/lib/types/database'
 import { useDashboardData } from '@/hooks/useDashboardData'
-import { MoodPicker, moodEmojis, LogFoodCard, RecentEntriesList, EntryEditorDialog, DateStepper, type EntryEditForm } from '@/components/entry'
+import {
+  MoodPicker,
+  moodEmojis,
+  LogFoodCard,
+  RecentEntriesList,
+  EntryEditorDialog,
+  DateStepper,
+  type EntryEditForm,
+} from '@/components/entry'
 import { PageHeader } from '@/components/page-header'
 import { MacroDisplay } from '@/components/macro-display'
 import { Activity, AlertTriangle, Footprints, TrendingDown, TrendingUp, Minus } from 'lucide-react'
 
 const valenceColor = (classification: string) => {
   switch (classification) {
-    case 'very_unpleasant': return '#EF4444'
-    case 'slightly_unpleasant': return '#F59E0B'
-    case 'neutral': return '#6B7280'
-    case 'slightly_pleasant': return '#34D399'
-    case 'very_pleasant': return '#10B981'
-    default: return '#6B7280'
+    case 'very_unpleasant':
+      return '#EF4444'
+    case 'slightly_unpleasant':
+      return '#F59E0B'
+    case 'neutral':
+      return '#6B7280'
+    case 'slightly_pleasant':
+      return '#34D399'
+    case 'very_pleasant':
+      return '#10B981'
+    default:
+      return '#6B7280'
   }
 }
 
@@ -55,7 +69,9 @@ export default function DashboardPage() {
   const dailyEntries = summary.foodEntries ?? []
   const displayedDailyEntries = useMemo(() => {
     const merged = [...optimisticEntries, ...dailyEntries]
-    return merged.filter((entry, index, arr) => arr.findIndex((candidate) => candidate.id === entry.id) === index)
+    return merged.filter(
+      (entry, index, arr) => arr.findIndex((candidate) => candidate.id === entry.id) === index,
+    )
   }, [optimisticEntries, dailyEntries])
 
   // Edit entry state
@@ -67,7 +83,7 @@ export default function DashboardPage() {
     protein: 0,
     carbs: 0,
     fat: 0,
-    note: ''
+    note: '',
   })
 
   const isViewingToday = isToday(dashboardDate)
@@ -113,16 +129,14 @@ export default function DashboardPage() {
       if (cancelled) return
 
       if ((count ?? 0) > 0) {
-        await supabase
-          .from('user_preferences')
-          .upsert(
-            {
-              user_id: user.id,
-              onboarding_completed: true,
-              onboarding_completed_at: new Date().toISOString(),
-            },
-            { onConflict: 'user_id' }
-          )
+        await supabase.from('user_preferences').upsert(
+          {
+            user_id: user.id,
+            onboarding_completed: true,
+            onboarding_completed_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' },
+        )
         window.localStorage.setItem(storageKey, '1')
         return
       }
@@ -146,7 +160,7 @@ export default function DashboardPage() {
     const moodEntryData = {
       user_id: user.id,
       date: todayString,
-      mood_score: moodScore
+      mood_score: moodScore,
     }
 
     try {
@@ -156,7 +170,9 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error saving mood:', error)
       setSelectedMood(previousMood)
-      toast.error('Error saving mood', { description: 'There was a problem saving your mood. Please try again.' })
+      toast.error('Error saving mood', {
+        description: 'There was a problem saving your mood. Please try again.',
+      })
     }
   }
 
@@ -215,15 +231,17 @@ export default function DashboardPage() {
         date: todayString,
         meal: selectedMeal,
         photo_url: result.photoUrl,
-        food_labels: result.foods.map(f => f.label),
+        food_labels: result.foods.map((f) => f.label),
         calories: result.nutrition.calories,
         macros: result.nutrition.macros,
-        ai_raw: result
+        ai_raw: result,
       })
 
       setSelectedMeal(null)
 
-      toast.success('Food logged successfully!', { description: `${result.foods.map(f => f.label).join(', ')} (${result.nutrition.calories} cal)` })
+      toast.success('Food logged successfully!', {
+        description: `${result.foods.map((f) => f.label).join(', ')} (${result.nutrition.calories} cal)`,
+      })
 
       await refetch()
       if (optimisticEntry) {
@@ -234,7 +252,9 @@ export default function DashboardPage() {
         setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
       }
       console.error('Error saving photo analysis:', error)
-      toast.error('Error saving food entry', { description: 'There was a problem saving your food entry. Please try again.' })
+      toast.error('Error saving food entry', {
+        description: 'There was a problem saving your food entry. Please try again.',
+      })
     }
   }
 
@@ -265,16 +285,18 @@ export default function DashboardPage() {
         date: todayString,
         meal: result.meal as MealType,
         voice_url: result.voiceUrl,
-        food_labels: result.foods.map(f => f.label),
+        food_labels: result.foods.map((f) => f.label),
         calories: result.nutrition.calories,
         macros: result.nutrition.macros,
         note: result.transcript,
-        ai_raw: result
+        ai_raw: result,
       })
 
       setSelectedMeal(result.meal as MealType)
 
-      toast.success('Food logged successfully!', { description: `${result.foods.map(f => f.label).join(', ')} (${result.nutrition.calories} cal)` })
+      toast.success('Food logged successfully!', {
+        description: `${result.foods.map((f) => f.label).join(', ')} (${result.nutrition.calories} cal)`,
+      })
 
       await refetch()
       if (optimisticEntry) {
@@ -285,7 +307,9 @@ export default function DashboardPage() {
         setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
       }
       console.error('Error saving voice analysis:', error)
-      toast.error('Error saving food entry', { description: 'There was a problem saving your food entry. Please try again.' })
+      toast.error('Error saving food entry', {
+        description: 'There was a problem saving your food entry. Please try again.',
+      })
     }
   }
 
@@ -319,12 +343,14 @@ export default function DashboardPage() {
         calories: data.calories,
         macros: data.macros,
         note: data.note,
-        journal_mode: data.journal_mode
+        journal_mode: data.journal_mode,
       })
 
       setSelectedMeal(null)
 
-      toast.success('Food logged successfully!', { description: `${data.food_labels.join(', ')}${data.calories ? ` (${data.calories} cal)` : ''}` })
+      toast.success('Food logged successfully!', {
+        description: `${data.food_labels.join(', ')}${data.calories ? ` (${data.calories} cal)` : ''}`,
+      })
 
       await refetch()
       if (optimisticEntry) {
@@ -335,7 +361,9 @@ export default function DashboardPage() {
         setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
       }
       console.error('Error saving manual entry:', error)
-      toast.error('Error saving food entry', { description: 'There was a problem saving your food entry. Please try again.' })
+      toast.error('Error saving food entry', {
+        description: 'There was a problem saving your food entry. Please try again.',
+      })
     }
   }
 
@@ -367,7 +395,9 @@ export default function DashboardPage() {
         ai_raw: result,
       })
 
-      toast.success('Meal logged!', { description: `${result.foods.map((f) => f.label).join(', ')} (${result.nutrition.calories} cal)` })
+      toast.success('Meal logged!', {
+        description: `${result.foods.map((f) => f.label).join(', ')} (${result.nutrition.calories} cal)`,
+      })
 
       await refetch()
       if (optimisticEntry) {
@@ -378,7 +408,9 @@ export default function DashboardPage() {
         setOptimisticEntries((prev) => prev.filter((entry) => entry.id !== optimisticEntry.id))
       }
       console.error('Error saving AI text analysis:', error)
-      toast.error('Error logging meal', { description: 'Unable to log this meal. Please try again.' })
+      toast.error('Error logging meal', {
+        description: 'Unable to log this meal. Please try again.',
+      })
     }
   }
 
@@ -391,7 +423,7 @@ export default function DashboardPage() {
       protein: entry.macros?.protein || 0,
       carbs: entry.macros?.carbs || 0,
       fat: entry.macros?.fat || 0,
-      note: entry.note || ''
+      note: entry.note || '',
     })
   }
 
@@ -403,20 +435,27 @@ export default function DashboardPage() {
         meal: editForm.meal as MealType,
         food_labels: editForm.food_labels,
         calories: editForm.calories || undefined,
-        macros: editForm.calories > 0 ? {
-          protein: editForm.protein,
-          carbs: editForm.carbs,
-          fat: editForm.fat
-        } : undefined,
-        note: editForm.note || undefined
+        macros:
+          editForm.calories > 0
+            ? {
+                protein: editForm.protein,
+                carbs: editForm.carbs,
+                fat: editForm.fat,
+              }
+            : undefined,
+        note: editForm.note || undefined,
       })
 
       setEditingEntry(null)
-      toast.success('Entry updated!', { description: 'Your food entry has been successfully updated.' })
+      toast.success('Entry updated!', {
+        description: 'Your food entry has been successfully updated.',
+      })
       await refetch()
     } catch (error) {
       console.error('Error updating entry:', error)
-      toast.error('Error updating entry', { description: 'There was a problem updating your entry. Please try again.' })
+      toast.error('Error updating entry', {
+        description: 'There was a problem updating your entry. Please try again.',
+      })
     }
   }
 
@@ -426,11 +465,15 @@ export default function DashboardPage() {
 
     try {
       await deleteFoodEntry(entry.id)
-      toast.success('Entry deleted!', { description: 'Your food entry has been successfully deleted.' })
+      toast.success('Entry deleted!', {
+        description: 'Your food entry has been successfully deleted.',
+      })
       await refetch()
     } catch (error) {
       console.error('Error deleting entry:', error)
-      toast.error('Error deleting entry', { description: 'There was a problem deleting your entry. Please try again.' })
+      toast.error('Error deleting entry', {
+        description: 'There was a problem deleting your entry. Please try again.',
+      })
     }
   }
 
@@ -442,7 +485,9 @@ export default function DashboardPage() {
   const stepsValue = data?.activity?.steps != null ? Number(data.activity.steps) : null
   const stepsProgress = stepsValue != null ? Math.min((stepsValue / stepsGoal) * 100, 100) : 0
   const exerciseValue =
-    data?.activity?.exercise_time_minutes != null ? Number(data.activity.exercise_time_minutes) : null
+    data?.activity?.exercise_time_minutes != null
+      ? Number(data.activity.exercise_time_minutes)
+      : null
   const exerciseProgress =
     exerciseValue != null ? Math.min((exerciseValue / exerciseGoal) * 100, 100) : 0
   const activeEnergy = Number(data?.activity?.active_energy_kcal ?? 0)
@@ -457,8 +502,16 @@ export default function DashboardPage() {
   // Calorie balance (from Historic)
   const dailyBurned = getTotalBurnedCalories(data?.activity)
   const calorieBalance = dailyBurned !== null ? dailyBurned - summary.totalCalories : null
-  const balanceDisplay = calorieBalance === null ? '—' : `${calorieBalance > 0 ? '+' : ''}${Math.round(calorieBalance)}`
-  const balanceLabel = calorieBalance === null ? 'No data' : calorieBalance > 0 ? 'Deficit' : calorieBalance < 0 ? 'Over' : 'On track'
+  const balanceDisplay =
+    calorieBalance === null ? '—' : `${calorieBalance > 0 ? '+' : ''}${Math.round(calorieBalance)}`
+  const balanceLabel =
+    calorieBalance === null
+      ? 'No data'
+      : calorieBalance > 0
+        ? 'Deficit'
+        : calorieBalance < 0
+          ? 'Over'
+          : 'On track'
   const balanceClass =
     calorieBalance === null
       ? 'text-muted-foreground'
@@ -467,7 +520,14 @@ export default function DashboardPage() {
         : calorieBalance < 0
           ? 'text-red-600 dark:text-red-400'
           : 'text-primary'
-  const BalanceIcon = calorieBalance === null ? Minus : calorieBalance > 0 ? TrendingDown : calorieBalance < 0 ? TrendingUp : Minus
+  const BalanceIcon =
+    calorieBalance === null
+      ? Minus
+      : calorieBalance > 0
+        ? TrendingDown
+        : calorieBalance < 0
+          ? TrendingUp
+          : Minus
 
   return (
     <div className="space-y-6">
@@ -480,14 +540,19 @@ export default function DashboardPage() {
       {heartRateNotifications.length > 0 && (
         <div className="space-y-2">
           {heartRateNotifications.slice(0, 3).map((notification, i) => (
-            <div key={i} className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30">
+            <div
+              key={i}
+              className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30"
+            >
               <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
               <div className="text-sm">
                 <p className="font-medium text-red-800 dark:text-red-200">
-                  Heart Rate Alert on {format(parseISO(notification.recorded_at), 'MMM d, yyyy h:mm a')}
+                  Heart Rate Alert on{' '}
+                  {format(parseISO(notification.recorded_at), 'MMM d, yyyy h:mm a')}
                 </p>
                 <p className="text-red-700 dark:text-red-300">
-                  {notification.notification_type} — {notification.heart_rate} bpm (threshold: {notification.threshold})
+                  {notification.notification_type} — {notification.heart_rate} bpm (threshold:{' '}
+                  {notification.threshold})
                 </p>
               </div>
             </div>
@@ -498,10 +563,15 @@ export default function DashboardPage() {
       <section className="space-y-3">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">{sectionTitle}</h2>
-          <p className="text-sm text-muted-foreground">At-a-glance wellness metrics and your latest logs.</p>
+          <p className="text-sm text-muted-foreground">
+            At-a-glance wellness metrics and your latest logs.
+          </p>
         </div>
         <Card>
-          <StandardCardHeader title={`${sectionTitle}\u2019s Summary`} description="Calories and mood first, details second." />
+          <StandardCardHeader
+            title={`${sectionTitle}\u2019s Summary`}
+            description="Calories and mood first, details second."
+          />
           <CardContent className="space-y-4">
             {dataLoading ? (
               <>
@@ -520,12 +590,19 @@ export default function DashboardPage() {
                   <div className="rounded-3xl border border-l-4 border-l-emerald-500 bg-card p-6">
                     <p className="text-caption">Calories</p>
                     <p className="mt-2 text-metric">{summary.totalCalories.toLocaleString()}</p>
-                    <p className="mt-2 text-xs text-muted-foreground">Goal: {calorieGoal.toLocaleString()} kcal</p>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Goal: {calorieGoal.toLocaleString()} kcal
+                    </p>
                     <div className="mt-3 h-2 w-full rounded-full bg-muted">
-                      <div className="h-2 rounded-full bg-emerald-500 transition-all" style={{ width: `${calorieProgress}%` }} />
+                      <div
+                        className="h-2 rounded-full bg-emerald-500 transition-all"
+                        style={{ width: `${calorieProgress}%` }}
+                      />
                     </div>
                     <p className="mt-2 text-xs text-muted-foreground">
-                      {calorieRemaining >= 0 ? `${calorieRemaining} kcal left` : `${Math.abs(calorieRemaining)} kcal over`}
+                      {calorieRemaining >= 0
+                        ? `${calorieRemaining} kcal left`
+                        : `${Math.abs(calorieRemaining)} kcal over`}
                     </p>
                   </div>
                   <div className="rounded-3xl border border-l-4 border-l-purple-500 bg-card p-6">
@@ -534,7 +611,9 @@ export default function DashboardPage() {
                       <p className="text-5xl leading-none">{moodMeta?.emoji ?? '—'}</p>
                       <p className="text-xl font-semibold">{moodMeta?.label ?? 'Not logged'}</p>
                     </div>
-                    <p className="mt-3 text-xs text-muted-foreground">Tap a mood below to update instantly.</p>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Tap a mood below to update instantly.
+                    </p>
                   </div>
                 </div>
 
@@ -589,7 +668,9 @@ export default function DashboardPage() {
                     <p className="text-caption">Energy Balance</p>
                     <div className="flex items-center gap-1.5">
                       <BalanceIcon className="h-4 w-4" />
-                      <span className={`text-sm font-semibold ${balanceClass}`}>{balanceDisplay} kcal</span>
+                      <span className={`text-sm font-semibold ${balanceClass}`}>
+                        {balanceDisplay} kcal
+                      </span>
                       <span className="text-xs text-muted-foreground">{balanceLabel}</span>
                     </div>
                   </div>
@@ -601,7 +682,8 @@ export default function DashboardPage() {
                     </p>
                   ) : (
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Eaten {summary.totalCalories.toLocaleString()} kcal \u2022 No burn data synced yet
+                      Eaten {summary.totalCalories.toLocaleString()} kcal \u2022 No burn data synced
+                      yet
                     </p>
                   )}
                 </div>
@@ -622,7 +704,9 @@ export default function DashboardPage() {
             {latestSom.labels && latestSom.labels.length > 0 && (
               <div className="flex flex-wrap gap-1 ml-1">
                 {latestSom.labels.slice(0, 2).map((label) => (
-                  <span key={label} className="rounded-full bg-muted px-2 py-0.5 text-[10px]">{label}</span>
+                  <span key={label} className="rounded-full bg-muted px-2 py-0.5 text-[10px]">
+                    {label}
+                  </span>
                 ))}
               </div>
             )}
@@ -631,18 +715,23 @@ export default function DashboardPage() {
             </span>
           </div>
         )}
-
       </section>
 
       <section className="space-y-3">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Log</h2>
-          <p className="text-sm text-muted-foreground">Capture mood and meals with the fastest path.</p>
+          <p className="text-sm text-muted-foreground">
+            Capture mood and meals with the fastest path.
+          </p>
         </div>
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
           <Card className="xl:col-span-2">
             <StandardCardHeader
-              title={isViewingToday ? 'How are you feeling today?' : `How were you feeling on ${format(dashboardDate, 'MMM d')}?`}
+              title={
+                isViewingToday
+                  ? 'How are you feeling today?'
+                  : `How were you feeling on ${format(dashboardDate, 'MMM d')}?`
+              }
               description="Track your mood to see patterns with your food."
             />
             <CardContent>
@@ -652,7 +741,11 @@ export default function DashboardPage() {
           <div className="xl:col-span-3">
             <LogFoodCard
               title="Log Your Food"
-              description={isViewingToday ? 'Track what you eat with photos, voice, or manual entry' : `Backfill a meal for ${dateLabel}`}
+              description={
+                isViewingToday
+                  ? 'Track what you eat with photos, voice, or manual entry'
+                  : `Backfill a meal for ${dateLabel}`
+              }
               selectedMeal={selectedMeal}
               onMealSelect={setSelectedMeal}
               date={todayString}

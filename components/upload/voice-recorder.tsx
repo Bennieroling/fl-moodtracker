@@ -5,7 +5,13 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -28,7 +34,12 @@ interface VoiceRecorderProps {
   className?: string
 }
 
-export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, className }: VoiceRecorderProps) {
+export function VoiceRecorder({
+  date,
+  selectedMeal,
+  onAnalysisComplete,
+  className,
+}: VoiceRecorderProps) {
   const { user } = useAuth()
   const [isRecording, setIsRecording] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -48,7 +59,9 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
   const [editedProtein, setEditedProtein] = useState<number>(0)
   const [editedCarbs, setEditedCarbs] = useState<number>(0)
   const [editedFat, setEditedFat] = useState<number>(0)
-  const [editedFoods, setEditedFoods] = useState<Array<{ label: string; confidence: number; quantity?: string }>>([])
+  const [editedFoods, setEditedFoods] = useState<
+    Array<{ label: string; confidence: number; quantity?: string }>
+  >([])
   const [editedTranscript, setEditedTranscript] = useState<string>('')
   const [isReanalyzingTranscript, setIsReanalyzingTranscript] = useState(false)
 
@@ -63,10 +76,10 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
         const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
         const hasMediaRecorder = typeof MediaRecorder !== 'undefined'
         const isHttps = location.protocol === 'https:' || location.hostname === 'localhost'
-        
+
         const supported = hasMediaDevices && hasMediaRecorder && isHttps
         setBrowserSupported(supported)
-        
+
         if (!supported) {
           let message = 'Voice recording not available: '
           if (!isHttps) message += 'HTTPS required. '
@@ -79,7 +92,7 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
         setError('Browser compatibility check failed. Please try a different browser.')
       }
     }
-    
+
     checkBrowserSupport()
   }, [])
 
@@ -107,7 +120,7 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
     setError(null)
     setIsPlaying(false)
     setIsRecording(false)
-    
+
     // Clear the timer interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
@@ -126,9 +139,9 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
       // On iOS Safari, we need to request permission by actually trying to access the microphone
       // This is different from desktop browsers that have a permissions API
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      
+
       // If we got here, permission was granted - immediately stop the stream
-      stream.getTracks().forEach(track => track.stop())
+      stream.getTracks().forEach((track) => track.stop())
       return true
     } catch (err) {
       console.error('Microphone permission check failed:', err)
@@ -141,26 +154,34 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
     try {
       // Clear any previous errors first
       setError(null)
-      
+
       // More comprehensive browser support check
       if (!navigator.mediaDevices) {
         // Fallback for older browsers
         const navWithLegacy = navigator as Navigator & {
           getUserMedia?: MediaStreamConstraints
-          webkitGetUserMedia?: MediaStreamConstraints  
+          webkitGetUserMedia?: MediaStreamConstraints
           mozGetUserMedia?: MediaStreamConstraints
         }
-        if (navWithLegacy.getUserMedia || navWithLegacy.webkitGetUserMedia || navWithLegacy.mozGetUserMedia) {
+        if (
+          navWithLegacy.getUserMedia ||
+          navWithLegacy.webkitGetUserMedia ||
+          navWithLegacy.mozGetUserMedia
+        ) {
           console.log('Using legacy getUserMedia')
           // Could implement legacy support but modern iOS Safari supports mediaDevices
           throw new Error('Your browser version is outdated. Please update Safari or try Chrome.')
         } else {
-          throw new Error('Audio recording not supported. Please update your browser or try a different one.')
+          throw new Error(
+            'Audio recording not supported. Please update your browser or try a different one.',
+          )
         }
       }
 
       if (!navigator.mediaDevices.getUserMedia) {
-        throw new Error('getUserMedia is not available. Please ensure you are using HTTPS and a modern browser.')
+        throw new Error(
+          'getUserMedia is not available. Please ensure you are using HTTPS and a modern browser.',
+        )
       }
 
       // Check if we're on HTTPS (required for iOS Safari)
@@ -171,23 +192,17 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
       // iOS Safari requires user activation - this function should only be called from user gesture
 
       // Request microphone access with iOS Safari compatible constraints
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: true // Simplified for iOS compatibility
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true, // Simplified for iOS compatibility
       })
 
       // Determine the best MIME type for the platform
       let mimeType = 'audio/webm;codecs=opus'
       if (!MediaRecorder.isTypeSupported(mimeType)) {
         // Fallback for Safari/iOS
-        const safariTypes = [
-          'audio/mp4',
-          'audio/aac', 
-          'audio/mpeg',
-          'audio/wav',
-          'audio/webm'
-        ]
-        
-        mimeType = safariTypes.find(type => MediaRecorder.isTypeSupported(type)) || ''
+        const safariTypes = ['audio/mp4', 'audio/aac', 'audio/mpeg', 'audio/wav', 'audio/webm']
+
+        mimeType = safariTypes.find((type) => MediaRecorder.isTypeSupported(type)) || ''
       }
 
       const mediaRecorderOptions = mimeType ? { mimeType } : undefined
@@ -207,10 +222,10 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
         setAudioBlob(blob)
         const url = URL.createObjectURL(blob)
         setAudioUrl(url)
-        
+
         // Stop all tracks
-        stream.getTracks().forEach(track => track.stop())
-        
+        stream.getTracks().forEach((track) => track.stop())
+
         // Clear the timer interval when recording stops
         if (intervalRef.current) {
           clearInterval(intervalRef.current)
@@ -225,24 +240,26 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
 
       // Start duration timer
       intervalRef.current = setInterval(() => {
-        setDuration(prev => prev + 1)
+        setDuration((prev) => prev + 1)
       }, 1000)
-
     } catch (err) {
       console.error('Failed to start recording:', err)
-      
+
       let errorMessage = 'Failed to access microphone.'
-      
+
       if (err instanceof DOMException) {
         switch (err.name) {
           case 'NotAllowedError':
-            errorMessage = 'Microphone access denied. On iOS Safari: Tap the AA icon in the address bar → Website Settings → Enable Microphone.'
+            errorMessage =
+              'Microphone access denied. On iOS Safari: Tap the AA icon in the address bar → Website Settings → Enable Microphone.'
             break
           case 'NotFoundError':
-            errorMessage = 'No microphone found. Please ensure your device has a microphone and isn&apos;t muted.'
+            errorMessage =
+              'No microphone found. Please ensure your device has a microphone and isn&apos;t muted.'
             break
           case 'NotReadableError':
-            errorMessage = 'Microphone is already in use by another app. Please close other apps and try again.'
+            errorMessage =
+              'Microphone is already in use by another app. Please close other apps and try again.'
             break
           case 'OverconstrainedError':
             errorMessage = 'Microphone constraints not supported. Try refreshing the page.'
@@ -251,7 +268,8 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
             errorMessage = 'Microphone access was aborted. Please try again.'
             break
           case 'NotSupportedError':
-            errorMessage = 'Audio recording is not supported in this browser version. Please update iOS and Safari.'
+            errorMessage =
+              'Audio recording is not supported in this browser version. Please update iOS and Safari.'
             break
           default:
             errorMessage = `Microphone error: ${err.message}. Try refreshing or updating your browser.`
@@ -259,7 +277,7 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
       } else if (err instanceof Error) {
         errorMessage = err.message
       }
-      
+
       setError(errorMessage)
     }
   }, [])
@@ -308,28 +326,33 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
     try {
       // Convert to the right format and upload directly via FormData
       const formData = new FormData()
-      
+
       // Detect the actual audio format based on the blob type
       const blobType = audioBlob.type || 'audio/webm'
-      const extension = blobType.includes('mp4') ? '.m4a' : 
-                       blobType.includes('aac') ? '.aac' :
-                       blobType.includes('mpeg') ? '.mp3' :
-                       blobType.includes('wav') ? '.wav' : '.webm'
-      
+      const extension = blobType.includes('mp4')
+        ? '.m4a'
+        : blobType.includes('aac')
+          ? '.aac'
+          : blobType.includes('mpeg')
+            ? '.mp3'
+            : blobType.includes('wav')
+              ? '.wav'
+              : '.webm'
+
       const audioFile = new File([audioBlob], `voice-${Date.now()}${extension}`, {
-        type: blobType
+        type: blobType,
       })
-      
+
       formData.append('audio', audioFile)
       formData.append('userId', user.id)
       formData.append('date', date)
 
       setIsAnalyzing(true)
-      
+
       // Call speech API directly with audio file
       const response = await fetch('/api/ai/speech', {
         method: 'POST',
-        body: formData
+        body: formData,
       })
 
       if (!response.ok) {
@@ -340,7 +363,7 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
 
       const result = await response.json()
       console.log('Speech analysis result:', result)
-      
+
       const validatedResult = AISpeechResponseSchema.parse(result)
       setAnalysis(validatedResult)
 
@@ -350,18 +373,20 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
       setEditedProtein(validatedResult.nutrition.macros.protein)
       setEditedCarbs(validatedResult.nutrition.macros.carbs)
       setEditedFat(validatedResult.nutrition.macros.fat)
-      setEditedFoods(validatedResult.foods.map((food) => ({
-        label: food.label,
-        confidence: food.confidence,
-        quantity: food.quantity
-      })))
+      setEditedFoods(
+        validatedResult.foods.map((food) => ({
+          label: food.label,
+          confidence: food.confidence,
+          quantity: food.quantity,
+        })),
+      )
       setEditedTranscript(validatedResult.transcript)
 
       toast.success('Voice analysis completed! Please review and confirm.')
-
     } catch (error) {
       console.error('Voice analysis error:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to analyze voice recording'
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to analyze voice recording'
       setError(errorMessage)
       toast.error(`Voice analysis failed: ${errorMessage}`)
     } finally {
@@ -380,7 +405,7 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
         .map((food) => ({
           label: food.label.trim(),
           confidence: food.confidence,
-          quantity: food.quantity
+          quantity: food.quantity,
         }))
         .filter((food) => food.label.length > 0),
       nutrition: {
@@ -388,11 +413,11 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
         macros: {
           protein: editedProtein,
           carbs: editedCarbs,
-          fat: editedFat
-        }
+          fat: editedFat,
+        },
       },
       transcript: editedTranscript,
-      voiceUrl: audioUrl || ''
+      voiceUrl: audioUrl || '',
     })
 
     // Clear the timer when submitting to prevent it from continuing
@@ -402,7 +427,18 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
     }
 
     toast.success('Food entry saved!')
-  }, [analysis, onAnalysisComplete, editedMeal, editedFoods, editedCalories, editedProtein, editedCarbs, editedFat, editedTranscript, audioUrl])
+  }, [
+    analysis,
+    onAnalysisComplete,
+    editedMeal,
+    editedFoods,
+    editedCalories,
+    editedProtein,
+    editedCarbs,
+    editedFat,
+    editedTranscript,
+    audioUrl,
+  ])
 
   // Start editing
   const startEditing = () => {
@@ -412,18 +448,20 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
   // Cancel editing
   const cancelEditing = () => {
     if (!analysis) return
-    
+
     // Reset to original values
     setEditedMeal(selectedMeal || analysis.meal)
     setEditedCalories(analysis.nutrition.calories)
     setEditedProtein(analysis.nutrition.macros.protein)
     setEditedCarbs(analysis.nutrition.macros.carbs)
     setEditedFat(analysis.nutrition.macros.fat)
-    setEditedFoods(analysis.foods.map((food) => ({
-      label: food.label,
-      confidence: food.confidence,
-      quantity: food.quantity
-    })))
+    setEditedFoods(
+      analysis.foods.map((food) => ({
+        label: food.label,
+        confidence: food.confidence,
+        quantity: food.quantity,
+      })),
+    )
     setEditedTranscript(analysis.transcript)
     setIsEditing(false)
   }
@@ -448,7 +486,9 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
       })
 
       if (!response.ok) {
-        const { error: message } = await response.json().catch(() => ({ error: 'Failed to re-analyze transcript' }))
+        const { error: message } = await response
+          .json()
+          .catch(() => ({ error: 'Failed to re-analyze transcript' }))
         throw new Error(message)
       }
 
@@ -488,18 +528,14 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
               <div className="relative">
                 <Button
                   size="lg"
-                  variant={isRecording ? "destructive" : "default"}
+                  variant={isRecording ? 'destructive' : 'default'}
                   className="h-24 w-24 rounded-full"
                   onClick={isRecording ? stopRecording : startRecording}
                   disabled={isLoading || browserSupported === false}
                 >
-                  {isRecording ? (
-                    <Square className="h-8 w-8" />
-                  ) : (
-                    <Mic className="h-8 w-8" />
-                  )}
+                  {isRecording ? <Square className="h-8 w-8" /> : <Mic className="h-8 w-8" />}
                 </Button>
-                
+
                 {isRecording && (
                   <div className="absolute -top-2 -right-2">
                     <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse" />
@@ -512,13 +548,11 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
                   {isRecording ? 'Recording...' : 'Record Voice Note'}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  {browserSupported === false ? (
-                    'Voice recording not available in this browser'
-                  ) : isRecording ? (
-                    `Recording: ${formatDuration(duration)}`
-                  ) : (
-                    'Describe your meal and I&apos;ll extract the details'
-                  )}
+                  {browserSupported === false
+                    ? 'Voice recording not available in this browser'
+                    : isRecording
+                      ? `Recording: ${formatDuration(duration)}`
+                      : 'Describe your meal and I&apos;ll extract the details'}
                 </p>
               </div>
 
@@ -535,29 +569,15 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
               {/* Audio controls */}
               <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
                 <div className="flex items-center space-x-3">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={playAudio}
-                    disabled={isLoading}
-                  >
-                    {isPlaying ? (
-                      <Pause className="h-4 w-4" />
-                    ) : (
-                      <Play className="h-4 w-4" />
-                    )}
+                  <Button size="sm" variant="outline" onClick={playAudio} disabled={isLoading}>
+                    {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                   </Button>
                   <span className="text-sm font-medium">
                     Voice Note ({formatDuration(duration)})
                   </span>
                 </div>
-                
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={resetState}
-                  disabled={isLoading}
-                >
+
+                <Button size="sm" variant="ghost" onClick={resetState} disabled={isLoading}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -574,11 +594,7 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
 
               {/* Analyze button */}
               {!analysis && (
-                <Button 
-                  onClick={uploadAndAnalyze} 
-                  disabled={isLoading}
-                  className="w-full"
-                >
+                <Button onClick={uploadAndAnalyze} disabled={isLoading} className="w-full">
                   {isLoading ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -619,7 +635,13 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
                           rows={4}
                         />
                         <div className="flex gap-2">
-                          <Button type="button" size="sm" variant="outline" onClick={reAnalyzeTranscript} disabled={isReanalyzingTranscript}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={reAnalyzeTranscript}
+                            disabled={isReanalyzingTranscript}
+                          >
                             {isReanalyzingTranscript ? (
                               <>
                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -679,8 +701,10 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
                               onChange={(event) =>
                                 setEditedFoods((prev) =>
                                   prev.map((item, itemIndex) =>
-                                    itemIndex === index ? { ...item, label: event.target.value } : item
-                                  )
+                                    itemIndex === index
+                                      ? { ...item, label: event.target.value }
+                                      : item,
+                                  ),
                                 )
                               }
                             />
@@ -689,14 +713,25 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
                               type="button"
                               variant="ghost"
                               size="icon"
-                              onClick={() => setEditedFoods((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
+                              onClick={() =>
+                                setEditedFoods((prev) =>
+                                  prev.filter((_, itemIndex) => itemIndex !== index),
+                                )
+                              }
                               aria-label="Remove detected food"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         ))}
-                        <Button type="button" size="sm" variant="outline" onClick={() => setEditedFoods((prev) => [...prev, { label: '', confidence: 1 }])}>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setEditedFoods((prev) => [...prev, { label: '', confidence: 1 }])
+                          }
+                        >
                           <Plus className="mr-2 h-4 w-4" />
                           Add Food
                         </Button>
@@ -813,9 +848,12 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-          
+
           {/* iOS Safari specific help */}
-          {(error.includes('Safari') || error.includes('iOS') || error.includes('denied') || error.includes('not supported')) && (
+          {(error.includes('Safari') ||
+            error.includes('iOS') ||
+            error.includes('denied') ||
+            error.includes('not supported')) && (
             <Alert>
               <AlertDescription>
                 <strong>📱 iOS Safari Troubleshooting:</strong>
@@ -823,28 +861,38 @@ export function VoiceRecorder({ date, selectedMeal, onAnalysisComplete, classNam
                 {error.includes('denied') || error.includes('NotAllowed') ? (
                   <>
                     1. Tap the <strong>🔒 AA</strong> icon in Safari&apos;s address bar
-                    <br />2. Tap <strong>Website Settings</strong>
-                    <br />3. Toggle <strong>Microphone</strong> to <strong>Allow</strong>
-                    <br />4. Refresh this page and try again
+                    <br />
+                    2. Tap <strong>Website Settings</strong>
+                    <br />
+                    3. Toggle <strong>Microphone</strong> to <strong>Allow</strong>
+                    <br />
+                    4. Refresh this page and try again
                   </>
                 ) : error.includes('not supported') || error.includes('NotSupported') ? (
                   <>
                     1. Update to iOS 14.3+ (Settings → General → Software Update)
-                    <br />2. Try closing Safari completely and reopening
-                    <br />3. Alternative: Use <strong>Chrome for iOS</strong> instead
-                    <br />4. Ensure HTTPS connection (look for 🔒 in address bar)
+                    <br />
+                    2. Try closing Safari completely and reopening
+                    <br />
+                    3. Alternative: Use <strong>Chrome for iOS</strong> instead
+                    <br />
+                    4. Ensure HTTPS connection (look for 🔒 in address bar)
                   </>
                 ) : error.includes('HTTPS') ? (
                   <>
                     <strong>🔒 HTTPS Required:</strong> Microphone needs secure connection.
-                    <br />Please use https:// instead of http:// to access this page.
+                    <br />
+                    Please use https:// instead of http:// to access this page.
                   </>
                 ) : (
                   <>
                     1. Check device isn&apos;t muted (side switch)
-                    <br />2. Close other apps using microphone (FaceTime, Voice Memos)
-                    <br />3. Try airplane mode on/off to reset network
-                    <br />4. Last resort: Restart your device
+                    <br />
+                    2. Close other apps using microphone (FaceTime, Voice Memos)
+                    <br />
+                    3. Try airplane mode on/off to reset network
+                    <br />
+                    4. Last resort: Restart your device
                   </>
                 )}
               </AlertDescription>

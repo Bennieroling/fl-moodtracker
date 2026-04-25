@@ -5,8 +5,25 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Calendar, BarChart3, User, Settings, LogOut, Apple, Dumbbell, HeartPulse, UtensilsCrossed } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  Calendar,
+  BarChart3,
+  User,
+  Settings,
+  LogOut,
+  Apple,
+  Dumbbell,
+  HeartPulse,
+  UtensilsCrossed,
+} from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -77,7 +94,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
               <span className="font-bold">Pulse</span>
             </Link>
           </div>
-          
+
           {/* Navigation — desktop only */}
           <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
             {navigation.map((item) => {
@@ -88,8 +105,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "transition-colors hover:text-foreground/80 flex items-center space-x-2",
-                    isActive ? "text-foreground" : "text-foreground/60"
+                    'transition-colors hover:text-foreground/80 flex items-center space-x-2',
+                    isActive ? 'text-foreground' : 'text-foreground/60',
                   )}
                 >
                   <Icon className="h-4 w-4" />
@@ -105,9 +122,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback>
-                      {user.email?.charAt(0).toUpperCase() || 'U'}
-                    </AvatarFallback>
+                    <AvatarFallback>{user.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
@@ -115,9 +130,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">Account</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {user.email}
-                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -139,9 +152,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto max-w-6xl py-6 pb-24 md:pb-6">
-        {children}
-      </main>
+      <main className="container mx-auto max-w-6xl py-6 pb-24 md:pb-6">{children}</main>
 
       <BottomNav />
     </div>

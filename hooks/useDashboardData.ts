@@ -2,8 +2,22 @@
 
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
-import { DailyActivity, getDashboardSummary, getDailyActivityByDate, getRecentEntries, getUserTargets, getStateOfMindForDate, getHeartRateNotifications } from '@/lib/database'
-import { FoodEntry, DailyTargets, DEFAULT_DAILY_TARGETS, StateOfMind, HeartRateNotification } from '@/lib/types/database'
+import {
+  DailyActivity,
+  getDashboardSummary,
+  getDailyActivityByDate,
+  getRecentEntries,
+  getUserTargets,
+  getStateOfMindForDate,
+  getHeartRateNotifications,
+} from '@/lib/database'
+import {
+  FoodEntry,
+  DailyTargets,
+  DEFAULT_DAILY_TARGETS,
+  StateOfMind,
+  HeartRateNotification,
+} from '@/lib/types/database'
 import { useQuery } from '@tanstack/react-query'
 
 interface DashboardData {
@@ -44,18 +58,24 @@ export const useDashboardData = () => {
   const date = filters.dashboard.date
   const userId = user?.id
 
-  const { data, isLoading: loading, error, refetch } = useQuery({
+  const {
+    data,
+    isLoading: loading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ['dashboard', userId, date],
     queryFn: async () => {
       if (!userId) throw new Error('No user')
-      const [summary, recentEntries, activity, targets, stateOfMind, heartRateNotifications] = await Promise.all([
-        getDashboardSummary(userId, date),
-        getRecentEntries(userId, 5),
-        getDailyActivityByDate(userId, date),
-        getUserTargets(userId),
-        getStateOfMindForDate(userId, date),
-        getHeartRateNotifications(userId),
-      ])
+      const [summary, recentEntries, activity, targets, stateOfMind, heartRateNotifications] =
+        await Promise.all([
+          getDashboardSummary(userId, date),
+          getRecentEntries(userId, 5),
+          getDailyActivityByDate(userId, date),
+          getUserTargets(userId),
+          getStateOfMindForDate(userId, date),
+          getHeartRateNotifications(userId),
+        ])
       return {
         summary: summary ?? defaultSummary,
         recentEntries: (recentEntries as FoodEntry[]) ?? [],

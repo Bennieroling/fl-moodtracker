@@ -6,7 +6,14 @@ import { parseISO } from 'date-fns'
 
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
-import { getMoodEntriesForMonth, getMoodEntryByDate, getFoodEntriesForDate, getDailyActivityByDate, getStateOfMindForDate, DailyActivity } from '@/lib/database'
+import {
+  getMoodEntriesForMonth,
+  getMoodEntryByDate,
+  getFoodEntriesForDate,
+  getDailyActivityByDate,
+  getStateOfMindForDate,
+  DailyActivity,
+} from '@/lib/database'
 import { MoodEntry, FoodEntry, StateOfMind } from '@/lib/types/database'
 
 export const useCalendarMonthData = () => {
@@ -18,7 +25,12 @@ export const useCalendarMonthData = () => {
   const month = currentMonthDate.getMonth() + 1
   const userId = user?.id
 
-  const { data, isLoading: loading, error, refetch } = useQuery({
+  const {
+    data,
+    isLoading: loading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ['calendar-month', userId, currentMonth],
     queryFn: async () => {
       if (!userId) throw new Error('No user')
@@ -51,7 +63,12 @@ export const useCalendarDayData = () => {
   const selectedDate = filters.calendar.selectedDate
   const userId = user?.id
 
-  const { data, isLoading: loading, error, refetch } = useQuery({
+  const {
+    data,
+    isLoading: loading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ['calendar-day', userId, selectedDate],
     queryFn: async () => {
       if (!userId || !selectedDate) throw new Error('No user or date')

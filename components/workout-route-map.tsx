@@ -105,8 +105,20 @@ export function WorkoutRouteMap({ routeMeta }: WorkoutRouteMapProps) {
     const firstPt = segments[0].from
     const lastPt = segments[segments.length - 1].to
 
-    L.circleMarker(firstPt, { radius: 6, fillColor: '#22c55e', color: '#fff', weight: 2, fillOpacity: 1 }).addTo(map)
-    L.circleMarker(lastPt, { radius: 6, fillColor: '#ef4444', color: '#fff', weight: 2, fillOpacity: 1 }).addTo(map)
+    L.circleMarker(firstPt, {
+      radius: 6,
+      fillColor: '#22c55e',
+      color: '#fff',
+      weight: 2,
+      fillOpacity: 1,
+    }).addTo(map)
+    L.circleMarker(lastPt, {
+      radius: 6,
+      fillColor: '#ef4444',
+      color: '#fff',
+      weight: 2,
+      fillOpacity: 1,
+    }).addTo(map)
 
     map.fitBounds(bounds, { padding: [12, 12], maxZoom: 18 })
     mapInstanceRef.current = map

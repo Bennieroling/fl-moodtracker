@@ -7,7 +7,11 @@ import { eachDayOfInterval, format } from 'date-fns'
 import { useAuth } from '@/lib/auth-context'
 import { useFilters } from '@/lib/filter-context'
 import { createClient } from '@/lib/supabase-browser'
-import { getStateOfMindTrends, getStateOfMindLabelCounts, getStateOfMindAssociationCounts } from '@/lib/database'
+import {
+  getStateOfMindTrends,
+  getStateOfMindLabelCounts,
+  getStateOfMindAssociationCounts,
+} from '@/lib/database'
 import { WeeklyMetrics } from '@/lib/validations'
 import { Database, FoodEntry, MoodEntry, Insight } from '@/lib/types/database'
 import {
@@ -77,20 +81,31 @@ export const useInsightsData = () => {
   const filterState = filters.insights
   const userId = user?.id
 
-  const anchorDateObj = useMemo(() => parseAnchorDate(filterState.anchorDate), [filterState.anchorDate])
-  const rangeBounds = useMemo(() => computeRangeBounds(filterState.mode, anchorDateObj), [filterState.mode, anchorDateObj])
+  const anchorDateObj = useMemo(
+    () => parseAnchorDate(filterState.anchorDate),
+    [filterState.anchorDate],
+  )
+  const rangeBounds = useMemo(
+    () => computeRangeBounds(filterState.mode, anchorDateObj),
+    [filterState.mode, anchorDateObj],
+  )
   const startDate = useMemo(() => format(rangeBounds.start, 'yyyy-MM-dd'), [rangeBounds.start])
   const endDate = useMemo(() => format(rangeBounds.end, 'yyyy-MM-dd'), [rangeBounds.end])
   const rangeLabel = useMemo(
     () => formatRangeLabel(filterState.mode, rangeBounds.start, rangeBounds.end),
-    [filterState.mode, rangeBounds.start, rangeBounds.end]
+    [filterState.mode, rangeBounds.start, rangeBounds.end],
   )
   const dayCount = useMemo(
     () => eachDayOfInterval({ start: rangeBounds.start, end: rangeBounds.end }).length,
-    [rangeBounds.start, rangeBounds.end]
+    [rangeBounds.start, rangeBounds.end],
   )
 
-  const { data, isLoading: loading, error, refetch } = useQuery({
+  const {
+    data,
+    isLoading: loading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ['insights', userId, filterState.mode, filterState.anchorDate, startDate, endDate],
     queryFn: async () => {
       if (!userId) throw new Error('No user')
@@ -102,25 +117,51 @@ export const useInsightsData = () => {
         end_date: endDate,
       } satisfies Database['public']['Functions']['calculate_weekly_metrics']['Args']
 
-      const [metricsRes, moodRes, foodRes, insightsRes, valenceTrend, topLabels, topAssociations] = await Promise.all([
-        supabase.rpc('calculate_weekly_metrics', metricsArgs as Database['public']['Functions']['calculate_weekly_metrics']['Args']),
-        supabase.from('mood_entries').select('date, mood_score').eq('user_id', userId).gte('date', startDate).lte('date', endDate).order('date'),
-        supabase.from('food_entries').select('date, calories, macros').eq('user_id', userId).gte('date', startDate).lte('date', endDate),
-        supabase.from('insights').select('*').eq('user_id', userId).eq('period_start', startDate).eq('period_end', endDate).single(),
-        getStateOfMindTrends(userId, startDate, endDate),
-        getStateOfMindLabelCounts(userId, startDate, endDate),
-        getStateOfMindAssociationCounts(userId, startDate, endDate),
-      ])
+      const [metricsRes, moodRes, foodRes, insightsRes, valenceTrend, topLabels, topAssociations] =
+        await Promise.all([
+          supabase.rpc(
+            'calculate_weekly_metrics',
+            metricsArgs as Database['public']['Functions']['calculate_weekly_metrics']['Args'],
+          ),
+          supabase
+            .from('mood_entries')
+            .select('date, mood_score')
+            .eq('user_id', userId)
+            .gte('date', startDate)
+            .lte('date', endDate)
+            .order('date'),
+          supabase
+            .from('food_entries')
+            .select('date, calories, macros')
+            .eq('user_id', userId)
+            .gte('date', startDate)
+            .lte('date', endDate),
+          supabase
+            .from('insights')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('period_start', startDate)
+            .eq('period_end', endDate)
+            .single(),
+          getStateOfMindTrends(userId, startDate, endDate),
+          getStateOfMindLabelCounts(userId, startDate, endDate),
+          getStateOfMindAssociationCounts(userId, startDate, endDate),
+        ])
 
       const weeklyMetrics = (metricsRes.data as WeeklyMetrics | null) ?? defaultWeeklyMetrics
       const moodData = (moodRes.data as MoodEntry[]) || []
       const foodData = (foodRes.data as FoodEntry[]) || []
 
-      const combinedData: DailyData[] = eachDayOfInterval({ start: rangeBounds.start, end: rangeBounds.end }).map((currentDate) => {
+      const combinedData: DailyData[] = eachDayOfInterval({
+        start: rangeBounds.start,
+        end: rangeBounds.end,
+      }).map((currentDate) => {
         const dateStr = format(currentDate, 'yyyy-MM-dd')
         const shortDate = format(currentDate, 'M/d')
         const moodEntry = moodData.find((entry) => entry.date === dateStr)
-        const dayCalories = foodData.filter((entry) => entry.date === dateStr).reduce((sum, entry) => sum + (entry.calories || 0), 0)
+        const dayCalories = foodData
+          .filter((entry) => entry.date === dateStr)
+          .reduce((sum, entry) => sum + (entry.calories || 0), 0)
         return { date: shortDate, mood: moodEntry?.mood_score || 0, calories: dayCalories }
       })
 
@@ -145,11 +186,14 @@ export const useInsightsData = () => {
   const setRangeMode = useCallback(
     (mode: RangeMode) => {
       setInsightsFilters((prev) => {
-        const normalizedAnchor = format(normalizeDateForMode(parseAnchorDate(prev.anchorDate), mode), 'yyyy-MM-dd')
+        const normalizedAnchor = format(
+          normalizeDateForMode(parseAnchorDate(prev.anchorDate), mode),
+          'yyyy-MM-dd',
+        )
         return { mode, anchorDate: normalizedAnchor }
       })
     },
-    [setInsightsFilters]
+    [setInsightsFilters],
   )
 
   const setAnchorDate = useCallback(
@@ -159,7 +203,7 @@ export const useInsightsData = () => {
         anchorDate: format(normalizeDateForMode(date, prev.mode), 'yyyy-MM-dd'),
       }))
     },
-    [setInsightsFilters]
+    [setInsightsFilters],
   )
 
   const shiftRange = useCallback(
@@ -167,10 +211,13 @@ export const useInsightsData = () => {
       setInsightsFilters((prev) => {
         const base = parseAnchorDate(prev.anchorDate)
         const shifted = shiftAnchor(base, prev.mode, direction)
-        return { ...prev, anchorDate: format(normalizeDateForMode(shifted, prev.mode), 'yyyy-MM-dd') }
+        return {
+          ...prev,
+          anchorDate: format(normalizeDateForMode(shifted, prev.mode), 'yyyy-MM-dd'),
+        }
       })
     },
-    [setInsightsFilters]
+    [setInsightsFilters],
   )
 
   return {
@@ -196,9 +243,13 @@ const calculateMacroDistribution = (foodData: FoodEntry[]) => {
   const totals = foodData.reduce(
     (acc, entry) => {
       const macros = entry.macros || { protein: 0, carbs: 0, fat: 0 }
-      return { protein: acc.protein + macros.protein, carbs: acc.carbs + macros.carbs, fat: acc.fat + macros.fat }
+      return {
+        protein: acc.protein + macros.protein,
+        carbs: acc.carbs + macros.carbs,
+        fat: acc.fat + macros.fat,
+      }
     },
-    { protein: 0, carbs: 0, fat: 0 }
+    { protein: 0, carbs: 0, fat: 0 },
   )
   const total = totals.protein + totals.carbs + totals.fat
   if (total === 0) return defaultMacroData

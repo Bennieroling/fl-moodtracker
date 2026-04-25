@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import {
   AIInsightsRequestSchema,
   AIInsightsResponseSchema,
-  WeeklyMetricsSchema
+  WeeklyMetricsSchema,
 } from '@/lib/validations'
 import { DEFAULT_DAILY_TARGETS } from '@/lib/types/database'
 
@@ -84,7 +84,9 @@ const sum = (arr: Array<Record<string, unknown>>, key: string) => {
 }
 const avg = (arr: Array<Record<string, unknown>>, key: string) => {
   const vals = arr.map((r) => r[key]).filter((v): v is number => typeof v === 'number')
-  return vals.length > 0 ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null
+  return vals.length > 0
+    ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10
+    : null
 }
 
 async function safeData<T>(query: PromiseLike<{ data: T }>): Promise<{ data: T | null }> {
@@ -133,40 +135,75 @@ async function gatherContext(
     hrAlertRowsRes,
     ecgRowsRes,
   ] = await Promise.all([
-    safeData(supabase.from('health_metrics_daily')
-      .select('steps, exercise_time_minutes, active_energy_kcal, resting_heart_rate, hrv, vo2max')
-      .eq('user_id', userId).gte('date', periodStart).lte('date', periodEnd)),
-    safeData(supabase.from('health_metrics_body')
-      .select('weight_kg, body_fat_pct')
-      .eq('user_id', userId).order('date', { ascending: false }).limit(1).maybeSingle()),
-    safeData(supabase.from('state_of_mind')
-      .select('valence, labels')
-      .eq('user_id', userId)
-      .gte('recorded_at', `${periodStart}T00:00:00`)
-      .lte('recorded_at', `${periodEnd}T23:59:59`)),
-    safeData(supabase.from('sleep_events')
-      .select('total_sleep_hours, rem_hours, deep_hours, wrist_temperature')
-      .eq('user_id', userId).gte('date', periodStart).lte('date', periodEnd)),
-    safeData(supabase.from('exercise_events')
-      .select('workout_type, total_minutes, duration_seconds, avg_heart_rate, active_energy_kcal, started_at, workout_date')
-      .eq('user_id', userId)
-      .gte('workout_date', periodStart).lte('workout_date', periodEnd)),
-    safeData(supabase.from('heart_rate_notifications')
-      .select('notification_type')
-      .eq('user_id', userId)
-      .gte('recorded_at', `${periodStart}T00:00:00`)
-      .lte('recorded_at', `${periodEnd}T23:59:59`)),
-    safeData(supabase.from('ecg_readings')
-      .select('classification')
-      .eq('user_id', userId)
-      .gte('recorded_at', `${periodStart}T00:00:00`)
-      .lte('recorded_at', `${periodEnd}T23:59:59`)),
+    safeData(
+      supabase
+        .from('health_metrics_daily')
+        .select('steps, exercise_time_minutes, active_energy_kcal, resting_heart_rate, hrv, vo2max')
+        .eq('user_id', userId)
+        .gte('date', periodStart)
+        .lte('date', periodEnd),
+    ),
+    safeData(
+      supabase
+        .from('health_metrics_body')
+        .select('weight_kg, body_fat_pct')
+        .eq('user_id', userId)
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ),
+    safeData(
+      supabase
+        .from('state_of_mind')
+        .select('valence, labels')
+        .eq('user_id', userId)
+        .gte('recorded_at', `${periodStart}T00:00:00`)
+        .lte('recorded_at', `${periodEnd}T23:59:59`),
+    ),
+    safeData(
+      supabase
+        .from('sleep_events')
+        .select('total_sleep_hours, rem_hours, deep_hours, wrist_temperature')
+        .eq('user_id', userId)
+        .gte('date', periodStart)
+        .lte('date', periodEnd),
+    ),
+    safeData(
+      supabase
+        .from('exercise_events')
+        .select(
+          'workout_type, total_minutes, duration_seconds, avg_heart_rate, active_energy_kcal, started_at, workout_date',
+        )
+        .eq('user_id', userId)
+        .gte('workout_date', periodStart)
+        .lte('workout_date', periodEnd),
+    ),
+    safeData(
+      supabase
+        .from('heart_rate_notifications')
+        .select('notification_type')
+        .eq('user_id', userId)
+        .gte('recorded_at', `${periodStart}T00:00:00`)
+        .lte('recorded_at', `${periodEnd}T23:59:59`),
+    ),
+    safeData(
+      supabase
+        .from('ecg_readings')
+        .select('classification')
+        .eq('user_id', userId)
+        .gte('recorded_at', `${periodStart}T00:00:00`)
+        .lte('recorded_at', `${periodEnd}T23:59:59`),
+    ),
   ])
 
   // Health
   let health: HealthContext = {
-    totalSteps: null, exerciseMinutes: null, activeCalories: null,
-    restingHR: null, hrv: null, vo2max: null,
+    totalSteps: null,
+    exerciseMinutes: null,
+    activeCalories: null,
+    restingHR: null,
+    hrv: null,
+    vo2max: null,
   }
   const healthRows = (healthRowsRes.data as Array<Record<string, unknown>>) || []
   if (healthRows.length > 0) {
@@ -185,7 +222,10 @@ async function gatherContext(
 
   // Body (latest snapshot — doesn't scope to period)
   let body: BodyContext = { weight: null, bodyFat: null }
-  const bodyRow = bodyRowRes.data as { weight_kg?: number | null; body_fat_pct?: number | null } | null
+  const bodyRow = bodyRowRes.data as {
+    weight_kg?: number | null
+    body_fat_pct?: number | null
+  } | null
   if (bodyRow) {
     body = {
       weight: bodyRow.weight_kg != null ? Math.round(bodyRow.weight_kg * 10) / 10 : null,
@@ -195,12 +235,14 @@ async function gatherContext(
 
   // State of Mind
   let som: StateOfMindContext = { avgValence: null, topLabels: [] }
-  const somRows = (somRowsRes.data as Array<{ valence?: number | null; labels?: string[] | null }>) || []
+  const somRows =
+    (somRowsRes.data as Array<{ valence?: number | null; labels?: string[] | null }>) || []
   if (somRows.length > 0) {
     const valences = somRows.map((r) => r.valence).filter((v): v is number => typeof v === 'number')
-    const avgValence = valences.length > 0
-      ? Math.round((valences.reduce((a, b) => a + b, 0) / valences.length) * 100) / 100
-      : null
+    const avgValence =
+      valences.length > 0
+        ? Math.round((valences.reduce((a, b) => a + b, 0) / valences.length) * 100) / 100
+        : null
     const labelCounts: Record<string, number> = {}
     for (const row of somRows) {
       if (Array.isArray(row.labels)) {
@@ -216,7 +258,11 @@ async function gatherContext(
 
   // Sleep
   let sleep: SleepContext = {
-    nightsTracked: 0, avgTotalHours: null, avgRemHours: null, avgDeepHours: null, avgWristTemperature: null,
+    nightsTracked: 0,
+    avgTotalHours: null,
+    avgRemHours: null,
+    avgDeepHours: null,
+    avgWristTemperature: null,
   }
   const sleepRows = (sleepRowsRes.data as Array<Record<string, unknown>>) || []
   if (sleepRows.length > 0) {
@@ -231,15 +277,20 @@ async function gatherContext(
 
   // Workouts
   let workouts: WorkoutContext = {
-    count: 0, totalMinutes: null, topTypes: [], avgHeartRate: null, totalActiveEnergy: null,
+    count: 0,
+    totalMinutes: null,
+    topTypes: [],
+    avgHeartRate: null,
+    totalActiveEnergy: null,
   }
-  const workoutRows = (workoutRowsRes.data as Array<{
-    workout_type?: string | null
-    total_minutes?: number | null
-    duration_seconds?: number | null
-    avg_heart_rate?: number | null
-    active_energy_kcal?: number | null
-  }>) || []
+  const workoutRows =
+    (workoutRowsRes.data as Array<{
+      workout_type?: string | null
+      total_minutes?: number | null
+      duration_seconds?: number | null
+      avg_heart_rate?: number | null
+      active_energy_kcal?: number | null
+    }>) || []
   if (workoutRows.length > 0) {
     const typeCounts: Record<string, number> = {}
     let minutesTotal = 0
@@ -251,10 +302,20 @@ async function gatherContext(
     for (const w of workoutRows) {
       const type = w.workout_type || 'unknown'
       typeCounts[type] = (typeCounts[type] || 0) + 1
-      const minutes = w.total_minutes ?? (w.duration_seconds != null ? Math.round(w.duration_seconds / 60) : null)
-      if (minutes != null) { minutesTotal += minutes; minutesCount++ }
-      if (w.active_energy_kcal != null) { energyTotal += Number(w.active_energy_kcal); energyCount++ }
-      if (w.avg_heart_rate != null) { hrTotal += Number(w.avg_heart_rate); hrCount++ }
+      const minutes =
+        w.total_minutes ?? (w.duration_seconds != null ? Math.round(w.duration_seconds / 60) : null)
+      if (minutes != null) {
+        minutesTotal += minutes
+        minutesCount++
+      }
+      if (w.active_energy_kcal != null) {
+        energyTotal += Number(w.active_energy_kcal)
+        energyCount++
+      }
+      if (w.avg_heart_rate != null) {
+        hrTotal += Number(w.avg_heart_rate)
+        hrCount++
+      }
     }
     const topTypes = Object.entries(typeCounts)
       .sort((a, b) => b[1] - a[1])
@@ -381,7 +442,7 @@ async function generateWithOpenAI(userMessage: string) {
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -393,7 +454,7 @@ async function generateWithOpenAI(userMessage: string) {
       response_format: { type: 'json_object' },
       max_tokens: 1800,
       temperature: 0.5,
-    })
+    }),
   })
 
   if (!response.ok) {
@@ -419,23 +480,30 @@ async function generateWithGemini(userMessage: string) {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error('Gemini API key not configured')
   }
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `${SYSTEM_PROMPT}\n\n${userMessage}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.5,
+          maxOutputTokens: 1800,
+        },
+      }),
     },
-    body: JSON.stringify({
-      contents: [{
-        parts: [{
-          text: `${SYSTEM_PROMPT}\n\n${userMessage}`
-        }]
-      }],
-      generationConfig: {
-        temperature: 0.5,
-        maxOutputTokens: 1800
-      }
-    })
-  })
+  )
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
@@ -462,99 +530,106 @@ async function generateWithGemini(userMessage: string) {
 
 // ── Route handler ───────────────────────────────────────────────────
 export const POST = apiHandler(AIInsightsRequestSchema, async (_request, validatedRequest) => {
-    const supabase = await createServerSupabaseClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
 
-    if (authError || !user) {
-      throw new ApiError(401, 'unauthorized')
+  if (authError || !user) {
+    throw new ApiError(401, 'unauthorized')
+  }
+
+  if (user.id !== validatedRequest.userId) {
+    throw new ApiError(403, 'forbidden')
+  }
+
+  const periodStart = validatedRequest.periodStart
+  const periodEnd = validatedRequest.periodEnd
+  const { prevStart, prevEnd } = computePreviousPeriod(periodStart, periodEnd)
+
+  // Targets (shared across both periods)
+  let targets: DailyTargets = { ...DEFAULT_DAILY_TARGETS }
+  try {
+    const { data: prefsRow } = await supabase
+      .from('user_preferences')
+      .select('daily_targets')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (prefsRow?.daily_targets) {
+      targets = { ...DEFAULT_DAILY_TARGETS, ...prefsRow.daily_targets }
     }
+  } catch (e) {
+    console.warn('Failed to fetch user targets:', e)
+  }
 
-    if (user.id !== validatedRequest.userId) {
-      throw new ApiError(403, 'forbidden')
+  const [currentContext, previousContext] = await Promise.all([
+    gatherContext(supabase, user.id, periodStart, periodEnd),
+    gatherContext(supabase, user.id, prevStart, prevEnd),
+  ])
+
+  const userMessage = buildUserPrompt(currentContext, previousContext, targets)
+
+  let aiResponse
+  let provider: 'openai' | 'gemini' = 'openai'
+
+  try {
+    if (process.env.OPENAI_API_KEY) {
+      aiResponse = await generateWithOpenAI(userMessage)
+      provider = 'openai'
+    } else {
+      throw new Error('OpenAI API key not available')
     }
-
-    const periodStart = validatedRequest.periodStart
-    const periodEnd = validatedRequest.periodEnd
-    const { prevStart, prevEnd } = computePreviousPeriod(periodStart, periodEnd)
-
-    // Targets (shared across both periods)
-    let targets: DailyTargets = { ...DEFAULT_DAILY_TARGETS }
+  } catch (openaiError) {
+    console.warn('OpenAI failed, trying Gemini:', openaiError)
     try {
-      const { data: prefsRow } = await supabase
-        .from('user_preferences')
-        .select('daily_targets')
-        .eq('user_id', user.id)
-        .maybeSingle()
-      if (prefsRow?.daily_targets) {
-        targets = { ...DEFAULT_DAILY_TARGETS, ...prefsRow.daily_targets }
-      }
-    } catch (e) {
-      console.warn('Failed to fetch user targets:', e)
-    }
-
-    const [currentContext, previousContext] = await Promise.all([
-      gatherContext(supabase, user.id, periodStart, periodEnd),
-      gatherContext(supabase, user.id, prevStart, prevEnd),
-    ])
-
-    const userMessage = buildUserPrompt(currentContext, previousContext, targets)
-
-    let aiResponse
-    let provider: 'openai' | 'gemini' = 'openai'
-
-    try {
-      if (process.env.OPENAI_API_KEY) {
-        aiResponse = await generateWithOpenAI(userMessage)
-        provider = 'openai'
+      if (process.env.GEMINI_API_KEY) {
+        aiResponse = await generateWithGemini(userMessage)
+        provider = 'gemini'
       } else {
-        throw new Error('OpenAI API key not available')
+        throw new Error('Gemini API key not available')
       }
-    } catch (openaiError) {
-      console.warn('OpenAI failed, trying Gemini:', openaiError)
-      try {
-        if (process.env.GEMINI_API_KEY) {
-          aiResponse = await generateWithGemini(userMessage)
-          provider = 'gemini'
-        } else {
-          throw new Error('Gemini API key not available')
-        }
-      } catch (geminiError) {
-        throw new ApiError(500, 'internal_error', JSON.stringify({ openaiError, geminiError }))
-      }
+    } catch (geminiError) {
+      throw new ApiError(500, 'internal_error', JSON.stringify({ openaiError, geminiError }))
     }
+  }
 
-    const cleanedResponse = {
-      summary_md: typeof aiResponse.summary_md === 'string'
+  const cleanedResponse = {
+    summary_md:
+      typeof aiResponse.summary_md === 'string'
         ? aiResponse.summary_md.substring(0, 1000).trim()
         : 'AI generated insights based on your data.',
-      tips_md: typeof aiResponse.tips_md === 'string'
+    tips_md:
+      typeof aiResponse.tips_md === 'string'
         ? aiResponse.tips_md.substring(0, 500).trim()
         : '• Continue tracking your daily habits\n• Focus on consistent logging\n• Review your patterns weekly',
-      report_md: typeof aiResponse.report_md === 'string'
+    report_md:
+      typeof aiResponse.report_md === 'string'
         ? aiResponse.report_md.substring(0, 4000).trim()
         : 'Not enough data to generate a full report for this period.',
-      metrics: currentContext.metrics,
-      provider,
-      raw: aiResponse,
-    }
+    metrics: currentContext.metrics,
+    provider,
+    raw: aiResponse,
+  }
 
-    const response = AIInsightsResponseSchema.parse(cleanedResponse)
+  const response = AIInsightsResponseSchema.parse(cleanedResponse)
 
-    const { error: upsertError } = await supabase
-      .from('insights')
-      .upsert({
-        user_id: user.id,
-        period_start: periodStart,
-        period_end: periodEnd,
-        summary_md: response.summary_md,
-        tips_md: response.tips_md,
-        report_md: response.report_md,
-        metrics: response.metrics,
-      }, { onConflict: 'user_id,period_start,period_end' })
+  const { error: upsertError } = await supabase.from('insights').upsert(
+    {
+      user_id: user.id,
+      period_start: periodStart,
+      period_end: periodEnd,
+      summary_md: response.summary_md,
+      tips_md: response.tips_md,
+      report_md: response.report_md,
+      metrics: response.metrics,
+    },
+    { onConflict: 'user_id,period_start,period_end' },
+  )
 
-    if (upsertError) {
-      console.warn('Failed to store insights in database:', upsertError)
-    }
+  if (upsertError) {
+    console.warn('Failed to store insights in database:', upsertError)
+  }
 
-    return NextResponse.json(response)
+  return NextResponse.json(response)
 })

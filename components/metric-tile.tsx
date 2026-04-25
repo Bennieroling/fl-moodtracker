@@ -38,9 +38,7 @@ export function MetricTile({
     lg: 'text-4xl font-bold leading-none',
   }[size]
 
-  const progressPct = progress
-    ? Math.min((progress.current / progress.target) * 100, 100)
-    : null
+  const progressPct = progress ? Math.min((progress.current / progress.target) * 100, 100) : null
 
   return (
     <div className={cn('rounded-2xl border bg-card p-4', className)}>
@@ -54,10 +52,14 @@ export function MetricTile({
           <span className="text-sm text-muted-foreground">{unit}</span>
         )}
         {trend && trend !== 'neutral' && (
-          <span className={cn(
-            'text-xs font-medium',
-            trend === 'up' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
-          )}>
+          <span
+            className={cn(
+              'text-xs font-medium',
+              trend === 'up'
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-red-600 dark:text-red-400',
+            )}
+          >
             {trend === 'up' ? '\u2191' : '\u2193'}
           </span>
         )}
@@ -72,7 +74,8 @@ export function MetricTile({
           </div>
           {progress && (
             <p className="mt-1.5 text-xs text-muted-foreground">
-              Goal: {progress.target.toLocaleString()}{unit ? ` ${unit}` : ''}
+              Goal: {progress.target.toLocaleString()}
+              {unit ? ` ${unit}` : ''}
             </p>
           )}
         </div>

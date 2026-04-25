@@ -93,20 +93,16 @@ export default function OfflinePage() {
 
         {/* Action Buttons */}
         <div className="space-y-3">
-          <Button 
-            onClick={handleRetry} 
+          <Button
+            onClick={handleRetry}
             className="w-full"
-            variant={isOnline ? "default" : "outline"}
+            variant={isOnline ? 'default' : 'outline'}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
             {isOnline ? 'Connection Restored - Continue' : 'Try Again'}
           </Button>
-          
-          <Button 
-            onClick={handleGoHome} 
-            variant="outline" 
-            className="w-full"
-          >
+
+          <Button onClick={handleGoHome} variant="outline" className="w-full">
             Go to Dashboard
           </Button>
         </div>
@@ -126,9 +122,7 @@ export default function OfflinePage() {
 
         {/* PWA Install Hint */}
         <div className="text-center text-sm text-muted-foreground">
-          <p>
-            💡 Install this app on your device for better offline experience
-          </p>
+          <p>💡 Install this app on your device for better offline experience</p>
         </div>
       </div>
     </div>

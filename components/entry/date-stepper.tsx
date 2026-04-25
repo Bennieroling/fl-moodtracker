@@ -11,7 +11,11 @@ interface DateStepperProps {
   maxDate?: string
 }
 
-export function DateStepper({ date, onDateChange, maxDate = format(new Date(), 'yyyy-MM-dd') }: DateStepperProps) {
+export function DateStepper({
+  date,
+  onDateChange,
+  maxDate = format(new Date(), 'yyyy-MM-dd'),
+}: DateStepperProps) {
   const selectedDate = parseISO(date)
   const isInvalidDate = Number.isNaN(selectedDate.getTime())
   const isNextDisabled = date >= maxDate
@@ -25,7 +29,13 @@ export function DateStepper({ date, onDateChange, maxDate = format(new Date(), '
 
   return (
     <div className="flex flex-wrap items-end gap-2">
-      <Button type="button" variant="outline" size="icon" onClick={() => shiftDate(-1)} aria-label="Previous day">
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        onClick={() => shiftDate(-1)}
+        aria-label="Previous day"
+      >
         <ChevronLeft className="h-4 w-4" />
       </Button>
       <Input
@@ -35,10 +45,22 @@ export function DateStepper({ date, onDateChange, maxDate = format(new Date(), '
         onChange={(event) => onDateChange(event.target.value)}
         className="w-full sm:w-44"
       />
-      <Button type="button" variant="outline" size="icon" onClick={() => shiftDate(1)} disabled={isNextDisabled} aria-label="Next day">
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        onClick={() => shiftDate(1)}
+        disabled={isNextDisabled}
+        aria-label="Next day"
+      >
         <ChevronRight className="h-4 w-4" />
       </Button>
-      <Button type="button" variant="outline" onClick={() => onDateChange(maxDate)} disabled={date === maxDate}>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => onDateChange(maxDate)}
+        disabled={date === maxDate}
+      >
         Today
       </Button>
     </div>

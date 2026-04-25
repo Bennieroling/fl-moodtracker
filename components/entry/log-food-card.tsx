@@ -72,7 +72,7 @@ export function LogFoodCard({
       { label: 'Text', text: 'Paste or type your meal description.' },
       { label: 'Manual', text: 'Enter exact values when precision matters.' },
     ],
-    []
+    [],
   )
 
   useEffect(() => {
@@ -160,15 +160,27 @@ export function LogFoodCard({
               </TabsList>
 
               <TabsContent value="photo" className="space-y-4">
-                <PhotoUploader meal={selectedMeal} date={date} onAnalysisComplete={onPhotoAnalysis} />
+                <PhotoUploader
+                  meal={selectedMeal}
+                  date={date}
+                  onAnalysisComplete={onPhotoAnalysis}
+                />
               </TabsContent>
 
               <TabsContent value="voice" className="space-y-4">
-                <VoiceRecorder date={date} selectedMeal={selectedMeal} onAnalysisComplete={onVoiceAnalysis} />
+                <VoiceRecorder
+                  date={date}
+                  selectedMeal={selectedMeal}
+                  onAnalysisComplete={onVoiceAnalysis}
+                />
               </TabsContent>
 
               <TabsContent value="text" className="space-y-4">
-                <TextAnalyzer selectedMeal={selectedMeal} date={date} onAnalysisComplete={onTextAnalysis} />
+                <TextAnalyzer
+                  selectedMeal={selectedMeal}
+                  date={date}
+                  onAnalysisComplete={onTextAnalysis}
+                />
               </TabsContent>
 
               <TabsContent value="manual" className="space-y-4">

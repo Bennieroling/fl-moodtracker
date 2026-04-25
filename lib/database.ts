@@ -1,7 +1,21 @@
 'use client'
 
 import { createClient } from '@/lib/supabase-browser'
-import { MoodEntryInsert, FoodEntryInsert, FoodEntryUpdate, MealType, ExerciseEvent, HealthMetricsBody, DailyTargets, DEFAULT_DAILY_TARGETS, StateOfMind, EcgReading, HeartRateNotification, SleepEvent, UserPreferences } from '@/lib/types/database'
+import {
+  MoodEntryInsert,
+  FoodEntryInsert,
+  FoodEntryUpdate,
+  MealType,
+  ExerciseEvent,
+  HealthMetricsBody,
+  DailyTargets,
+  DEFAULT_DAILY_TARGETS,
+  StateOfMind,
+  EcgReading,
+  HeartRateNotification,
+  SleepEvent,
+  UserPreferences,
+} from '@/lib/types/database'
 import { format } from 'date-fns'
 
 const getSupabase = () => createClient()
@@ -87,7 +101,10 @@ const groupExerciseEventsByDate = (events: ExerciseEvent[]) => {
       })
     }
     const totals = grouped.get(dateKey)!
-    totals.total_minutes += numberFromValue(workout.total_minutes ?? (workout.duration_seconds != null ? Math.round(workout.duration_seconds / 60) : null))
+    totals.total_minutes += numberFromValue(
+      workout.total_minutes ??
+        (workout.duration_seconds != null ? Math.round(workout.duration_seconds / 60) : null),
+    )
     totals.move_minutes += numberFromValue(workout.move_minutes)
     totals.active_energy_kcal += numberFromValue(workout.active_energy_kcal)
     totals.distance_km += numberFromValue(workout.distance_km)
@@ -98,7 +115,7 @@ const groupExerciseEventsByDate = (events: ExerciseEvent[]) => {
 const createDailyActivityFromExercise = (
   userId: string,
   date: string,
-  totals: ExerciseEventTotals
+  totals: ExerciseEventTotals,
 ): DailyActivity => ({
   user_id: userId,
   date,
@@ -120,7 +137,7 @@ const createDailyActivityFromExercise = (
 const mergeActivityWithExercise = (
   userId: string,
   activityRows: DailyActivity[] = [],
-  workouts: ExerciseEvent[] = []
+  workouts: ExerciseEvent[] = [],
 ) => {
   if (!workouts.length) {
     return activityRows || []
@@ -155,7 +172,7 @@ const mergeActivityWithExercise = (
 const getExerciseEventsBetweenDates = async (
   userId: string,
   startDate: string,
-  endDate: string
+  endDate: string,
 ) => {
   const { startIso, endIso } = getExerciseEventIsoRange(startDate, endDate)
   return getExerciseEventsForRange(userId, startIso, endIso)
@@ -174,30 +191,27 @@ export async function testConnection() {
     console.log('Testing Supabase connection...')
     console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
     console.log('Supabase Key exists:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-    
+
     // Test basic connection first
     const { data: authData, error: authError } = await getSupabase().auth.getSession()
     console.log('Auth session check:', { user: authData?.session?.user?.id, authError })
-    
+
     // Try a simple select instead of count to get better error info
-    const { data, error } = await getSupabase()
-      .from('mood_entries')
-      .select('id')
-      .limit(1)
-    
+    const { data, error } = await getSupabase().from('mood_entries').select('id').limit(1)
+
     console.log('Table access test result:', { data, error })
-    
+
     if (error) {
       console.error('Full error object:', error)
       console.error('Connection test error details:', {
         message: error.message,
         details: error.details,
         hint: error.hint,
-        code: error.code
+        code: error.code,
       })
       return { success: false, error: error.message || 'Connection failed' }
     }
-    
+
     console.log('Connection test successful!')
     return { success: true, error: null }
   } catch (error) {
@@ -228,7 +242,7 @@ export async function getMoodEntriesForMonth(userId: string, year: number, month
   try {
     const startDate = format(new Date(year, month - 1, 1), 'yyyy-MM-dd')
     const endDate = format(new Date(year, month, 0), 'yyyy-MM-dd')
-    
+
     const { data, error } = await getSupabase()
       .from('mood_entries')
       .select('*')
@@ -249,14 +263,14 @@ export async function upsertMoodEntry(moodEntry: MoodEntryInsert) {
   try {
     // First try to find existing entry
     const existing = await getMoodEntryByDate(moodEntry.user_id, moodEntry.date)
-    
+
     if (existing) {
       const { data, error } = await getSupabase()
         .from('mood_entries')
         .update({
           mood_score: moodEntry.mood_score,
           note: moodEntry.note,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', existing.id)
         .select()
@@ -270,7 +284,7 @@ export async function upsertMoodEntry(moodEntry: MoodEntryInsert) {
         .insert({
           ...moodEntry,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .select()
         .single()
@@ -302,7 +316,11 @@ export async function getFoodEntriesForDate(userId: string, date: string) {
   }
 }
 
-export async function getFoodEntriesForDateRange(userId: string, startDate: string, endDate: string) {
+export async function getFoodEntriesForDateRange(
+  userId: string,
+  startDate: string,
+  endDate: string,
+) {
   try {
     const { data, error } = await getSupabase()
       .from('food_entries')
@@ -328,7 +346,7 @@ export async function insertFoodEntry(foodEntry: FoodEntryInsert) {
       .insert({
         ...foodEntry,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .select()
       .single()
@@ -347,7 +365,7 @@ export async function updateFoodEntry(id: string, updates: FoodEntryUpdate) {
       .from('food_entries')
       .update({
         ...updates,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('id', id)
       .select()
@@ -363,10 +381,7 @@ export async function updateFoodEntry(id: string, updates: FoodEntryUpdate) {
 
 export async function deleteFoodEntry(id: string) {
   try {
-    const { error } = await getSupabase()
-      .from('food_entries')
-      .delete()
-      .eq('id', id)
+    const { error } = await getSupabase().from('food_entries').delete().eq('id', id)
 
     if (error) throw error
     return true
@@ -377,7 +392,10 @@ export async function deleteFoodEntry(id: string) {
 }
 
 // Daily activity helpers
-export async function getExerciseEventsForDate(userId: string, date: string): Promise<ExerciseEvent[]> {
+export async function getExerciseEventsForDate(
+  userId: string,
+  date: string,
+): Promise<ExerciseEvent[]> {
   try {
     const { data, error } = await getSupabase()
       .from('exercise_events')
@@ -397,7 +415,7 @@ export async function getExerciseEventsForDate(userId: string, date: string): Pr
 export async function getExerciseEventsForRange(
   userId: string,
   rangeStartIso: string,
-  rangeEndIso: string
+  rangeEndIso: string,
 ): Promise<ExerciseEvent[]> {
   try {
     const { data, error } = await getSupabase()
@@ -420,7 +438,7 @@ export async function getDailyActivityRange(
   userId: string,
   startDate: string,
   endDate: string,
-  options: { workouts?: ExerciseEvent[] } = {}
+  options: { workouts?: ExerciseEvent[] } = {},
 ): Promise<DailyActivity[]> {
   try {
     const { data, error } = await getSupabase()
@@ -434,8 +452,7 @@ export async function getDailyActivityRange(
     if (error) throw error
 
     const workouts =
-      options.workouts ??
-      (await getExerciseEventsBetweenDates(userId, startDate, endDate))
+      options.workouts ?? (await getExerciseEventsBetweenDates(userId, startDate, endDate))
 
     return mergeActivityWithExercise(userId, (data || []) as DailyActivity[], workouts)
   } catch (error) {
@@ -444,7 +461,10 @@ export async function getDailyActivityRange(
   }
 }
 
-export async function getDailyActivityByDate(userId: string, date: string): Promise<DailyActivity | null> {
+export async function getDailyActivityByDate(
+  userId: string,
+  date: string,
+): Promise<DailyActivity | null> {
   try {
     const workouts = await getExerciseEventsForDate(userId, date)
     const range = await getDailyActivityRange(userId, date, date, { workouts })
@@ -462,7 +482,7 @@ export async function getActivityAggregates(
   bucket: ActivityAggregateBucket,
   limit: number = 12,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
 ): Promise<DailyActivityAggregate[]> {
   try {
     const { data, error } = await getSupabase().rpc('get_activity_aggregates', {
@@ -498,15 +518,15 @@ export async function getDashboardSummary(userId: string, date: string) {
         macros: {
           protein: 85,
           carbs: 220,
-          fat: 65
+          fat: 65,
         },
-        foodEntries: []
+        foodEntries: [],
       }
     }
 
     // Fetch mood entry for the day
     const moodPromise = getMoodEntryByDate(userId, date)
-    
+
     // Fetch food entries for the day
     const foodPromise = getFoodEntriesForDate(userId, date)
 
@@ -524,10 +544,10 @@ export async function getDashboardSummary(userId: string, date: string) {
         return {
           protein: sum.protein + macros.protein,
           carbs: sum.carbs + macros.carbs,
-          fat: sum.fat + macros.fat
+          fat: sum.fat + macros.fat,
         }
       },
-      { protein: 0, carbs: 0, fat: 0 }
+      { protein: 0, carbs: 0, fat: 0 },
     )
 
     return {
@@ -537,13 +557,13 @@ export async function getDashboardSummary(userId: string, date: string) {
       macros: {
         protein: Math.round(totalMacros.protein),
         carbs: Math.round(totalMacros.carbs),
-        fat: Math.round(totalMacros.fat)
+        fat: Math.round(totalMacros.fat),
       },
-      foodEntries
+      foodEntries,
     }
   } catch (error) {
     console.error('Error fetching dashboard summary:', error)
-    
+
     // Fallback to demo data on error
     console.warn('Falling back to demo dashboard summary')
     return {
@@ -551,7 +571,7 @@ export async function getDashboardSummary(userId: string, date: string) {
       totalCalories: 0,
       mealsLogged: 0,
       macros: { protein: 0, carbs: 0, fat: 0 },
-      foodEntries: []
+      foodEntries: [],
     }
   }
 }
@@ -576,16 +596,14 @@ export async function getUserTargets(userId: string): Promise<DailyTargets> {
 
 export async function updateUserTargets(userId: string, targets: DailyTargets): Promise<void> {
   try {
-    const { error } = await getSupabase()
-      .from('user_preferences')
-      .upsert(
-        {
-          user_id: userId,
-          daily_targets: targets,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id' }
-      )
+    const { error } = await getSupabase().from('user_preferences').upsert(
+      {
+        user_id: userId,
+        daily_targets: targets,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id' },
+    )
     if (error) throw error
   } catch (error) {
     console.error('Error updating user targets:', error)
@@ -595,11 +613,7 @@ export async function updateUserTargets(userId: string, targets: DailyTargets): 
 
 export type ProfilePreferences = Pick<
   UserPreferences,
-  | 'units'
-  | 'reminder_enabled'
-  | 'reminder_time'
-  | 'journal_mode_default'
-  | 'notifications_enabled'
+  'units' | 'reminder_enabled' | 'reminder_time' | 'journal_mode_default' | 'notifications_enabled'
 >
 
 export async function getUserPreferences(userId: string): Promise<ProfilePreferences | null> {
@@ -620,7 +634,7 @@ export async function getUserPreferences(userId: string): Promise<ProfilePrefere
 
 export async function updateUserPreferences(
   userId: string,
-  preferences: ProfilePreferences
+  preferences: ProfilePreferences,
 ): Promise<void> {
   try {
     const { error } = await getSupabase()
@@ -631,7 +645,7 @@ export async function updateUserPreferences(
           ...preferences,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: 'user_id' }
+        { onConflict: 'user_id' },
       )
 
     if (error) throw error
@@ -645,7 +659,7 @@ export async function updateUserPreferences(
 export async function getBodyMetrics(
   userId: string,
   startDate: string,
-  endDate: string
+  endDate: string,
 ): Promise<HealthMetricsBody[]> {
   try {
     const { data, error } = await getSupabase()
@@ -704,7 +718,7 @@ export async function getStateOfMindForDate(userId: string, date: string): Promi
 export async function getStateOfMindTrends(
   userId: string,
   startDate: string,
-  endDate: string
+  endDate: string,
 ): Promise<{ date: string; avg_valence: number }[]> {
   try {
     const { data, error } = await getSupabase()
@@ -741,7 +755,7 @@ export async function getStateOfMindTrends(
 export async function getStateOfMindLabelCounts(
   userId: string,
   startDate: string,
-  endDate: string
+  endDate: string,
 ): Promise<{ label: string; count: number }[]> {
   try {
     const { data, error } = await getSupabase()
@@ -775,7 +789,7 @@ export async function getStateOfMindLabelCounts(
 export async function getStateOfMindAssociationCounts(
   userId: string,
   startDate: string,
-  endDate: string
+  endDate: string,
 ): Promise<{ association: string; count: number }[]> {
   try {
     const { data, error } = await getSupabase()
@@ -827,7 +841,7 @@ export async function getEcgReadings(userId: string): Promise<EcgReading[]> {
 export async function getSleepEvents(
   userId: string,
   startDate: string,
-  endDate: string
+  endDate: string,
 ): Promise<SleepEvent[]> {
   try {
     const { data, error } = await getSupabase()
@@ -938,14 +952,14 @@ export async function getRecentEntries(userId: string, limit: number = 10) {
           note: null,
           journal_mode: false,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
+          updated_at: new Date().toISOString(),
+        },
       ]
     }
 
     const sevenDaysAgo = format(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')
     const today = format(new Date(), 'yyyy-MM-dd')
-    
+
     const { data, error } = await getSupabase()
       .from('food_entries')
       .select('*')
@@ -959,7 +973,7 @@ export async function getRecentEntries(userId: string, limit: number = 10) {
     return data || []
   } catch (error) {
     console.error('Error fetching recent entries:', error)
-    
+
     // Fallback to empty array on error
     console.warn('Falling back to empty recent entries')
     return []

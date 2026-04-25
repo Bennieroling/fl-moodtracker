@@ -37,7 +37,12 @@ export const useHistoricData = () => {
   const selectedDate = filters.historic.date
   const userId = user?.id
 
-  const { data, isLoading: loading, error, refetch } = useQuery({
+  const {
+    data,
+    isLoading: loading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ['historic', userId, selectedDate],
     queryFn: async () => {
       if (!userId) throw new Error('No user')

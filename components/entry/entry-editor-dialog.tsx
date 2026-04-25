@@ -6,7 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { mealTypes } from '@/components/entry/meal-selector'
 
 export interface EntryEditForm {
@@ -27,7 +33,13 @@ interface EntryEditorDialogProps {
   onClose: () => void
 }
 
-export function EntryEditorDialog({ entry, form, setForm, onSave, onClose }: EntryEditorDialogProps) {
+export function EntryEditorDialog({
+  entry,
+  form,
+  setForm,
+  onSave,
+  onClose,
+}: EntryEditorDialogProps) {
   return (
     <Dialog open={!!entry} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
@@ -37,7 +49,10 @@ export function EntryEditorDialog({ entry, form, setForm, onSave, onClose }: Ent
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="edit-meal">Meal Type</Label>
-            <Select value={form.meal} onValueChange={(value) => setForm((prev) => ({ ...prev, meal: value }))}>
+            <Select
+              value={form.meal}
+              onValueChange={(value) => setForm((prev) => ({ ...prev, meal: value }))}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

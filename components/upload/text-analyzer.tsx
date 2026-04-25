@@ -6,7 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { MealType } from '@/lib/types/database'
 import { Check, Edit, Loader2, Plus, Trash2, X } from 'lucide-react'
@@ -35,7 +41,9 @@ export function TextAnalyzer({ selectedMeal, date, onAnalysisComplete }: TextAna
     normalized_text: string
   }>(null)
   const [isEditing, setIsEditing] = useState(false)
-  const [editedFoods, setEditedFoods] = useState<Array<{ label: string; confidence: number; quantity?: string }>>([])
+  const [editedFoods, setEditedFoods] = useState<
+    Array<{ label: string; confidence: number; quantity?: string }>
+  >([])
   const [editedCalories, setEditedCalories] = useState(0)
   const [editedProtein, setEditedProtein] = useState(0)
   const [editedCarbs, setEditedCarbs] = useState(0)
@@ -69,7 +77,9 @@ export function TextAnalyzer({ selectedMeal, date, onAnalysisComplete }: TextAna
       })
 
       if (!response.ok) {
-        const { error: message } = await response.json().catch(() => ({ error: 'Failed to analyze text' }))
+        const { error: message } = await response
+          .json()
+          .catch(() => ({ error: 'Failed to analyze text' }))
         throw new Error(message)
       }
 
@@ -201,7 +211,9 @@ export function TextAnalyzer({ selectedMeal, date, onAnalysisComplete }: TextAna
                         value={food.label}
                         onChange={(e) =>
                           setEditedFoods((prev) =>
-                            prev.map((item, itemIndex) => (itemIndex === index ? { ...item, label: e.target.value } : item))
+                            prev.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, label: e.target.value } : item,
+                            ),
                           )
                         }
                       />
@@ -210,14 +222,25 @@ export function TextAnalyzer({ selectedMeal, date, onAnalysisComplete }: TextAna
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() => setEditedFoods((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
+                        onClick={() =>
+                          setEditedFoods((prev) =>
+                            prev.filter((_, itemIndex) => itemIndex !== index),
+                          )
+                        }
                         aria-label="Remove detected food"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
-                  <Button type="button" size="sm" variant="outline" onClick={() => setEditedFoods((prev) => [...prev, { label: '', confidence: 1 }])}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      setEditedFoods((prev) => [...prev, { label: '', confidence: 1 }])
+                    }
+                  >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Food
                   </Button>
@@ -237,10 +260,30 @@ export function TextAnalyzer({ selectedMeal, date, onAnalysisComplete }: TextAna
               <p className="font-medium text-muted-foreground">Estimated nutrition</p>
               {isEditing ? (
                 <div className="grid grid-cols-2 gap-2 pt-2">
-                  <Input type="number" value={editedCalories} onChange={(e) => setEditedCalories(Number(e.target.value))} placeholder="Calories" />
-                  <Input type="number" value={editedProtein} onChange={(e) => setEditedProtein(Number(e.target.value))} placeholder="Protein" />
-                  <Input type="number" value={editedCarbs} onChange={(e) => setEditedCarbs(Number(e.target.value))} placeholder="Carbs" />
-                  <Input type="number" value={editedFat} onChange={(e) => setEditedFat(Number(e.target.value))} placeholder="Fat" />
+                  <Input
+                    type="number"
+                    value={editedCalories}
+                    onChange={(e) => setEditedCalories(Number(e.target.value))}
+                    placeholder="Calories"
+                  />
+                  <Input
+                    type="number"
+                    value={editedProtein}
+                    onChange={(e) => setEditedProtein(Number(e.target.value))}
+                    placeholder="Protein"
+                  />
+                  <Input
+                    type="number"
+                    value={editedCarbs}
+                    onChange={(e) => setEditedCarbs(Number(e.target.value))}
+                    placeholder="Carbs"
+                  />
+                  <Input
+                    type="number"
+                    value={editedFat}
+                    onChange={(e) => setEditedFat(Number(e.target.value))}
+                    placeholder="Fat"
+                  />
                 </div>
               ) : (
                 <>

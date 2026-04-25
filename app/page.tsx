@@ -25,7 +25,9 @@ export default function HomePage() {
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" aria-hidden />
       <div className="text-center space-y-1">
         <p className="font-medium">
-          {loading ? 'Checking your session...' : `Redirecting to ${target === '/dashboard' ? 'your dashboard' : 'login'}...`}
+          {loading
+            ? 'Checking your session...'
+            : `Redirecting to ${target === '/dashboard' ? 'your dashboard' : 'login'}...`}
         </p>
         {!loading && (
           <p className="text-sm text-muted-foreground">

@@ -99,7 +99,9 @@ const FilterContext = createContext<{
   setCalendarFilters: (next: CalendarFilters | ((prev: CalendarFilters) => CalendarFilters)) => void
   setDayFilters: (next: DayFilters | ((prev: DayFilters) => DayFilters)) => void
   setHistoricFilters: (next: HistoricFilters | ((prev: HistoricFilters) => HistoricFilters)) => void
-  setDashboardFilters: (next: DashboardFilters | ((prev: DashboardFilters) => DashboardFilters)) => void
+  setDashboardFilters: (
+    next: DashboardFilters | ((prev: DashboardFilters) => DashboardFilters),
+  ) => void
   setInsightsFilters: (next: InsightsFilters | ((prev: InsightsFilters) => InsightsFilters)) => void
 }>({
   filters: initialState,
@@ -139,91 +141,104 @@ export function FilterProvider({ children }: { children: React.ReactNode }) {
   const setExerciseFilters = useCallback(
     (next: ExerciseFilters | ((prev: ExerciseFilters) => ExerciseFilters)) => {
       const resolved =
-        typeof next === 'function' ? (next as (prev: ExerciseFilters) => ExerciseFilters)(state.exercise) : next
+        typeof next === 'function'
+          ? (next as (prev: ExerciseFilters) => ExerciseFilters)(state.exercise)
+          : next
       if (resolved === state.exercise) return
       dispatch({
         type: 'SET_EXERCISE',
         payload: resolved,
       })
     },
-    [state.exercise]
+    [state.exercise],
   )
 
   const setHealthFilters = useCallback(
     (next: HealthFilters | ((prev: HealthFilters) => HealthFilters)) => {
       const resolved =
-        typeof next === 'function' ? (next as (prev: HealthFilters) => HealthFilters)(state.health) : next
+        typeof next === 'function'
+          ? (next as (prev: HealthFilters) => HealthFilters)(state.health)
+          : next
       if (resolved === state.health) return
       dispatch({
         type: 'SET_HEALTH',
         payload: resolved,
       })
     },
-    [state.health]
+    [state.health],
   )
 
   const setCalendarFilters = useCallback(
     (next: CalendarFilters | ((prev: CalendarFilters) => CalendarFilters)) => {
       const resolved =
-        typeof next === 'function' ? (next as (prev: CalendarFilters) => CalendarFilters)(state.calendar) : next
+        typeof next === 'function'
+          ? (next as (prev: CalendarFilters) => CalendarFilters)(state.calendar)
+          : next
       if (resolved === state.calendar) return
       dispatch({
         type: 'SET_CALENDAR',
         payload: resolved,
       })
     },
-    [state.calendar]
+    [state.calendar],
   )
 
   const setDayFilters = useCallback(
     (next: DayFilters | ((prev: DayFilters) => DayFilters)) => {
-      const resolved = typeof next === 'function' ? (next as (prev: DayFilters) => DayFilters)(state.day) : next
+      const resolved =
+        typeof next === 'function' ? (next as (prev: DayFilters) => DayFilters)(state.day) : next
       if (resolved === state.day) return
       dispatch({
         type: 'SET_DAY',
         payload: resolved,
       })
     },
-    [state.day]
+    [state.day],
   )
 
   const setHistoricFilters = useCallback(
     (next: HistoricFilters | ((prev: HistoricFilters) => HistoricFilters)) => {
       const resolved =
-        typeof next === 'function' ? (next as (prev: HistoricFilters) => HistoricFilters)(state.historic) : next
+        typeof next === 'function'
+          ? (next as (prev: HistoricFilters) => HistoricFilters)(state.historic)
+          : next
       if (resolved === state.historic) return
       dispatch({
         type: 'SET_HISTORIC',
         payload: resolved,
       })
     },
-    [state.historic]
+    [state.historic],
   )
 
   const setDashboardFilters = useCallback(
     (next: DashboardFilters | ((prev: DashboardFilters) => DashboardFilters)) => {
       const resolved =
-        typeof next === 'function' ? (next as (prev: DashboardFilters) => DashboardFilters)(state.dashboard) : next
+        typeof next === 'function'
+          ? (next as (prev: DashboardFilters) => DashboardFilters)(state.dashboard)
+          : next
       if (resolved === state.dashboard) return
       dispatch({
         type: 'SET_DASHBOARD',
         payload: resolved,
       })
     },
-    [state.dashboard]
+    [state.dashboard],
   )
 
   const setInsightsFilters = useCallback(
     (next: InsightsFilters | ((prev: InsightsFilters) => InsightsFilters)) => {
       const resolved =
-        typeof next === 'function' ? (next as (prev: InsightsFilters) => InsightsFilters)(state.insights) : next
+        typeof next === 'function'
+          ? (next as (prev: InsightsFilters) => InsightsFilters)(state.insights)
+          : next
       if (resolved === state.insights) return
       dispatch({
         type: 'SET_INSIGHTS',
         payload: resolved,
       })
     },
-    [state.insights]
+    [state.insights],
   )
 
   useEffect(() => {
@@ -262,7 +277,7 @@ export function FilterProvider({ children }: { children: React.ReactNode }) {
       })
     }
     // Run exactly once on mount to hydrate from localStorage.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [])
 
   useEffect(() => {
@@ -294,7 +309,16 @@ export function FilterProvider({ children }: { children: React.ReactNode }) {
       setDashboardFilters,
       setInsightsFilters,
     }),
-    [state, setExerciseFilters, setHealthFilters, setCalendarFilters, setDayFilters, setHistoricFilters, setDashboardFilters, setInsightsFilters]
+    [
+      state,
+      setExerciseFilters,
+      setHealthFilters,
+      setCalendarFilters,
+      setDayFilters,
+      setHistoricFilters,
+      setDashboardFilters,
+      setInsightsFilters,
+    ],
   )
 
   return <FilterContext.Provider value={value}>{children}</FilterContext.Provider>

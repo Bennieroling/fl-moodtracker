@@ -116,7 +116,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signIn = async (data: LoginData): Promise<{ error?: string }> => {
     try {
       validateLogin(data)
-      
+
       const supabase = getSupabase()
       const { error } = await supabase.auth.signInWithPassword({
         email: data.email,
@@ -143,7 +143,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signUp = async (data: RegisterData): Promise<{ error?: string }> => {
     try {
       validateRegister(data)
-      
+
       const supabase = getSupabase()
       const { error } = await supabase.auth.signUp({
         email: data.email,
@@ -202,7 +202,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const supabase = getSupabase()
       const { error } = await supabase.auth.signOut()
-      
+
       if (error) {
         toast.error('Sign Out Failed', {
           description: error.message,
@@ -257,7 +257,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signInDemo = async (): Promise<void> => {
     try {
       setLoading(true)
-      
+
       // Create a mock user for demo purposes
       const mockUser: User = {
         id: 'demo-user-123',
@@ -316,17 +316,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isDemoMode,
   }
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 // Hook to check if user is authenticated
 export const useRequireAuth = () => {
   const { user, loading } = useAuth()
-  
+
   return {
     user,
     loading,

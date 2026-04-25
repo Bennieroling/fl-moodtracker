@@ -62,8 +62,8 @@ export function ManualFoodEntry({ meal, onSave, className }: ManualFoodEntryProp
 
     try {
       // Filter out empty food entries
-      const foodLabels = foods.filter(food => food.trim() !== '')
-      
+      const foodLabels = foods.filter((food) => food.trim() !== '')
+
       if (foodLabels.length === 0) {
         setError('Please add at least one food item')
         return
@@ -74,11 +74,14 @@ export function ManualFoodEntry({ meal, onSave, className }: ManualFoodEntryProp
         meal,
         food_labels: foodLabels,
         calories: calories ? parseFloat(calories) : undefined,
-        macros: (protein || carbs || fat) ? {
-          protein: parseFloat(protein) || 0,
-          carbs: parseFloat(carbs) || 0,
-          fat: parseFloat(fat) || 0,
-        } : undefined,
+        macros:
+          protein || carbs || fat
+            ? {
+                protein: parseFloat(protein) || 0,
+                carbs: parseFloat(carbs) || 0,
+                fat: parseFloat(fat) || 0,
+              }
+            : undefined,
         note: note || undefined,
         journal_mode: journalMode,
       }
@@ -92,7 +95,7 @@ export function ManualFoodEntry({ meal, onSave, className }: ManualFoodEntryProp
       }
 
       toast.success('Food entry saved successfully!')
-      
+
       // Reset form
       setFoods([''])
       setCalories('')
@@ -101,7 +104,6 @@ export function ManualFoodEntry({ meal, onSave, className }: ManualFoodEntryProp
       setFat('')
       setNote('')
       setJournalMode(false)
-
     } catch (err) {
       console.error('Manual entry error:', err)
       if (err instanceof Error && err.message.includes('ZodError')) {
@@ -120,7 +122,7 @@ export function ManualFoodEntry({ meal, onSave, className }: ManualFoodEntryProp
     carbs: parseFloat(carbs) || 0,
     fat: parseFloat(fat) || 0,
   }
-  const calculatedCalories = (totalMacros.protein * 4) + (totalMacros.carbs * 4) + (totalMacros.fat * 9)
+  const calculatedCalories = totalMacros.protein * 4 + totalMacros.carbs * 4 + totalMacros.fat * 9
 
   return (
     <div className={className}>
@@ -169,10 +171,12 @@ export function ManualFoodEntry({ meal, onSave, className }: ManualFoodEntryProp
           {/* Nutrition Information (Optional) */}
           <div className="space-y-4">
             <Label>Nutrition Information (Optional)</Label>
-            
+
             {/* Calories */}
             <div className="space-y-2">
-              <Label htmlFor="calories" className="text-sm">Total Calories</Label>
+              <Label htmlFor="calories" className="text-sm">
+                Total Calories
+              </Label>
               <Input
                 id="calories"
                 type="number"
@@ -187,7 +191,9 @@ export function ManualFoodEntry({ meal, onSave, className }: ManualFoodEntryProp
             {/* Macros */}
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="protein" className="text-sm">Protein (g)</Label>
+                <Label htmlFor="protein" className="text-sm">
+                  Protein (g)
+                </Label>
                 <Input
                   id="protein"
                   type="number"
@@ -199,7 +205,9 @@ export function ManualFoodEntry({ meal, onSave, className }: ManualFoodEntryProp
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="carbs" className="text-sm">Carbs (g)</Label>
+                <Label htmlFor="carbs" className="text-sm">
+                  Carbs (g)
+                </Label>
                 <Input
                   id="carbs"
                   type="number"
@@ -211,7 +219,9 @@ export function ManualFoodEntry({ meal, onSave, className }: ManualFoodEntryProp
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="fat" className="text-sm">Fat (g)</Label>
+                <Label htmlFor="fat" className="text-sm">
+                  Fat (g)
+                </Label>
                 <Input
                   id="fat"
                   type="number"
@@ -229,9 +239,7 @@ export function ManualFoodEntry({ meal, onSave, className }: ManualFoodEntryProp
               <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
                 <strong>Calculated from macros:</strong> ~{Math.round(calculatedCalories)} calories
                 {calories && Math.abs(calculatedCalories - parseFloat(calories)) > 50 && (
-                  <span className="text-orange-600 ml-2">
-                    (differs from entered calories)
-                  </span>
+                  <span className="text-orange-600 ml-2">(differs from entered calories)</span>
                 )}
               </div>
             )}
@@ -260,7 +268,7 @@ export function ManualFoodEntry({ meal, onSave, className }: ManualFoodEntryProp
             </div>
             <Button
               type="button"
-              variant={journalMode ? "default" : "outline"}
+              variant={journalMode ? 'default' : 'outline'}
               size="sm"
               onClick={() => setJournalMode(!journalMode)}
             >
@@ -269,13 +277,15 @@ export function ManualFoodEntry({ meal, onSave, className }: ManualFoodEntryProp
           </div>
 
           {/* Summary */}
-          {foods.some(f => f.trim()) && (
+          {foods.some((f) => f.trim()) && (
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <h4 className="text-sm font-medium">Entry Summary:</h4>
               <div className="space-y-1">
-                <Badge variant="outline" className="capitalize">{meal}</Badge>
+                <Badge variant="outline" className="capitalize">
+                  {meal}
+                </Badge>
                 <div className="text-sm">
-                  <strong>Foods:</strong> {foods.filter(f => f.trim()).join(', ')}
+                  <strong>Foods:</strong> {foods.filter((f) => f.trim()).join(', ')}
                 </div>
                 {calories && (
                   <div className="text-sm">
@@ -292,9 +302,9 @@ export function ManualFoodEntry({ meal, onSave, className }: ManualFoodEntryProp
           )}
 
           {/* Save Button */}
-          <Button 
-            onClick={handleSave} 
-            disabled={isLoading || !foods.some(f => f.trim())}
+          <Button
+            onClick={handleSave}
+            disabled={isLoading || !foods.some((f) => f.trim())}
             className="w-full"
           >
             <Save className="h-4 w-4 mr-2" />

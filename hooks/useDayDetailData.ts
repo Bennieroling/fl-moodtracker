@@ -23,7 +23,12 @@ export const useDayDetailData = () => {
   const date = filters.day.date
   const userId = user?.id
 
-  const { data, isLoading: loading, error, refetch } = useQuery({
+  const {
+    data,
+    isLoading: loading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ['day-detail', userId, date],
     queryFn: async () => {
       if (!userId || !date) throw new Error('No user or date')

@@ -13,7 +13,12 @@ interface MacroDisplayProps {
   compact?: boolean
 }
 
-export function MacroDisplay({ macros, className, showBar = false, compact = false }: MacroDisplayProps) {
+export function MacroDisplay({
+  macros,
+  className,
+  showBar = false,
+  compact = false,
+}: MacroDisplayProps) {
   const total = macros.protein + macros.carbs + macros.fat
   const proteinPct = total > 0 ? Math.round((macros.protein / total) * 100) : 0
   const carbsPct = total > 0 ? Math.round((macros.carbs / total) * 100) : 0
@@ -24,16 +29,36 @@ export function MacroDisplay({ macros, className, showBar = false, compact = fal
       {showBar ? (
         <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
           <div className="flex h-full">
-            <div className="transition-all" style={{ width: `${proteinPct}%`, backgroundColor: 'var(--chart-1)' }} />
-            <div className="transition-all" style={{ width: `${carbsPct}%`, backgroundColor: 'var(--chart-2)' }} />
-            <div className="transition-all" style={{ width: `${fatPct}%`, backgroundColor: 'var(--chart-3)' }} />
+            <div
+              className="transition-all"
+              style={{ width: `${proteinPct}%`, backgroundColor: 'var(--chart-1)' }}
+            />
+            <div
+              className="transition-all"
+              style={{ width: `${carbsPct}%`, backgroundColor: 'var(--chart-2)' }}
+            />
+            <div
+              className="transition-all"
+              style={{ width: `${fatPct}%`, backgroundColor: 'var(--chart-3)' }}
+            />
           </div>
         </div>
       ) : null}
-      <div className={cn('text-xs text-muted-foreground', compact ? 'space-y-1' : 'flex flex-wrap gap-x-3')}>
-        <span>P {macros.protein}g{showBar ? ` (${proteinPct}%)` : ''}</span>
-        <span>C {macros.carbs}g{showBar ? ` (${carbsPct}%)` : ''}</span>
-        <span>F {macros.fat}g{showBar ? ` (${fatPct}%)` : ''}</span>
+      <div
+        className={cn(
+          'text-xs text-muted-foreground',
+          compact ? 'space-y-1' : 'flex flex-wrap gap-x-3',
+        )}
+      >
+        <span>
+          P {macros.protein}g{showBar ? ` (${proteinPct}%)` : ''}
+        </span>
+        <span>
+          C {macros.carbs}g{showBar ? ` (${carbsPct}%)` : ''}
+        </span>
+        <span>
+          F {macros.fat}g{showBar ? ` (${fatPct}%)` : ''}
+        </span>
       </div>
     </div>
   )
