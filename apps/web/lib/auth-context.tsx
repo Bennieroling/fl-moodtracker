@@ -52,7 +52,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [isDemoMode, setIsDemoMode] = useState(false)
-  const supabase = createClient()
+  const getSupabase = () => createClient()
 
   // Check if we're in demo mode (missing real credentials)
   useEffect(() => {
@@ -69,6 +69,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true)
       setError(null)
       try {
+        const supabase = getSupabase()
         const {
           data: { session },
         } = await supabase.auth.getSession()
@@ -89,6 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     hydrateSession()
 
+    const supabase = getSupabase()
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -109,14 +111,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       isActive = false
       subscription.unsubscribe()
     }
-    // supabase is a module-level singleton, so this effect should only run once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const signIn = async (data: LoginData): Promise<{ error?: string }> => {
     try {
       validateLogin(data)
       
+      const supabase = getSupabase()
       const { error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
@@ -143,6 +144,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       validateRegister(data)
       
+      const supabase = getSupabase()
       const { error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -171,6 +173,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signInWithGoogle = async (): Promise<{ error?: string }> => {
     try {
+      const supabase = getSupabase()
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -197,6 +200,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signOut = async (): Promise<void> => {
     try {
+      const supabase = getSupabase()
       const { error } = await supabase.auth.signOut()
       
       if (error) {
@@ -223,6 +227,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { error: 'Please enter a valid email address' }
       }
 
+      const supabase = getSupabase()
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/reset-password`,
       })
