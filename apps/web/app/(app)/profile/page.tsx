@@ -6,10 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
   Select,
   SelectContent,
@@ -20,8 +18,6 @@ import {
 import {
   User,
   Settings,
-  Download,
-  Trash2,
   Bell,
   Moon,
   Sun,
@@ -37,7 +33,8 @@ import {
   Zap,
   Target,
 } from 'lucide-react'
-import { getUserTargets, updateUserTargets, getProfileStats } from '@/lib/database'
+import { getUserTargets, updateUserTargets, getProfileStats, getUserPreferences, updateUserPreferences } from '@/lib/database'
+import { createClient } from '@/lib/supabase-browser'
 import { DailyTargets, DEFAULT_DAILY_TARGETS } from '@/lib/types/database'
 import { useTheme } from 'next-themes'
 import { toast } from 'sonner'
@@ -81,7 +78,6 @@ export default function ProfilePage() {
   
   const [displayName, setDisplayName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [syncCooldown, setSyncCooldown] = useState(0)
   const [targets, setTargets] = useState<DailyTargets>({ ...DEFAULT_DAILY_TARGETS })
@@ -153,13 +149,15 @@ export default function ProfilePage() {
       // Set display name from user metadata or email
       setDisplayName(user.user_metadata?.full_name || user.email?.split('@')[0] || '')
       
-      // Load user preferences (mock data - replace with actual Supabase queries)
-      setPreferences({
-        units: 'metric',
-        reminderEnabled: true,
-        reminderTime: '09:00',
-        journalModeDefault: false,
-        notificationsEnabled: true,
+      getUserPreferences(user.id).then((savedPreferences) => {
+        if (!savedPreferences) return
+        setPreferences({
+          units: savedPreferences.units,
+          reminderEnabled: savedPreferences.reminder_enabled,
+          reminderTime: savedPreferences.reminder_time,
+          journalModeDefault: savedPreferences.journal_mode_default,
+          notificationsEnabled: savedPreferences.notifications_enabled,
+        })
       })
       
       // Load user stats from Supabase
@@ -178,8 +176,11 @@ export default function ProfilePage() {
   const handleSaveProfile = async () => {
     setIsLoading(true)
     try {
-      // TODO: Update user profile in Supabase
-      console.log('Saving profile:', { displayName })
+      const supabase = createClient()
+      const { error } = await supabase.auth.updateUser({
+        data: { full_name: displayName.trim() || null },
+      })
+      if (error) throw error
       toast.success('Profile updated successfully!')
     } catch (error) {
       toast.error('Failed to update profile')
@@ -190,55 +191,22 @@ export default function ProfilePage() {
   }
 
   const handleSavePreferences = async () => {
+    if (!user?.id) return
     setIsLoading(true)
     try {
-      // TODO: Update user preferences in Supabase
-      console.log('Saving preferences:', preferences)
+      await updateUserPreferences(user.id, {
+        units: preferences.units,
+        reminder_enabled: preferences.reminderEnabled,
+        reminder_time: preferences.reminderTime,
+        journal_mode_default: preferences.journalModeDefault,
+        notifications_enabled: preferences.notificationsEnabled,
+      })
       toast.success('Preferences updated successfully!')
     } catch (error) {
       toast.error('Failed to update preferences')
       console.error('Preferences update error:', error)
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const handleExportData = async () => {
-    setIsLoading(true)
-    try {
-      // TODO: Generate and download user data export
-      console.log('Exporting user data...')
-      
-      // Simulate export process
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      toast.success('Data export will be sent to your email!')
-    } catch (error) {
-      toast.error('Failed to export data')
-      console.error('Export error:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleDeleteAccount = async () => {
-    if (!showDeleteConfirm) {
-      setShowDeleteConfirm(true)
-      return
-    }
-    
-    setIsLoading(true)
-    try {
-      // TODO: Delete user account and all data
-      console.log('Deleting account...')
-      toast.success('Account deletion initiated. You will be logged out.')
-      await signOut()
-    } catch (error) {
-      toast.error('Failed to delete account')
-      console.error('Account deletion error:', error)
-    } finally {
-      setIsLoading(false)
-      setShowDeleteConfirm(false)
     }
   }
 
@@ -555,7 +523,7 @@ export default function ProfilePage() {
             <BarChart3 className="h-5 w-5" />
             Data Management
           </CardTitle>
-          <CardDescription>Export or manage your wellness data</CardDescription>
+          <CardDescription>Manage local sync and account access</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Sync Health Data */}
@@ -590,24 +558,6 @@ export default function ProfilePage() {
             </Button>
           </div>
 
-          {/* Export Data */}
-          <div className="flex items-center justify-between p-4 border rounded-xl">
-            <div className="space-y-1">
-              <h4 className="font-medium">Export Your Data</h4>
-              <p className="text-sm text-muted-foreground">
-                Download all your mood and food entries as CSV files
-              </p>
-            </div>
-            <Button 
-              onClick={handleExportData} 
-              disabled={isLoading}
-              variant="outline"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-          </div>
-
           {/* Sign Out */}
           <div className="flex items-center justify-between p-4 border rounded-xl">
             <div className="space-y-1">
@@ -620,39 +570,6 @@ export default function ProfilePage() {
             </Button>
           </div>
 
-          {/* Account Actions */}
-          <Separator />
-
-          <div className="space-y-4">
-            <h4 className="font-medium text-destructive">Danger Zone</h4>
-
-            {/* Delete Account */}
-            <div className="flex items-center justify-between p-4 border border-red-200 rounded-lg">
-              <div className="space-y-1">
-                <h4 className="font-medium text-destructive">Delete Account</h4>
-                <p className="text-sm text-muted-foreground">
-                  Permanently delete your account and all data
-                </p>
-              </div>
-              <Button 
-                onClick={handleDeleteAccount}
-                disabled={isLoading}
-                variant="destructive"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                {showDeleteConfirm ? 'Confirm Delete' : 'Delete Account'}
-              </Button>
-            </div>
-
-            {showDeleteConfirm && (
-              <Alert>
-                <AlertDescription>
-                  This action cannot be undone. All your data will be permanently deleted.
-                  Click &quot;Confirm Delete&quot; again to proceed.
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
         </CardContent>
       </Card>
     </div>
