@@ -794,7 +794,8 @@ Existing `X-Content-Type-Options`, `X-Frame-Options`,
 - test key flows for CSP regressions
 - check `securityheaders.com`
 
-☐ Done
+✅ Done
+note: "Security headers deployed and verified in production. CartoCDN added to img-src for map tiles 2026-04-25."
 
 ---
 
@@ -884,7 +885,9 @@ SELECT label, last_used_at FROM hae_ingest_tokens;
 | -------------------- | ------------ |
 | Primary iPhone (Ben) | null         |
 
-☐ Done
+Note: `last_used_at = null` was because 2 of 4 automations had revoked tokens. User fixed in Supabase Dashboard (2026-04-25). All 4 automations confirmed working — April 19–24 data ingested successfully. Batch upsert (1000-row chunks) deployed to fix CPU time limit on large exports.
+
+✅ Done
 
 ---
 
@@ -1029,7 +1032,29 @@ R-P1.4 set up the pipeline. This task builds actual coverage.
 
 Target 60% coverage reported by vitest. Block merges below it.
 
-☐ Done
+**Status (2026-04-25):** ✅ Done.
+Added `@vitest/coverage-v8` and configured coverage in `vitest.config.ts` with a 60% lines threshold. Added 11 new test files covering:
+
+- `lib/validations.ts` — 51 tests across all 15+ Zod schemas
+- `lib/api-handler.ts` — ApiError, handleApiError, jsonError, parseJsonBody
+- `lib/activity.ts` — getTotalBurnedCalories edge cases
+- `lib/logger.ts` — dev and production mode output
+- `lib/range-utils.ts` — extended with shiftAnchor, normalizeDateForMode, formatRangeLabel
+- `app/api/ai/text/route.ts` — 401/400/403/200 paths
+- `app/api/sync/route.ts` — 401/500/200 paths
+- `app/api/storage/sign/route.ts` — POST and GET with auth/path/storage error cases
+- `hooks/useDayDetailData`, `useBodyData`, `useHistoricData`, `useCalendarData`, `useHealthData`
+
+Coverage report: **63.88% lines** (368/576), meeting the 60% threshold.
+Boundary files excluded from coverage: `lib/database.ts`, `lib/auth-context.tsx`, `lib/filter-context.tsx`, large AI routes (insights, speech, vision) — these are always mocked in unit tests and require integration tests.
+
+Verification:
+
+- `npm run test:coverage` ✅ (14 test files, 128 passing, lines 63.88%)
+- `npm run lint` ✅ (existing warnings only)
+- `npm run build` ✅
+
+✅ Done
 
 ---
 
