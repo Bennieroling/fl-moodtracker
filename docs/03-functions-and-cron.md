@@ -570,8 +570,9 @@ debugging. Job_pid, status, return_message, and duration are captured.
   during the April 19 function-rewrite session.
 - **April 19, 2026** — `purge-old-staging-rows` created as jobid 6.
 - **April 26, 2026** — `detect-anomalies` and `compute-readiness`
-  added as part of the production migration of the `/preview`
-  features (see `PRODUCTION_PLAN.md`).
+  added as part of the production migration of the `/insights`
+  features (see `PRODUCTION_PLAN.md`). Originally landed under
+  `/preview`; the route was renamed the same day.
 
 ---
 

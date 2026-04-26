@@ -13,7 +13,7 @@ import {
   getStateOfMindAssociationCounts,
 } from '@/lib/database'
 import { WeeklyMetrics } from '@/lib/validations'
-import { Database, FoodEntry, MoodEntry, Insight } from '@/lib/types/database'
+import { FoodEntry, MoodEntry, Insight } from '@/lib/types/database'
 import {
   RangeMode,
   computeRangeBounds,
@@ -111,18 +111,8 @@ export const useInsightsData = () => {
       if (!userId) throw new Error('No user')
       const supabase = createClient()
 
-      const metricsArgs = {
-        user_uuid: userId,
-        start_date: startDate,
-        end_date: endDate,
-      } satisfies Database['public']['Functions']['calculate_weekly_metrics']['Args']
-
-      const [metricsRes, moodRes, foodRes, insightsRes, valenceTrend, topLabels, topAssociations] =
+      const [moodRes, foodRes, insightsRes, valenceTrend, topLabels, topAssociations] =
         await Promise.all([
-          supabase.rpc(
-            'calculate_weekly_metrics',
-            metricsArgs as Database['public']['Functions']['calculate_weekly_metrics']['Args'],
-          ),
           supabase
             .from('mood_entries')
             .select('date, mood_score')
@@ -132,7 +122,7 @@ export const useInsightsData = () => {
             .order('date'),
           supabase
             .from('food_entries')
-            .select('date, calories, macros')
+            .select('date, calories, macros, food_labels, journal_mode')
             .eq('user_id', userId)
             .gte('date', startDate)
             .lte('date', endDate),
@@ -148,9 +138,9 @@ export const useInsightsData = () => {
           getStateOfMindAssociationCounts(userId, startDate, endDate),
         ])
 
-      const weeklyMetrics = (metricsRes.data as WeeklyMetrics | null) ?? defaultWeeklyMetrics
       const moodData = (moodRes.data as MoodEntry[]) || []
       const foodData = (foodRes.data as FoodEntry[]) || []
+      const weeklyMetrics = computeWeeklyMetrics(moodData, foodData)
 
       const combinedData: DailyData[] = eachDayOfInterval({
         start: rangeBounds.start,
@@ -236,6 +226,39 @@ export const useInsightsData = () => {
     setRangeMode,
     setAnchorDate,
     shiftRange,
+  }
+}
+
+const computeWeeklyMetrics = (
+  moodData: Pick<MoodEntry, 'date' | 'mood_score'>[],
+  foodData: Pick<FoodEntry, 'calories' | 'food_labels' | 'journal_mode'>[],
+): WeeklyMetrics => {
+  const moodScores = moodData
+    .map((m) => m.mood_score)
+    .filter((v): v is number => typeof v === 'number')
+  const avgMood =
+    moodScores.length > 0 ? moodScores.reduce((a, b) => a + b, 0) / moodScores.length : 0
+
+  const trackedFood = foodData.filter((f) => !f.journal_mode)
+  const kcalTotal = trackedFood.reduce((sum, f) => sum + (f.calories ?? 0), 0)
+
+  const labelCounts = new Map<string, number>()
+  for (const f of trackedFood) {
+    for (const label of f.food_labels ?? []) {
+      labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1)
+    }
+  }
+  const topFoods = [...labelCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([label]) => label)
+
+  return {
+    avgMood,
+    kcalTotal,
+    topFoods,
+    moodEntries: moodData.length,
+    foodEntries: trackedFood.length,
   }
 }
 

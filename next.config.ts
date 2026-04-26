@@ -20,6 +20,16 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_BUILD_ID: buildId,
   },
 
+  // Permanent redirects from the pre-rename routes. /preview moved to
+  // /insights; the previous /insights (mood/calories charts) moved to
+  // /charts. Kept indefinitely so existing bookmarks survive.
+  async redirects() {
+    return [
+      { source: '/preview', destination: '/insights', permanent: true },
+      { source: '/preview/:path*', destination: '/insights/:path*', permanent: true },
+    ]
+  },
+
   // Image optimization
   images: {
     remotePatterns: [

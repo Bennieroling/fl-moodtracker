@@ -575,7 +575,7 @@ AI-generated weekly/monthly summaries.
 ## Derived analytics
 
 These three tables are written by nightly PL/pgSQL jobs (see
-`03-functions-and-cron.md`) and read by the UI surfaces under `/preview`
+`03-functions-and-cron.md`) and read by the UI surfaces under `/insights`
 and the Dashboard hero/badge. They contain no information that isn't
 recomputable from the source tables — drop and rebuild via cron is safe.
 

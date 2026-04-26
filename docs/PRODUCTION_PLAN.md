@@ -37,7 +37,8 @@ What this plan ships:
 
 What this plan **does not** do (deferred):
 
-- Rename routes (`/insights` → `/charts`, `/preview` → `/insights`)
+- ~~Rename routes (`/insights` → `/charts`, `/preview` → `/insights`)~~
+  — done as part of Phase 4 cleanup, see below.
 - Promote to `/analytics` taxonomy from FEATURES_PLAN.md
 - Push notifications
 - Coach / share links
@@ -180,8 +181,8 @@ Mark file with `@deprecated` JSDoc pointing to the SQL function.
 - [ ] Cron job appears in `select * from cron.job;` with the right
       schedule
 - [ ] `<AnomalyBadge />` count matches `select count(*) from
-    anomalies where dismissed_at is null and observed_at >= now() -
-    interval '7 days'`
+  anomalies where dismissed_at is null and observed_at >= now() -
+  interval '7 days'`
 - [ ] Dismiss button removes the card and the next page load no longer
       shows it
 - [ ] RLS confirmed: a second account cannot read row 1's anomalies
@@ -300,7 +301,7 @@ remaining") when fewer than 14 readiness rows exist.
 
 - [ ] Migration applies; constraints and RLS verified
 - [ ] Manual call: `SELECT compute_readiness('<uuid>', current_date -
-    1);` writes one row
+  1);` writes one row
 - [ ] Backfill loop populates ~30 rows
 - [ ] Sanity check: open `/preview` and ring score matches yesterday's
       scoring done by the old client-side path (within ±1 due to
@@ -420,10 +421,12 @@ Done as part of the same day's ship. Outcomes:
   in a new "Derived analytics" section, plus the two new cron jobs in
   the schedule table. While here, also documented the previously
   un-tabled `recalc-streaks-nightly` job.
-- 🟡 **Nav relabel deferred** — kept the route as `/preview` and the
-  nav entry as "Preview". The reframe of the existing `/insights`
-  route → `/charts` (and `/preview` → `/insights`) is a larger
-  conversation; punted to a separate plan.
+- ✅ **Routes renamed** — `/preview` is now `/insights` (the new
+  interpretive page); the previous `/insights` (mood + calories
+  trend chart) is now `/charts`. Permanent redirects from
+  `/preview` and `/preview/:path*` are configured in
+  `next.config.ts` so old bookmarks survive. Nav entries updated in
+  both `app/(app)/layout.tsx` and `components/bottom-nav.tsx`.
 
 ### Known cosmetic issue (deferred)
 
@@ -455,9 +458,12 @@ If you don't push back on these defaults, I'll proceed with them.
 
 ## Out of scope (explicit non-goals for this plan)
 
-- Renaming or relocating routes (`/preview` → `/insights`,
+- ~~Renaming or relocating routes (`/preview` → `/insights`,
   `/insights` → `/charts`, `/analytics` taxonomy from
-  `FEATURES_PLAN.md`). Tracked separately.
+  `FEATURES_PLAN.md`). Tracked separately.~~ The
+  `/preview` ↔ `/insights` ↔ `/charts` swap shipped in Phase 4 with
+  permanent redirects from the pre-rename routes; the `/analytics`
+  taxonomy is still deferred.
 - Push notifications for anomalies or low readiness.
 - Coach / clinician share links.
 - Goal integration / "what should I do about it" recommendations.

@@ -17,6 +17,7 @@ interface AnomalySparklineProps {
 const WIDTH = 300
 const HEIGHT = 80
 const PADDING_Y = 6
+const PADDING_X = 14
 
 export function AnomalySparkline({
   values,
@@ -47,7 +48,10 @@ export function AnomalySparkline({
   const max = Math.max(...numeric.map((p) => p.v), baseline + bandHalfWidth)
   const range = max - min || 1
 
-  const xFor = (i: number) => (values.length === 1 ? WIDTH / 2 : (i / (values.length - 1)) * WIDTH)
+  const xFor = (i: number) =>
+    values.length === 1
+      ? WIDTH / 2
+      : PADDING_X + (i / (values.length - 1)) * (WIDTH - 2 * PADDING_X)
   const yFor = (v: number) => HEIGHT - PADDING_Y - ((v - min) / range) * (HEIGHT - PADDING_Y * 2)
 
   const linePoints = numeric.map((p) => `${xFor(p.i)},${yFor(p.v)}`).join(' ')

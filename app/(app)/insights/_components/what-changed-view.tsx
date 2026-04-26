@@ -84,7 +84,7 @@ const METRIC_SPECS: MetricSpec[] = [
     aggregation: 'avg',
     format: (n) => n.toFixed(2),
     priority: 1,
-    detailHref: '/insights',
+    detailHref: '/charts',
   },
   {
     id: 'wrist_temp',

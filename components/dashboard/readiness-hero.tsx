@@ -5,7 +5,7 @@ import { ArrowRight } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { ReadinessRing } from '@/app/(app)/preview/_components/readiness-ring'
+import { ReadinessRing } from '@/app/(app)/insights/_components/readiness-ring'
 import { useReadiness } from '@/hooks/useReadiness'
 
 interface PillProps {
@@ -105,7 +105,7 @@ export function ReadinessHero() {
           </div>
 
           <Link
-            href="/preview?tab=readiness"
+            href="/insights?tab=readiness"
             className={cn(
               'inline-flex items-center gap-1.5 self-start font-mono text-[10px] uppercase',
               'tracking-wider text-[color:var(--chart-3)] hover:underline',

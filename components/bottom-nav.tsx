@@ -18,8 +18,8 @@ const tabs = [
   { name: 'Exercise', href: '/exercise', icon: Activity },
   { name: 'Health', href: '/health', icon: HeartPulse },
   { name: 'Calendar', href: '/calendar', icon: Calendar },
-  { name: 'Insights', href: '/insights', icon: BarChart3 },
-  { name: 'Preview', href: '/preview', icon: Sparkles },
+  { name: 'Insights', href: '/insights', icon: Sparkles },
+  { name: 'Charts', href: '/charts', icon: BarChart3 },
   { name: 'Profile', href: '/profile', icon: User },
 ]
 
