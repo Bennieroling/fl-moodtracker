@@ -979,3 +979,23 @@ export async function getRecentEntries(userId: string, limit: number = 10) {
     return []
   }
 }
+
+export interface HaeFreshness {
+  last_push: string | null
+  staleness: string | null
+  status: 'OK' | 'STALE'
+}
+
+export async function getHaeFreshness(): Promise<HaeFreshness> {
+  try {
+    const { data, error } = await getSupabase().from('v_hae_freshness').select('*').single()
+    if (error) throw error
+    return {
+      last_push: data.last_push ?? null,
+      staleness: data.staleness ?? null,
+      status: data.status === 'STALE' ? 'STALE' : 'OK',
+    }
+  } catch {
+    return { last_push: null, staleness: null, status: 'OK' }
+  }
+}

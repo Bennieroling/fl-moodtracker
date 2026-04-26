@@ -1523,21 +1523,34 @@ Note: these are snapshot files for documentation and replay; `supabase db reset`
 **Context**
 
 Pairs with manual `F1` (which creates `v_hae_freshness`). This task
-adds external alerting.
+adds alerting when HAE hasn't pushed in 30+ minutes during waking hours.
+
+**Decision**
+
+No external webhook or email service. Single-user app — an in-app banner
+on the dashboard is the right fit. Zero dependencies, works on any device.
 
 **Change**
 
-Options:
+1. Created `supabase/migrations/012_hae_freshness_view.sql` — the
+   `v_hae_freshness` view (queries `staging_hae_metrics.received_at`,
+   marks STALE when >30 min without a push between 07:00–23:00
+   Europe/Madrid). GRANT SELECT TO authenticated.
+2. Added `getHaeFreshness()` to `lib/database.ts` and `HaeFreshness`
+   type definition. Added `v_hae_freshness` to `lib/types/database.ts`
+   Views section.
+3. Dashboard page: fetches freshness on mount (only when viewing today),
+   shows a yellow dismissible banner with "Apple Health sync delayed"
+   when status is STALE. Auto-clears when switching to a past date.
 
-- **Vercel Cron** calls `/api/admin/hae-freshness-check` hourly; the
-  route queries the view and POSTs to a webhook (Discord, email) on
-  STALE.
-- **Supabase pg_cron + pgsql-http extension** to call a webhook
-  directly — no frontend round-trip.
+**Verify**
 
-Stub a Discord webhook first; full email pipeline later.
+With HAE running normally: no banner shown.
+To test the banner: temporarily pause HAE automations for 30 min during
+waking hours, reload the dashboard.
 
-☐ Done
+✅ Done
+note: "In-app banner on dashboard. No external webhook/email — user confirmed no Discord, no email service configured."
 
 ---
 

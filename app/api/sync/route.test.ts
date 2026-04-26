@@ -40,7 +40,7 @@ describe('POST /api/sync', () => {
 
   it('returns 500 when rpc fails', async () => {
     vi.mocked(createServerSupabaseClient).mockResolvedValue(
-      makeSupabase({ id: 'user-1' }, { data: null, error: { message: 'db error' } as never }),
+      makeSupabase({ id: 'user-1' }, { data: 'synced', error: { message: 'db error' } as never }),
     )
     const res = await POST()
     expect(res.status).toBe(500)

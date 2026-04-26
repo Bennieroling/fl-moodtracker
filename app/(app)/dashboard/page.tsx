@@ -9,7 +9,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { StandardCardHeader } from '@/components/ui/standard-card-header'
 import { format, parseISO, isToday } from 'date-fns'
 import { toast } from 'sonner'
-import { upsertMoodEntry, insertFoodEntry, updateFoodEntry, deleteFoodEntry } from '@/lib/database'
+import {
+  upsertMoodEntry,
+  insertFoodEntry,
+  updateFoodEntry,
+  deleteFoodEntry,
+  getHaeFreshness,
+} from '@/lib/database'
 import { getTotalBurnedCalories } from '@/lib/activity'
 import { createClient } from '@/lib/supabase-browser'
 import { MealType, FoodEntry } from '@/lib/types/database'
@@ -61,6 +67,8 @@ export default function DashboardPage() {
   const [selectedMood, setSelectedMood] = useState<number | null>(null)
   const [selectedMeal, setSelectedMeal] = useState<MealType | null>(null)
   const [optimisticEntries, setOptimisticEntries] = useState<FoodEntry[]>([])
+  const [haeFreshness, setHaeFreshness] = useState<'OK' | 'STALE' | null>(null)
+  const [freshnessDismissed, setFreshnessDismissed] = useState(false)
   const { data, loading: dataLoading, refetch } = useDashboardData()
   const summary = data?.summary ?? DEFAULT_DASHBOARD_SUMMARY
   const currentMood = selectedMood ?? summary.mood
@@ -88,6 +96,21 @@ export default function DashboardPage() {
 
   const isViewingToday = isToday(dashboardDate)
   const dateLabel = format(dashboardDate, 'EEEE, MMMM d')
+
+  useEffect(() => {
+    if (!isViewingToday) {
+      setHaeFreshness(null)
+      setFreshnessDismissed(false)
+      return
+    }
+    let cancelled = false
+    getHaeFreshness().then((result) => {
+      if (!cancelled) setHaeFreshness(result.status)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [isViewingToday])
   const sectionTitle = isViewingToday ? 'Today' : dateLabel
   const todayString = dashboardDateString
   const handleDateChange = (value: string) => {
@@ -536,6 +559,27 @@ export default function DashboardPage() {
         description={dateLabel}
         action={<DateStepper date={todayString} onDateChange={handleDateChange} />}
       />
+
+      {haeFreshness === 'STALE' && !freshnessDismissed && (
+        <div className="flex items-start gap-3 rounded-2xl border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-800 dark:bg-yellow-950/30">
+          <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 shrink-0" />
+          <div className="flex-1 text-sm">
+            <p className="font-medium text-yellow-800 dark:text-yellow-200">
+              Apple Health sync delayed
+            </p>
+            <p className="text-yellow-700 dark:text-yellow-300">
+              No data received from Health Auto Export in the last 30 minutes. Steps and activity
+              may be outdated.
+            </p>
+          </div>
+          <button
+            onClick={() => setFreshnessDismissed(true)}
+            className="text-yellow-600 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-200 text-sm font-medium"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {heartRateNotifications.length > 0 && (
         <div className="space-y-2">

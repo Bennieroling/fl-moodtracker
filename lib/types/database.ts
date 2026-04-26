@@ -680,6 +680,14 @@ export interface Database {
       }
     }
     Views: {
+      v_hae_freshness: {
+        Row: {
+          last_push: string | null
+          staleness: string | null
+          status: string | null
+        }
+        Relationships: never[]
+      }
       v_daily_activity: {
         Row: {
           user_id: string

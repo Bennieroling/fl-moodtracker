@@ -24,14 +24,14 @@ two files can be worked in parallel where it's safe.
 
 ## Legend
 
-- 🔒 Security  🐛 Bug  🚧 Multi-user blocker  🧹 Tech debt  ✨ Improvement
+- 🔒 Security 🐛 Bug 🚧 Multi-user blocker 🧹 Tech debt ✨ Improvement
 - **S** under 30 min · **M** 1–2 hours · **L** half-day+
 
 ---
 
 ## Phase A — Security fixes in the database (do first)
 
-### A1. Enable RLS on `sync_log`  🔒 S
+### A1. Enable RLS on `sync_log` 🔒 S
 
 Right now `sync_log` has no RLS enabled AND the initial migration
 granted `ALL` to `anon` and `authenticated`. It's readable and
@@ -70,11 +70,12 @@ Completed with result:
 ```sql
 SELECT policyname FROM pg_policies WHERE tablename = 'sync_log';
 ```
+
 Gave me the result of 0 rows, with comment `Success. No rows returned.`.
 
 ---
 
-### A2. Add `auth.uid()` guard to `calculate_weekly_metrics`  🔒 S
+### A2. Add `auth.uid()` guard to `calculate_weekly_metrics` 🔒 S
 
 The function is `SECURITY DEFINER` and takes a `user_uuid` parameter
 but doesn't check that the caller owns that UUID. Any authenticated
@@ -129,19 +130,20 @@ WHERE proname = 'calculate_weekly_metrics';
 ✅ Done
 Completed with verification output:
 
-| prosrc                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 
+| prosrc |
+| ------ |
+
+|
 DECLARE
-    v_avg_mood NUMERIC;
-    v_total_calories NUMERIC;
-    v_top_foods TEXT[];
-    v_mood_count INTEGER;
-    v_food_count INTEGER;
+v_avg_mood NUMERIC;
+v_total_calories NUMERIC;
+v_top_foods TEXT[];
+v_mood_count INTEGER;
+v_food_count INTEGER;
 BEGIN
-    IF auth.uid() IS DISTINCT FROM user_uuid THEN
-        RAISE EXCEPTION 'unauthorized';
-    END IF;
+IF auth.uid() IS DISTINCT FROM user_uuid THEN
+RAISE EXCEPTION 'unauthorized';
+END IF;
 
     SELECT AVG(mood_score), COUNT(*)
     INTO v_avg_mood, v_mood_count
@@ -177,45 +179,46 @@ BEGIN
         'moodEntries', COALESCE(v_mood_count, 0),
         'foodEntries', COALESCE(v_food_count, 0)
     );
+
 END;
-                                                                                                                                                                                                                                                                                                                                                      |
-| 
+|
+|
 DECLARE
-    avg_mood NUMERIC := 0;
-    total_calories NUMERIC := 0;
-    top_foods TEXT[] := '{}';
-    mood_count INTEGER := 0;
-    food_count INTEGER := 0;
-    start_date_only DATE;
+avg_mood NUMERIC := 0;
+total_calories NUMERIC := 0;
+top_foods TEXT[] := '{}';
+mood_count INTEGER := 0;
+food_count INTEGER := 0;
+start_date_only DATE;
 BEGIN
-    -- Convert timestamp to date for comparison
-    start_date_only := start_date::DATE;
-    
+-- Convert timestamp to date for comparison
+start_date_only := start_date::DATE;
+
     -- Calculate average mood
     SELECT COALESCE(AVG(mood_score), 0), COALESCE(COUNT(*), 0)
     INTO avg_mood, mood_count
-    FROM mood_entries 
-    WHERE user_id = user_uuid 
-    AND date >= start_date_only 
+    FROM mood_entries
+    WHERE user_id = user_uuid
+    AND date >= start_date_only
     AND date <= end_date;
-    
+
     -- Calculate total calories
     SELECT COALESCE(SUM(calories), 0), COALESCE(COUNT(*), 0)
     INTO total_calories, food_count
-    FROM food_entries 
-    WHERE user_id = user_uuid 
-    AND date >= start_date_only 
+    FROM food_entries
+    WHERE user_id = user_uuid
+    AND date >= start_date_only
     AND date <= end_date
     AND COALESCE(journal_mode, FALSE) = FALSE;
-    
+
     -- Get top 5 most frequent foods
     SELECT COALESCE(ARRAY_AGG(food_label), '{}')
     INTO top_foods
     FROM (
         SELECT UNNEST(food_labels) AS food_label, COUNT(*) as frequency
-        FROM food_entries 
-        WHERE user_id = user_uuid 
-        AND date >= start_date_only 
+        FROM food_entries
+        WHERE user_id = user_uuid
+        AND date >= start_date_only
         AND date <= end_date
         AND COALESCE(journal_mode, FALSE) = FALSE
         AND food_labels IS NOT NULL
@@ -224,7 +227,7 @@ BEGIN
         ORDER BY frequency DESC
         LIMIT 5
     ) AS top_food_query;
-    
+
     -- Return actual data from database
     RETURN jsonb_build_object(
         'avgMood', COALESCE(avg_mood, 0),
@@ -233,12 +236,13 @@ BEGIN
         'moodEntries', COALESCE(mood_count, 0),
         'foodEntries', COALESCE(food_count, 0)
     );
+
 END;
- |
+|
 
 ---
 
-### A3. Revoke over-broad grants to `anon` / `authenticated`  🔒 M
+### A3. Revoke over-broad grants to `anon` / `authenticated` 🔒 M
 
 The initial migration did `GRANT ALL ON ALL TABLES ... TO anon,
 authenticated`. This makes RLS the **only** defense — any new table
@@ -293,7 +297,7 @@ ORDER BY grantee, privilege_type;
 ```
 
 > **Rollback if something breaks:** `GRANT ALL ON ALL TABLES IN
-> SCHEMA public TO anon, authenticated;` restores the old (bad)
+SCHEMA public TO anon, authenticated;` restores the old (bad)
 > behavior. Do this only long enough to ship the fix.
 
 ✅ Done after troubleshooting
@@ -314,9 +318,10 @@ The task instructions included the new function skeleton with a placeholder comm
 
 ### How it was discovered
 
-A verification query — the same one used to confirm the function was "working" — returned real data in an earlier run. But the data returned was from a snapshot taken *before* the stub replaced the function. Running the same query fresh against the stub returned `NULL`.
+A verification query — the same one used to confirm the function was "working" — returned real data in an earlier run. But the data returned was from a snapshot taken _before_ the stub replaced the function. Running the same query fresh against the stub returned `NULL`.
 
 A grep confirmed the function is used in two places:
+
 - `apps/web/app/api/ai/insights/route.ts` — the "Generate AI Insights" server-side endpoint
 - `apps/web/hooks/useInsightsData.ts` — client-side call every time the Insights page loads
 
@@ -330,13 +335,14 @@ The original function body was located in `supabase/migrations/000_init.sql` lin
 
 Pasting the restored function into the Supabase Dashboard SQL Editor failed repeatedly with:
 
-```ERROR:42P01:relation"v_avg_mood" does not exist```
+`ERROR:42P01:relation"v_avg_mood" does not exist`
 After extensive debugging (confirming `plpgsql` extension was installed, testing different dollar-quote delimiters, testing with different variable names, ruling out copy-paste character corruption), the cause was revealed by a dialog popup:
 
-> *"Potential issue detected with your query"*
-> *"New table will not have Row Level Security enabled. Without RLS, any client using your project's anon or authenticated keys can read and write to `v_avg_mood`."*
+> _"Potential issue detected with your query"_
+> _"New table will not have Row Level Security enabled. Without RLS, any client using your project's anon or authenticated keys can read and write to `v_avg_mood`."_
 
 **Root cause:** the Supabase SQL Editor has a static analyzer that pattern-matches the word `INTO` in SQL and flags any new "table" as needing RLS. It doesn't distinguish between:
+
 - SQL's `SELECT INTO table_name` (actually creates a table)
 - PL/pgSQL's `SELECT ... INTO variable_name` (assigns values to local variables inside a function body)
 
@@ -355,6 +361,7 @@ The Supabase CLI's `supabase db execute` command doesn't exist in v2.39.x. Direc
 - Supabase Dashboard → Project Settings → Database
 - Connection string section → **Session pooler** tab (NOT "Direct connection")
 - Copy the URI. Format:
+
 ```bash
 postgresql://postgres.<project_ref>:[YOUR-PASSWORD]@aws-<N>-<region>.pooler.supabase.com:5432/postgres
 ```
@@ -388,12 +395,14 @@ Expected output: `CREATE FUNCTION` (one line).
 #### When to use psql vs Dashboard
 
 **Use `psql`:**
+
 - Any `CREATE OR REPLACE FUNCTION` that uses `SELECT ... INTO`
 - Any `CREATE OR REPLACE FUNCTION` in general (safer default)
 - Multi-statement migrations
 - Anything where the dashboard's analyzer might false-positive
 
 **Dashboard SQL Editor is fine for:**
+
 - Simple `SELECT` queries and inspection
 - `ALTER TABLE` for columns, indexes, constraints
 - `GRANT` / `REVOKE`
@@ -453,16 +462,16 @@ ORDER BY table_type, table_name;
 
 A grant-audit of this project confirmed:
 
-| Table | Grants | Why |
-|---|---|---|
-| `mood_entries`, `food_entries`, `insights`, `streaks`, `user_preferences` | authenticated: SELECT, INSERT, UPDATE, DELETE | User-owned data, frontend does full CRUD |
-| `health_metrics_daily`, `health_metrics_body`, `exercise_events`, `workout_routes`, `sleep_events`, `state_of_mind`, `ecg_readings`, `heart_rate_notifications` | authenticated: SELECT | Read-only Apple Watch data, written by service-role via `sync_hae_to_production()` |
-| `v_daily_activity`, `v_day_summary` | authenticated: SELECT | Views the UI reads from |
-| `keep_alive` | anon: INSERT | Public ping endpoint |
-| `staging_hae_metrics`, `staging_hae_workouts`, `staging_hae_other` | none | Written by `ingest-hae` edge function using service-role; never read by frontend |
-| `sync_log` | none | Operational logging, service-role only (RLS also enabled per A1) |
-| `knowledge_documents` | none | Accessed by AI insights endpoint via service-role; not read by frontend |
-| `exercise_daily` | none | Deprecated legacy table (scheduled to drop in task E1) |
+| Table                                                                                                                                                           | Grants                                        | Why                                                                                |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `mood_entries`, `food_entries`, `insights`, `streaks`, `user_preferences`                                                                                       | authenticated: SELECT, INSERT, UPDATE, DELETE | User-owned data, frontend does full CRUD                                           |
+| `health_metrics_daily`, `health_metrics_body`, `exercise_events`, `workout_routes`, `sleep_events`, `state_of_mind`, `ecg_readings`, `heart_rate_notifications` | authenticated: SELECT                         | Read-only Apple Watch data, written by service-role via `sync_hae_to_production()` |
+| `v_daily_activity`, `v_day_summary`                                                                                                                             | authenticated: SELECT                         | Views the UI reads from                                                            |
+| `keep_alive`                                                                                                                                                    | anon: INSERT                                  | Public ping endpoint                                                               |
+| `staging_hae_metrics`, `staging_hae_workouts`, `staging_hae_other`                                                                                              | none                                          | Written by `ingest-hae` edge function using service-role; never read by frontend   |
+| `sync_log`                                                                                                                                                      | none                                          | Operational logging, service-role only (RLS also enabled per A1)                   |
+| `knowledge_documents`                                                                                                                                           | none                                          | Accessed by AI insights endpoint via service-role; not read by frontend            |
+| `exercise_daily`                                                                                                                                                | none                                          | Deprecated legacy table (scheduled to drop in task E1)                             |
 
 If the UI breaks after a grant change, cross-reference the table it's trying to read against this list. If it's a view, check views. If it's a service-role-only table being queried from the frontend, that's an app-side bug, not a grant issue.
 
@@ -475,7 +484,7 @@ If the UI breaks after a grant change, cross-reference the table it's trying to 
 3. **Run grant coverage checks after any `REVOKE`** — views, sequences, and materialized views each need separate attention.
 4. **Verify UI impact after any security change.** Load every main page of the app in the browser. If anything shows "Pending" / "—" / zeros that shouldn't, suspect a grants/policies issue first.
 
-### A4. Remove anon-role SELECT access on user-data tables  🔒 M
+### A4. Remove anon-role SELECT access on user-data tables 🔒 M
 
 Several tables have legacy RLS policies granting the anon role
 unrestricted SELECT (`predicate: true`). After A3 they're largely
@@ -503,13 +512,13 @@ ORDER BY tablename, policyname;
 -- Expect: 0 rows (no anon-role policies remain)
 ```
 
-✅ Done 
+✅ Done
 
 Verification query returned the expected 0 rows.
 
 ---
 
-### A5. Drop legacy "test-user" RLS policies  🔒 M
+### A5. Drop legacy "test-user" RLS policies 🔒 M
 
 Policies referencing the second test-user UUID
 (`97c22f4c-cbd3-43dc-8227-e7022cf990f3`) — different from the one
@@ -560,7 +569,7 @@ ORDER BY tablename, policyname;
 -- Expect: *_own policies present for each table
 ```
 
-✅ Done 
+✅ Done
 
 First verification query gave the expected 0 rows.
 The second verification query gave:
@@ -596,7 +605,7 @@ The second verification query gave:
 
 ---
 
-### A6. Deduplicate RLS policies on `food_entries` / `mood_entries`  🧹 S
+### A6. Deduplicate RLS policies on `food_entries` / `mood_entries` 🧹 S
 
 After A4/A5 both tables still have two overlapping sets of
 owner-scoped policies: the older "Users can … their own …" and the
@@ -627,7 +636,7 @@ ORDER BY policyname;
 ✅ Done
 
 Verification output:
-| tablename    | policyname      | cmd    |
+| tablename | policyname | cmd |
 | ------------ | --------------- | ------ |
 | food_entries | food_delete_own | DELETE |
 | food_entries | food_insert_own | INSERT |
@@ -643,36 +652,39 @@ WHERE schemaname = 'public'
   AND tablename IN ('food_entries','mood_entries','insights','streaks')
 ORDER BY tablename, policyname;
 ```
+
 which gave the below output:
-| tablename    | policyname                              | cmd    |
+| tablename | policyname | cmd |
 | ------------ | --------------------------------------- | ------ |
-| food_entries | food_delete_own                         | DELETE |
-| food_entries | food_insert_own                         | INSERT |
-| food_entries | food_select_own                         | SELECT |
-| food_entries | food_update_own                         | UPDATE |
-| insights     | Users can insert their own insights     | INSERT |
-| insights     | Users can view their own insights       | SELECT |
-| insights     | insights_delete_own                     | DELETE |
-| insights     | insights_insert_own                     | INSERT |
-| insights     | insights_select_own                     | SELECT |
-| insights     | insights_update_own                     | UPDATE |
+| food_entries | food_delete_own | DELETE |
+| food_entries | food_insert_own | INSERT |
+| food_entries | food_select_own | SELECT |
+| food_entries | food_update_own | UPDATE |
+| insights | Users can insert their own insights | INSERT |
+| insights | Users can view their own insights | SELECT |
+| insights | insights_delete_own | DELETE |
+| insights | insights_insert_own | INSERT |
+| insights | insights_select_own | SELECT |
+| insights | insights_update_own | UPDATE |
 | mood_entries | Users can insert their own mood entries | INSERT |
 | mood_entries | Users can update their own mood entries | UPDATE |
-| mood_entries | Users can view their own mood entries   | SELECT |
-| mood_entries | mood_delete_own                         | DELETE |
-| mood_entries | mood_insert_own                         | INSERT |
-| mood_entries | mood_select_own                         | SELECT |
-| mood_entries | mood_update_own                         | UPDATE |
-| streaks      | Users can manage their own streaks      | ALL    |
-| streaks      | Users can view their own streaks        | SELECT |
-| streaks      | streaks_delete_own                      | DELETE |
-| streaks      | streaks_insert_own                      | INSERT |
-| streaks      | streaks_select_own                      | SELECT |
-| streaks      | streaks_update_own                      | UPDATE |
+| mood_entries | Users can view their own mood entries | SELECT |
+| mood_entries | mood_delete_own | DELETE |
+| mood_entries | mood_insert_own | INSERT |
+| mood_entries | mood_select_own | SELECT |
+| mood_entries | mood_update_own | UPDATE |
+| streaks | Users can manage their own streaks | ALL |
+| streaks | Users can view their own streaks | SELECT |
+| streaks | streaks_delete_own | DELETE |
+| streaks | streaks_insert_own | INSERT |
+| streaks | streaks_select_own | SELECT |
+| streaks | streaks_update_own | UPDATE |
 
 ---
+
 Which revealed `food_entries` cleaned up properly — A6's DROP for those 3 policies worked. But the other three tables' DROPs didn't work. Most likely cause: policy names I guessed don't exactly match yours.
 Before dropping, let's use the EXACT names from your output:
+
 ```sql
 -- insights
 DROP POLICY "Users can view their own insights"     ON insights;
@@ -687,9 +699,11 @@ DROP POLICY "Users can update their own mood entries"   ON mood_entries;
 DROP POLICY "Users can view their own streaks"     ON streaks;
 DROP POLICY "Users can manage their own streaks"   ON streaks;
 ```
+
 I removed the `IF EXISTS` so if any name is still wrong it'll error loudly instead of silently skipping.
 Note the `streaks` "Users can manage their own streaks" is a `cmd=ALL` policy — it covers select/insert/update/delete in one. Dropping it is safe because the four individual `streaks_*_own` policies cover the same surface.
 Run it, then re-run the verification query:
+
 ```sql
 SELECT tablename, policyname, cmd
 FROM pg_policies
@@ -698,32 +712,31 @@ WHERE schemaname = 'public'
 ORDER BY tablename, policyname;
 ```
 
-Output: 
-| tablename    | policyname          | cmd    |
+Output:
+| tablename | policyname | cmd |
 | ------------ | ------------------- | ------ |
-| food_entries | food_delete_own     | DELETE |
-| food_entries | food_insert_own     | INSERT |
-| food_entries | food_select_own     | SELECT |
-| food_entries | food_update_own     | UPDATE |
-| insights     | insights_delete_own | DELETE |
-| insights     | insights_insert_own | INSERT |
-| insights     | insights_select_own | SELECT |
-| insights     | insights_update_own | UPDATE |
-| mood_entries | mood_delete_own     | DELETE |
-| mood_entries | mood_insert_own     | INSERT |
-| mood_entries | mood_select_own     | SELECT |
-| mood_entries | mood_update_own     | UPDATE |
-| streaks      | streaks_delete_own  | DELETE |
-| streaks      | streaks_insert_own  | INSERT |
-| streaks      | streaks_select_own  | SELECT |
-| streaks      | streaks_update_own  | UPDATE |
+| food_entries | food_delete_own | DELETE |
+| food_entries | food_insert_own | INSERT |
+| food_entries | food_select_own | SELECT |
+| food_entries | food_update_own | UPDATE |
+| insights | insights_delete_own | DELETE |
+| insights | insights_insert_own | INSERT |
+| insights | insights_select_own | SELECT |
+| insights | insights_update_own | UPDATE |
+| mood_entries | mood_delete_own | DELETE |
+| mood_entries | mood_insert_own | INSERT |
+| mood_entries | mood_select_own | SELECT |
+| mood_entries | mood_update_own | UPDATE |
+| streaks | streaks_delete_own | DELETE |
+| streaks | streaks_insert_own | INSERT |
+| streaks | streaks_select_own | SELECT |
+| streaks | streaks_update_own | UPDATE |
 
 This is expected and now fixed/completed. UI is showing data and no errors.
 
-
 ## Phase B — Data integrity bugs
 
-### B1. Fix `get_latest_exercise_date`  🐛 S
+### B1. Fix `get_latest_exercise_date` 🐛 S
 
 Currently reads from the empty `exercise_daily` table and always
 returns NULL.
@@ -749,15 +762,15 @@ SELECT get_latest_exercise_date('a5dafd53-74d9-4492-9b60-944cfdf5d336');
 -- Expect: a recent date, not NULL
 ```
 
-✅ Done 
+✅ Done
 Verification output, as expected:
 | get_latest_exercise_date |
 | ------------------------ |
-| 2026-04-19               |
+| 2026-04-19 |
 
 ---
 
-### B2. Consolidate streak implementations  🐛 M
+### B2. Consolidate streak implementations 🐛 M
 
 Two implementations coexist: the buggy trigger-based incremental one
 and the correct manual `recalc_streaks`. Wire the correct one to a
@@ -770,6 +783,7 @@ nightly cron, drop the triggers.
 DROP TRIGGER IF EXISTS trg_update_streaks_food ON food_entries;
 DROP TRIGGER IF EXISTS trg_update_streaks_mood ON mood_entries;
 ```
+
 Output: `success`
 
 ```sql
@@ -780,18 +794,21 @@ SELECT cron.schedule(
   $$SELECT recalc_streaks(user_id) FROM user_preferences;$$
 );
 ```
+
 Output:
 | schedule |
 | -------- |
-| 7        |
+| 7 |
+
 ```sql
 -- 3. Run it once now so streaks are correct immediately
 SELECT recalc_streaks(user_id) FROM user_preferences;
 ```
+
 output:
 | recalc_streaks |
 | -------------- |
-|                |
+| |
 
 **VERIFY:**
 
@@ -801,17 +818,20 @@ SELECT tgname FROM pg_trigger
 WHERE tgname IN ('trg_update_streaks_food','trg_update_streaks_mood');
 -- Expect: 0 rows
 ```
+
 Output: expected o rows, `Success. No rows returned`
+
 ```sql
 -- Cron job exists
 SELECT jobname, schedule, active FROM cron.job
 WHERE jobname = 'recalc-streaks-nightly';
 -- Expect: 1 row, active = true
 ```
-Ouput: 
-| jobname                | schedule  | active |
+
+Ouput:
+| jobname | schedule | active |
 | ---------------------- | --------- | ------ |
-| recalc-streaks-nightly | 0 4 * * * | true   |
+| recalc-streaks-nightly | 0 4 \* \* \* | true |
 
 ```sql
 -- Streak data looks sane
@@ -820,12 +840,14 @@ FROM streaks
 WHERE user_id = 'a5dafd53-74d9-4492-9b60-944cfdf5d336';
 -- Expect: updated_at = today, current_streak reflects reality
 ```
+
 Output:
-| user_id                              | current_streak | longest_streak | last_entry_date | updated_at                    |
+| user_id | current_streak | longest_streak | last_entry_date | updated_at |
 | ------------------------------------ | -------------- | -------------- | --------------- | ----------------------------- |
-| a5dafd53-74d9-4492-9b60-944cfdf5d336 | 0              | 9              | 2026-04-19      | 2026-04-20 12:34:47.409178+00 |
+| a5dafd53-74d9-4492-9b60-944cfdf5d336 | 0 | 9 | 2026-04-19 | 2026-04-20 12:34:47.409178+00 |
 
 ### Conclusion
+
 Partial success.
 ✅ Triggers dropped, cron scheduled, streaks recalculated — the mechanics worked.
 ⚠️ But `current_streak = 0` is suspicious. `last_entry_date = 2026-04-19` (yesterday) and today is 2026-04-20. If you logged yesterday, current_streak should be 1, not 0.
@@ -835,18 +857,20 @@ Two possibilities:
 2. `recalc_streaks()` has a bug — it's treating yesterday as "streak broken" when it should count.
 
 Quick check:
+
 ```sql
 SELECT date, COUNT(*) FROM mood_entries
 WHERE user_id = 'a5dafd53-74d9-4492-9b60-944cfdf5d336'
   AND date >= CURRENT_DATE - INTERVAL '3 days'
 GROUP BY date ORDER BY date;
 ```
+
 output:
-| date       | count |
+| date | count |
 | ---------- | ----- |
-| 2026-04-17 | 1     |
-| 2026-04-18 | 1     |
-| 2026-04-19 | 1     |
+| 2026-04-17 | 1 |
+| 2026-04-18 | 1 |
+| 2026-04-19 | 1 |
 
 ```sql
 SELECT date, COUNT(*) FROM food_entries
@@ -854,49 +878,52 @@ WHERE user_id = 'a5dafd53-74d9-4492-9b60-944cfdf5d336'
   AND date >= CURRENT_DATE - INTERVAL '3 days'
 GROUP BY date ORDER BY date;
 ```
+
 output:
-| date       | count |
+| date | count |
 | ---------- | ----- |
-| 2026-04-17 | 3     |
-| 2026-04-18 | 5     |
-| 2026-04-19 | 5     |
+| 2026-04-17 | 3 |
+| 2026-04-18 | 5 |
+| 2026-04-19 | 5 |
 
 Based on the output `recalc_streaks()` has a bug. You logged every day for at least 3 consecutive days ending yesterday — current_streak should be ≥ 3, not 0.
 Let's look at the function to see what it's doing:
+
 ```sql
 SELECT pg_get_functiondef('recalc_streaks(uuid)'::regprocedure);
 ```
+
 output:
-| pg_get_functiondef                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| pg_get_functiondef |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | CREATE OR REPLACE FUNCTION public.recalc_streaks(p_user_id uuid)
- RETURNS void
- LANGUAGE plpgsql
+RETURNS void
+LANGUAGE plpgsql
 AS $function$
 declare
-  d date := current_date;
-  cur int := 0;
-  best int := coalesce((select longest_streak from public.streaks where user_id=p_user_id),0);
+d date := current_date;
+cur int := 0;
+best int := coalesce((select longest_streak from public.streaks where user_id=p_user_id),0);
 begin
-  loop
-    exit when not exists (
-      select 1 from public.mood_entries me where me.user_id=p_user_id and me.date=d
-    ) and not exists (
-      select 1 from public.food_entries fe where fe.user_id=p_user_id and fe.date=d
-    );
-    cur := cur + 1;
-    if cur > best then best := cur; end if;
-    d := d - 1;
-  end loop;
+loop
+exit when not exists (
+select 1 from public.mood_entries me where me.user_id=p_user_id and me.date=d
+) and not exists (
+select 1 from public.food_entries fe where fe.user_id=p_user_id and fe.date=d
+);
+cur := cur + 1;
+if cur > best then best := cur; end if;
+d := d - 1;
+end loop;
 
-  insert into public.streaks(user_id, current_streak, longest_streak)
-  values (p_user_id, cur, best)
-  on conflict (user_id) do update
-  set current_streak = excluded.current_streak,
-      longest_streak = greatest(streaks.longest_streak, excluded.current_streak),
-      updated_at = now();
+insert into public.streaks(user_id, current_streak, longest_streak)
+values (p_user_id, cur, best)
+on conflict (user_id) do update
+set current_streak = excluded.current_streak,
+longest_streak = greatest(streaks.longest_streak, excluded.current_streak),
+updated_at = now();
 end $function$
- |
+|
 
 Found the bug.
 The function starts counting from `current_date` (today, 2026-04-20). If you haven't logged anything TODAY yet, the very first `exit when not exists` check returns true, the loop exits immediately with `cur = 0`, and — critically — it never looks at yesterday even though yesterday has entries.
@@ -962,19 +989,25 @@ BEGIN
         updated_at = now();
 END $function$;
 ```
+
 ⚠️ This is a `CREATE OR REPLACE FUNCTION` with `SELECT ... INTO` — so it WILL trip the Dashboard analyzer again. Run via `psql`:
+
 ```bash
 cat > /Users/benvandijk/fl-moodtracker/temp/fix_recalc_streaks.sql << 'EOF'
 <paste the entire SQL above, including the CREATE OR REPLACE line>
 EOF
 ```
+
 Then:
+
 ```bash
 psql "postgresql://postgres.sxawzzcpmiakltfjpzcn:YOUR_PASSWORD@aws-1-eu-central-1.pooler.supabase.com:5432/postgres" \
   -f /Users/benvandijk/fl-moodtracker/temp/fix_recalc_streaks.sql
-  ```
-  Output: `CREATE FUNCTION`
+```
+
+Output: `CREATE FUNCTION`
 After it runs, re-run in the SQL Editor:
+
 ```sql
 SELECT recalc_streaks('a5dafd53-74d9-4492-9b60-944cfdf5d336');
 
@@ -982,10 +1015,11 @@ SELECT user_id, current_streak, longest_streak, last_entry_date, updated_at
 FROM streaks
 WHERE user_id = 'a5dafd53-74d9-4492-9b60-944cfdf5d336';
 ```
+
 Output:
-| user_id                              | current_streak | longest_streak | last_entry_date | updated_at                    |
+| user_id | current_streak | longest_streak | last_entry_date | updated_at |
 | ------------------------------------ | -------------- | -------------- | --------------- | ----------------------------- |
-| a5dafd53-74d9-4492-9b60-944cfdf5d336 | 12             | 12             | 2026-04-19      | 2026-04-20 13:06:02.845901+00 |
+| a5dafd53-74d9-4492-9b60-944cfdf5d336 | 12 | 12 | 2026-04-19 | 2026-04-20 13:06:02.845901+00 |
 
 Expected: `current_streak` now reflects reality (should be ≥ 3, possibly much higher if you've been logging consistently), `last_entry_date = 2026-04-19`.
 
@@ -1015,7 +1049,7 @@ are partially broken. The companion repo work (Edge Function rewrite)
 is in `TODO-agent-repo.md` task R-C1 — do the agent task **between**
 C3 and C4 here.
 
-### C1. Create `hae_ingest_tokens` table  🚧 M
+### C1. Create `hae_ingest_tokens` table 🚧 M
 
 **DO:**
 
@@ -1029,18 +1063,22 @@ CREATE TABLE hae_ingest_tokens (
   label         text
 );
 ```
+
 Output:
 `Success. No rows returned`.
+
 ```sql
 CREATE INDEX idx_hae_tokens_active
   ON hae_ingest_tokens(token) WHERE revoked_at IS NULL;
 
 ALTER TABLE hae_ingest_tokens ENABLE ROW LEVEL SECURITY;
 ```
+
 Output:
 `Error: Failed to run sql query: ERROR: 42P07: relation "idx_hae_tokens_active" already exists`
 
 The index already existed from a prior attempt. Harmless. You can skip that statement and run the rest:
+
 ```sql
 ALTER TABLE hae_ingest_tokens ENABLE ROW LEVEL SECURITY;
 
@@ -1049,14 +1087,18 @@ CREATE POLICY "Users see own hae tokens"
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 ```
+
 Output:
 `Success. No rows returned`
 Then the seed INSERT. But first — critical heads up:
 C1 asks you to INSERT a fresh token. Before you do that, generate one in your terminal:
+
 ```bash
 openssl rand -hex 32
 ```
+
 Copy that value. Use it in the INSERT:
+
 ```sql
 INSERT INTO hae_ingest_tokens (token, user_id, label)
 VALUES (
@@ -1065,15 +1107,18 @@ VALUES (
   'Primary iPhone (Ben)'
 );
 ```
+
 ⚠️ Don't share the token. Just the verification output:
+
 ```sql
 SELECT user_id, label, created_at, revoked_at FROM hae_ingest_tokens;
 ```
+
 Expected: 1 row, `revoked_at` is NULL.
 output:
-| user_id                              | label                | created_at                    | revoked_at |
+| user_id | label | created_at | revoked_at |
 | ------------------------------------ | -------------------- | ----------------------------- | ---------- |
-| a5dafd53-74d9-4492-9b60-944cfdf5d336 | Primary iPhone (Ben) | 2026-04-20 13:15:53.502279+00 | null       |
+| a5dafd53-74d9-4492-9b60-944cfdf5d336 | Primary iPhone (Ben) | 2026-04-20 13:15:53.502279+00 | null |
 
 ```sql
 -- Users can see and manage their own tokens (for a future UI);
@@ -1096,8 +1141,9 @@ VALUES (
   'Primary iPhone (Ben)'
 );
 ```
+
 output:
-| policyname               | roles    | cmd |
+| policyname | roles | cmd |
 | ------------------------ | -------- | --- |
 | Users see own hae tokens | {public} | ALL |
 
@@ -1108,14 +1154,16 @@ SELECT user_id, label, created_at, revoked_at
 FROM hae_ingest_tokens;
 -- Expect: 1 row, revoked_at NULL
 ```
+
 | user_id                              | label                | created_at                    | revoked_at |
 | ------------------------------------ | -------------------- | ----------------------------- | ---------- |
 | a5dafd53-74d9-4492-9b60-944cfdf5d336 | Primary iPhone (Ben) | 2026-04-20 13:15:53.502279+00 | null       |
+
 ✅ Done with some troubleshooting and extra tasks included in above.
 
 ---
 
-### C2. Add `user_id` to staging tables  🚧 M
+### C2. Add `user_id` to staging tables 🚧 M
 
 **DO:**
 
@@ -1143,17 +1191,18 @@ UNION ALL SELECT 'workouts', COUNT(*) FILTER (WHERE user_id IS NULL) FROM stagin
 UNION ALL SELECT 'other',    COUNT(*) FILTER (WHERE user_id IS NULL) FROM staging_hae_other;
 -- Expect: 0 in every row
 ```
+
 Output:
-| t        | null_users |
+| t | null_users |
 | -------- | ---------- |
-| metrics  | 0          |
-| workouts | 0          |
-| other    | 0          |
+| metrics | 0 |
+| workouts | 0 |
+| other | 0 |
 ✅ Done
 
 ---
 
-### C3. Refine fragile staging uniques  🚧 S
+### C3. Refine fragile staging uniques 🚧 S
 
 The `UNIQUE (metric_name, date)` and `UNIQUE (workout_name, start_time)`
 constraints don't include `user_id` — they'd reject legitimate rows
@@ -1190,12 +1239,13 @@ WHERE conrelid IN ('staging_hae_metrics'::regclass,'staging_hae_workouts'::regcl
   AND contype = 'u';
 -- Expect: new per-user unique constraints present, old ones gone
 ```
+
 Output:
-| conname                                     | pg_get_constraintdef                       |
+| conname | pg_get_constraintdef |
 | ------------------------------------------- | ------------------------------------------ |
-| staging_hae_metrics_unique                  | UNIQUE (metric_name, date)                 |
-| staging_hae_metrics_user_metric_date_key    | UNIQUE (user_id, metric_name, date)        |
-| staging_hae_workouts_unique                 | UNIQUE (workout_name, start_time)          |
+| staging_hae_metrics_unique | UNIQUE (metric_name, date) |
+| staging_hae_metrics_user_metric_date_key | UNIQUE (user_id, metric_name, date) |
+| staging_hae_workouts_unique | UNIQUE (workout_name, start_time) |
 | staging_hae_workouts_user_workout_start_key | UNIQUE (user_id, workout_name, start_time) |
 
 ✅ Done
@@ -1213,7 +1263,7 @@ come back here.
 
 ---
 
-### C4. Rewrite `sync_hae_to_production()` for multi-user  🚧 L
+### C4. Rewrite `sync_hae_to_production()` for multi-user 🚧 L
 
 Remove the hardcoded user UUID; process each distinct `user_id` in
 staging, using that user's own `timezone`.
@@ -1226,14 +1276,14 @@ per these rules)
 
 - Replace the top-of-function `v_user_id := 'a5dafd53-...'` with a
   loop over `SELECT DISTINCT user_id FROM staging_hae_metrics WHERE
-  processed_at IS NULL UNION ... (workouts) UNION ... (other)`.
+processed_at IS NULL UNION ... (workouts) UNION ... (other)`.
 - Inside the loop, read that user's timezone:
   ```sql
   SELECT timezone INTO v_tz FROM user_preferences WHERE user_id = v_user_id;
   v_tz := COALESCE(v_tz, 'UTC');
   ```
 - Change every staging read to `WHERE user_id = v_user_id AND
-  processed_at IS NULL`.
+processed_at IS NULL`.
 - Aggregate per-user counts and concatenate them into the RETURN
   string.
 
@@ -1242,6 +1292,7 @@ per these rules)
 > ```sql
 > SELECT pg_get_functiondef('sync_hae_to_production()'::regprocedure);
 > ```
+>
 > Paste the output somewhere safe.
 
 **VERIFY (single-user regression first):**
@@ -1280,7 +1331,7 @@ SELECT sync_hae_to_production();
 
 ---
 
-### C5. Drop `UNIQUE (date)` on `health_metrics_daily`  🚧 S
+### C5. Drop `UNIQUE (date)` on `health_metrics_daily` 🚧 S
 
 Single-user bottleneck — only one row per date globally.
 
@@ -1304,11 +1355,11 @@ WHERE conrelid = 'health_metrics_daily'::regclass AND contype = 'u';
 -- Expect: constraint(s) on (user_id, date), none on (date) alone
 ```
 
- ✅ Done
+✅ Done
 
 ---
 
-### C6. Drop hardcoded `user_id` defaults  🚧 S
+### C6. Drop hardcoded `user_id` defaults 🚧 S
 
 Several production tables default `user_id` to the hardcoded test
 user UUID. Foot-gun the moment a second user appears.
@@ -1359,7 +1410,7 @@ Duplicate index cleanup on health_metrics_daily (bonus D4 progress)
 Do this AFTER Phase C — dropping columns is harder if policies or
 constraints reference them.
 
-### D1. Audit and drop legacy columns on `health_metrics_daily`  🧹 M
+### D1. Audit and drop legacy columns on `health_metrics_daily` 🧹 M
 
 **Pre-step (important):** before dropping, ask the agent to grep the
 frontend for each column name (see `TODO-agent-repo.md` task R-D1).
@@ -1389,7 +1440,7 @@ ORDER BY ordinal_position;
 
 ---
 
-### D2. Audit and drop legacy columns on `exercise_events`  🧹 L
+### D2. Audit and drop legacy columns on `exercise_events` 🧹 L
 
 Same pattern — agent audit first (task R-D1), then drop.
 
@@ -1431,7 +1482,7 @@ ORDER BY ordinal_position;
 
 ---
 
-### D3. Drop duplicate column on `keep_alive`  🧹 S
+### D3. Drop duplicate column on `keep_alive` 🧹 S
 
 `pinged_at` and `timestamp` both default to `NOW()` — pointless.
 
@@ -1453,9 +1504,10 @@ WHERE table_name = 'keep_alive' AND table_schema = 'public';
 
 ---
 
-### D4. Consolidate redundant indexes  🧹 M
+### D4. Consolidate redundant indexes 🧹 M
 
 Worst offenders:
+
 - `health_metrics_daily` — 5 identical indexes on `(user_id, date)`
 - `exercise_events` — 4 overlapping on `user_id + date/started_at`
 - `food_entries`, `mood_entries` — 3 each on `(user_id, date)`
@@ -1491,7 +1543,7 @@ ORDER BY indexname;
 
 ## Phase E — Deprecations
 
-### E1. Drop `exercise_daily`  🧹 S
+### E1. Drop `exercise_daily` 🧹 S
 
 Depends on B1 (the helper function must be rewritten first). After B1
 shipped, nothing reads this table.
@@ -1517,7 +1569,7 @@ SELECT 1 FROM pg_tables WHERE tablename = 'exercise_daily';
 
 ---
 
-### E2. Decide fate of `sync_log`  🧹 S
+### E2. Decide fate of `sync_log` 🧹 S
 
 After A1 it's RLS-protected and unused by HAE. Two options:
 
@@ -1538,7 +1590,7 @@ and `purge_old_staging_rows` runs.
 
 ## Phase F — Observability & ergonomics
 
-### F1. Monitoring: stale-staging alert  ✨ M
+### F1. Monitoring: stale-staging alert ✨ M
 
 Add a check that runs every hour and raises if HAE hasn't pushed
 recently during awake hours.
@@ -1567,14 +1619,14 @@ SELECT * FROM v_hae_freshness;
 -- Expect: status = 'OK' (during awake hours, assuming HAE is live)
 ```
 
-Alerting this externally (email/push) is out of scope for Supabase —
-tracked as a follow-up in the agent file.
+Alerting is handled in-app (see `TODO-agent-repo.md` R-F2).
 
-☐ Done
+✅ Done
+note: "View created via migration 012_hae_freshness_view.sql pushed with supabase db push."
 
 ---
 
-### F2. Log sync runs to an audit table  ✨ M
+### F2. Log sync runs to an audit table ✨ M
 
 If you chose Option B for E2, use `sync_log` with a schema change.
 Otherwise create a fresh `sync_audit_log`.
@@ -1596,7 +1648,7 @@ ORDER BY run_at DESC LIMIT 10;
 
 ---
 
-### F3. Migrate schema drift back to repo  🐛 S
+### F3. Migrate schema drift back to repo 🐛 S
 
 Several objects were created directly in the SQL Editor and aren't
 in `supabase/migrations/`:
@@ -1632,7 +1684,8 @@ WHERE jobname IN ('sync-hae-to-production','purge-old-staging-rows','recalc-stre
 Hand these outputs to the agent (task R-F1) for saving as a
 migration file.
 
-☐ Done
+✅ Done
+note: "Outputs provided to agent in previous session. Migration files 009–011 committed."
 
 ---
 
@@ -1640,27 +1693,28 @@ migration file.
 
 These are not critical. Revisit when the foundation is boring.
 
-### G1. Near-realtime sync via `pg_notify`  ✨ L
+### G1. Near-realtime sync via `pg_notify` ✨ L
 
 Remove the up-to-15-min lag by having `ingest-hae` emit a
 `pg_notify('hae_ingest', user_id::text)` after each successful write,
 and have a small listener call `sync_hae_to_production()` for that
 user. Keep the 15-min cron as fallback.
 
-### G2. Extend sync for `vo2_max`  ✨ S
+### G2. Extend sync for `vo2_max` ✨ S
 
 HAE sends it; we don't aggregate it. Add an
 `AVG(qty) FILTER (WHERE metric_name = 'vo2_max')` to the metrics
 INSERT in `sync_hae_to_production()`.
 
-### G3. Extend sync for more body metrics  ✨ S
+### G3. Extend sync for more body metrics ✨ S
 
 HAE also sends `lean_body_mass` and `height`. Consider:
+
 - `height_m` column on `health_metrics_body` (or a `health_profile`
   table for stable values)
 - `lean_body_mass_kg` column
 
-### G4. Storage bucket policies in a migration  🔒 S
+### G4. Storage bucket policies in a migration 🔒 S
 
 Today `food-photos` and `voice-notes` bucket policies are set via the
 Dashboard and aren't version-controlled. Configuration-drift risk.
