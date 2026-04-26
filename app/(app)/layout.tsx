@@ -22,6 +22,7 @@ import {
   Apple,
   Dumbbell,
   HeartPulse,
+  Sparkles,
   UtensilsCrossed,
 } from 'lucide-react'
 import Link from 'next/link'
@@ -35,6 +36,7 @@ const navigation = [
   { name: 'Health', href: '/health', icon: HeartPulse },
   { name: 'Calendar', href: '/calendar', icon: Calendar },
   { name: 'Insights', href: '/insights', icon: BarChart3 },
+  { name: 'Preview', href: '/preview', icon: Sparkles },
   { name: 'Profile', href: '/profile', icon: User },
 ]
 

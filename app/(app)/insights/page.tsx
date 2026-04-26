@@ -7,12 +7,9 @@ import { toast } from 'sonner'
 import {
   Bar,
   BarChart,
-  Cell,
   Legend,
   Line,
   LineChart,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -41,7 +38,6 @@ export default function InsightsPage() {
   const {
     weeklyMetrics,
     weeklyData,
-    macroData,
     aiSummary,
     aiTips,
     aiReport,
@@ -219,109 +215,65 @@ export default function InsightsPage() {
       {loading ? (
         <InsightsChartsSkeleton />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <StandardCardHeader
-              title={
-                <span className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  Mood & Calories Trend
-                </span>
-              }
-              description="Daily mood and calories across this period."
-            />
-            <CardContent className="h-72">
-              {weeklyData.length > 0 &&
-              weeklyData.some((day) => day.mood > 0 || day.calories > 0) ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weeklyData}>
-                    <XAxis dataKey="date" stroke="var(--muted-foreground)" fontSize={12} />
-                    <YAxis
-                      yAxisId="mood"
-                      domain={[0, 5]}
-                      stroke="var(--muted-foreground)"
-                      fontSize={12}
-                    />
-                    <YAxis
-                      yAxisId="calories"
-                      orientation="right"
-                      stroke="var(--muted-foreground)"
-                      fontSize={12}
-                    />
-                    <Tooltip />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-                    <Line
-                      yAxisId="mood"
-                      type="monotone"
-                      dataKey="mood"
-                      name="Mood"
-                      stroke="var(--chart-1)"
-                      strokeWidth={3}
-                      dot={{ r: 4 }}
-                    />
-                    <Line
-                      yAxisId="calories"
-                      type="monotone"
-                      dataKey="calories"
-                      name="Calories"
-                      stroke="var(--chart-2)"
-                      strokeWidth={3}
-                      dot={{ r: 4 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="text-center text-muted-foreground py-16 space-y-3">
-                  <p>No data available for this period</p>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href="/dashboard">Log a meal</Link>
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <StandardCardHeader
-              title={
-                <span className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  Macro Distribution
-                </span>
-              }
-              description="Protein, carbs, and fat share for the selected window."
-            />
-            <CardContent className="h-72">
-              {macroData.some((macro) => macro.value > 0) ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={macroData}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius={60}
-                      outerRadius={90}
-                      paddingAngle={3}
-                    >
-                      {macroData.map((entry, index) => (
-                        <Cell key={`${entry.name}-${index}`} fill={`var(--chart-${index + 1})`} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => [`${value}%`, 'Share']} />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="text-center text-muted-foreground py-16 space-y-3">
-                  <p>No nutrition data available</p>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href="/dashboard">Start logging</Link>
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        <Card>
+          <StandardCardHeader
+            title={
+              <span className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Mood & Calories Trend
+              </span>
+            }
+            description="Daily mood and calories across this period."
+          />
+          <CardContent className="h-72">
+            {weeklyData.length > 0 && weeklyData.some((day) => day.mood > 0 || day.calories > 0) ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={weeklyData}>
+                  <XAxis dataKey="date" stroke="var(--muted-foreground)" fontSize={12} />
+                  <YAxis
+                    yAxisId="mood"
+                    domain={[0, 5]}
+                    stroke="var(--muted-foreground)"
+                    fontSize={12}
+                  />
+                  <YAxis
+                    yAxisId="calories"
+                    orientation="right"
+                    stroke="var(--muted-foreground)"
+                    fontSize={12}
+                  />
+                  <Tooltip />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                  <Line
+                    yAxisId="mood"
+                    type="monotone"
+                    dataKey="mood"
+                    name="Mood"
+                    stroke="var(--chart-1)"
+                    strokeWidth={3}
+                    dot={{ r: 4 }}
+                  />
+                  <Line
+                    yAxisId="calories"
+                    type="monotone"
+                    dataKey="calories"
+                    name="Calories"
+                    stroke="var(--chart-2)"
+                    strokeWidth={3}
+                    dot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-center text-muted-foreground py-16 space-y-3">
+                <p>No data available for this period</p>
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/dashboard">Log a meal</Link>
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Top Foods */}

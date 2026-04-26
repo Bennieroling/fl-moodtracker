@@ -31,6 +31,8 @@ import {
 } from '@/components/entry'
 import { PageHeader } from '@/components/page-header'
 import { MacroDisplay } from '@/components/macro-display'
+import { ReadinessHero } from '@/components/dashboard/readiness-hero'
+import { AnomalyBadge } from '@/components/dashboard/anomaly-badge'
 import { Activity, AlertTriangle, Footprints, TrendingDown, TrendingUp, Minus } from 'lucide-react'
 
 const valenceColor = (classification: string) => {
@@ -602,6 +604,14 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {isViewingToday && <AnomalyBadge />}
+
+      {isViewingToday && (
+        <section className="space-y-3">
+          <ReadinessHero />
+        </section>
       )}
 
       <section className="space-y-3">

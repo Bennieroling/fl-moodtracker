@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pulse — Feature Mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0b;
+    --bg-raised: #141416;
+    --bg-card: #1a1a1d;
+    --border: #26262a;
+    --border-strong: #35353a;
+    --text: #f2f2f0;
+    --text-dim: #8a8a88;
+    --text-faint: #55555a;
+    --accent: #d4ff3f;        /* electric lime — signal color */
+    --accent-dim: #7a9922;
+    --warn: #ff7a4a;
+    --ok: #7dd3a3;
+    --bad: #ef4a6b;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    --serif: "Fraunces", Georgia, serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--serif);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body {
+    background:
+      radial-gradient(ellipse at top, rgba(212, 255, 63, 0.04), transparent 55%),
+      radial-gradient(ellipse at bottom right, rgba(239, 74, 107, 0.03), transparent 50%),
+      var(--bg);
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+  }
+
+  .shell {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 20px 120px;
+    position: relative;
+  }
+
+  /* ---------- HEADER ---------- */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 36px;
+    padding-top: 8px;
+  }
+
+  .brand {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+  }
+  .brand em {
+    color: var(--accent);
+    font-style: normal;
+  }
+
+  .brand-sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+  }
+
+  /* ---------- TABS ---------- */
+  .tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px;
+    padding: 4px;
+    background: var(--bg-raised);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  .tab {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 11px 8px;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    font-weight: 500;
+  }
+  .tab.active {
+    background: var(--bg-card);
+    color: var(--text);
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+  }
+  .tab:not(.active):hover { color: var(--text); }
+
+  /* ---------- VIEWS ---------- */
+  .view { display: none; animation: fadeIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .view.active { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ---------- SHARED ---------- */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 12px;
+  }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 14px;
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-family: var(--mono);
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    font-weight: 500;
+  }
+
+  /* ==========================================
+     FEATURE 1 — READINESS SCORE
+     ========================================== */
+  .ready-hero {
+    text-align: center;
+    padding: 20px 0 24px;
+    position: relative;
+  }
+  .ready-date {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+
+  .ring-wrap {
+    position: relative;
+    width: 260px;
+    height: 260px;
+    margin: 0 auto;
+  }
+  .ring {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  .ring-bg {
+    fill: none;
+    stroke: var(--border);
+    stroke-width: 10;
+  }
+  .ring-fill {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 10;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 12px rgba(212, 255, 63, 0.4));
+    transition: stroke-dashoffset 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .ring-score {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: 78px;
+    line-height: 1;
+    letter-spacing: -0.04em;
+  }
+  .ring-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-top: 8px;
+    font-weight: 500;
+  }
+  .ring-caption {
+    margin-top: 20px;
+    font-size: 15px;
+    color: var(--text-dim);
+    font-style: italic;
+    max-width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.4;
+  }
+
+  .contributors {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 28px;
+  }
+  .contrib {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .contrib-label {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.15em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .contrib-val {
+    font-family: var(--serif);
+    font-size: 30px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .contrib-unit {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-left: 4px;
+    font-family: var(--mono);
+  }
+  .contrib-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 12px;
+    overflow: hidden;
+  }
+  .contrib-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+  .contrib-fill.warn { background: var(--warn); }
+  .contrib-fill.ok { background: var(--ok); }
+
+  .contrib-delta {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 8px;
+  }
+  .contrib-delta.up { color: var(--ok); }
+  .contrib-delta.down { color: var(--warn); }
+
+  .trend-strip {
+    margin-top: 32px;
+  }
+  .trend-strip-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+  }
+  .trend-strip-title {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.15em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .trend-avg {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+  .trend-avg strong { color: var(--text); font-weight: 500; }
+
+  .trend-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 5px;
+    height: 100px;
+    padding: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+  }
+  .trend-bar {
+    flex: 1;
+    background: var(--accent-dim);
+    border-radius: 2px;
+    position: relative;
+    transition: all 0.3s;
+  }
+  .trend-bar.today {
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(212, 255, 63, 0.5);
+  }
+  .trend-bar:hover { background: var(--accent); }
+  .trend-bar.low { opacity: 0.4; }
+
+  /* ==========================================
+     FEATURE 2 — WHAT CHANGED
+     ========================================== */
+  .changed-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 24px;
+  }
+  .changed-head h1 {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: 40px;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+  .changed-head h1 em {
+    font-style: italic;
+    color: var(--accent);
+    font-weight: 400;
+  }
+  .changed-dates {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    text-align: right;
+    line-height: 1.6;
+  }
+
+  .delta {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 10px;
+    gap: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .delta::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+  }
+  .delta.good::before { background: var(--ok); }
+  .delta.bad::before { background: var(--bad); }
+  .delta.neutral::before { background: var(--text-faint); }
+
+  .delta-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+  .delta.good .delta-icon {
+    background: rgba(125, 211, 163, 0.1);
+    color: var(--ok);
+  }
+  .delta.bad .delta-icon {
+    background: rgba(239, 74, 107, 0.1);
+    color: var(--bad);
+  }
+  .delta.neutral .delta-icon {
+    background: var(--bg-raised);
+    color: var(--text-dim);
+  }
+
+  .delta-body { flex: 1; min-width: 0; }
+  .delta-metric {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .delta-vals {
+    font-family: var(--serif);
+    font-size: 20px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+  .delta-vals .arrow { color: var(--text-faint); margin: 0 6px; font-size: 14px; }
+  .delta-vals .new { font-weight: 500; }
+  .delta-vals .new.good { color: var(--ok); }
+  .delta-vals .new.bad { color: var(--bad); }
+
+  .delta-pct {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    text-align: right;
+  }
+  .delta-pct.good { color: var(--ok); }
+  .delta-pct.bad { color: var(--bad); }
+
+  .narrative {
+    background: linear-gradient(135deg, rgba(212, 255, 63, 0.05), transparent);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px;
+    margin: 28px 0 20px;
+    position: relative;
+  }
+  .narrative::before {
+    content: "✦";
+    position: absolute;
+    top: 14px;
+    right: 18px;
+    color: var(--accent);
+    font-size: 14px;
+  }
+  .narrative-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+  .narrative p {
+    font-family: var(--serif);
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+  .narrative p em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .minor-deltas {
+    margin-top: 20px;
+  }
+  .minor-delta {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 4px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .minor-delta:last-child { border-bottom: none; }
+  .minor-metric { color: var(--text-dim); font-family: var(--mono); font-size: 12px; }
+  .minor-val { font-family: var(--mono); font-size: 12px; font-weight: 500; }
+  .minor-val.up { color: var(--ok); }
+  .minor-val.down { color: var(--warn); }
+  .minor-val.flat { color: var(--text-faint); }
+
+  /* ==========================================
+     FEATURE 3 — ANOMALY DETECTION
+     ========================================== */
+  .anom-head {
+    margin-bottom: 24px;
+  }
+  .anom-head h1 {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: 38px;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin-bottom: 10px;
+  }
+  .anom-head h1 em { font-style: italic; color: var(--warn); }
+  .anom-head p {
+    color: var(--text-dim);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .anom-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px;
+    margin-bottom: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .anom-card.alert {
+    border-color: rgba(255, 122, 74, 0.3);
+    background: linear-gradient(135deg, rgba(255, 122, 74, 0.04), var(--bg-card) 60%);
+  }
+  .anom-card.positive {
+    border-color: rgba(125, 211, 163, 0.3);
+    background: linear-gradient(135deg, rgba(125, 211, 163, 0.04), var(--bg-card) 60%);
+  }
+
+  .anom-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+  .anom-tag {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 5px 9px;
+    border-radius: 6px;
+    font-weight: 500;
+  }
+  .anom-tag.alert {
+    background: rgba(255, 122, 74, 0.12);
+    color: var(--warn);
+  }
+  .anom-tag.positive {
+    background: rgba(125, 211, 163, 0.12);
+    color: var(--ok);
+  }
+  .anom-when {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .anom-metric {
+    font-family: var(--serif);
+    font-size: 26px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+  }
+  .anom-metric em { font-style: italic; font-weight: 300; }
+
+  .anom-desc {
+    font-size: 13.5px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin-bottom: 18px;
+  }
+
+  .anom-chart {
+    height: 80px;
+    position: relative;
+    padding: 0 4px;
+  }
+  .anom-svg { width: 100%; height: 100%; }
+  .anom-baseline {
+    stroke: var(--border-strong);
+    stroke-width: 1;
+    stroke-dasharray: 2 3;
+    fill: none;
+  }
+  .anom-line {
+    stroke: var(--text-dim);
+    stroke-width: 1.5;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .anom-dot {
+    stroke-width: 2;
+    fill: var(--bg-card);
+  }
+  .anom-dot.alert { stroke: var(--warn); }
+  .anom-dot.positive { stroke: var(--ok); }
+
+  .anom-band {
+    fill: var(--border);
+    opacity: 0.35;
+  }
+
+  .anom-stats {
+    display: flex;
+    gap: 18px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .anom-stat {
+    flex: 1;
+  }
+  .anom-stat-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .anom-stat-val {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .anom-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .anom-footer-text {
+    font-size: 12px;
+    color: var(--text-faint);
+    font-style: italic;
+  }
+  .anom-action {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    text-transform: uppercase;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .anom-action:hover { text-decoration: underline; }
+
+  /* info footer */
+  .foot-note {
+    margin-top: 32px;
+    padding: 16px;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    font-size: 12px;
+    color: var(--text-faint);
+    line-height: 1.6;
+    font-style: italic;
+  }
+  .foot-note strong {
+    color: var(--text-dim);
+    font-style: normal;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  /* mockup frame note */
+  .mockup-note {
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    background: var(--bg-raised);
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    z-index: 100;
+  }
+</style>
+</head>
+<body>
+
+<div class="mockup-note">mockup · dummy data</div>
+
+<div class="shell">
+
+  <header>
+    <div>
+      <div class="brand">pulse<em>.</em></div>
+      <div class="brand-sub">feature previews</div>
+    </div>
+    <div class="brand-sub">v0.1</div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-view="readiness">Readiness</button>
+    <button class="tab" data-view="changed">What Changed</button>
+    <button class="tab" data-view="anomaly">Anomalies</button>
+  </div>
+
+  <!-- ============================================
+       VIEW 1 — READINESS SCORE
+       ============================================ -->
+  <section class="view active" id="view-readiness">
+    <div class="ready-hero">
+      <div class="ready-date">Sunday · April 19</div>
+      <div class="ring-wrap">
+        <svg class="ring" viewBox="0 0 120 120">
+          <circle class="ring-bg" cx="60" cy="60" r="52" />
+          <circle class="ring-fill" cx="60" cy="60" r="52"
+                  stroke-dasharray="326.7"
+                  stroke-dashoffset="85"
+                  id="ring-fill" />
+        </svg>
+        <div class="ring-center">
+          <div class="ring-score">74</div>
+          <div class="ring-label">Primed</div>
+        </div>
+      </div>
+      <div class="ring-caption">
+        Sleep held the line — your HRV bounced back overnight. A good day to push.
+      </div>
+    </div>
+
+    <div class="eyebrow">Contributors</div>
+    <div class="contributors">
+      <div class="contrib">
+        <div class="contrib-label">Sleep</div>
+        <div class="contrib-val">7.4<span class="contrib-unit">h</span></div>
+        <div class="contrib-bar"><div class="contrib-fill" style="width: 82%"></div></div>
+        <div class="contrib-delta up">+0.6h vs 14-day avg</div>
+      </div>
+      <div class="contrib">
+        <div class="contrib-label">HRV</div>
+        <div class="contrib-val">58<span class="contrib-unit">ms</span></div>
+        <div class="contrib-bar"><div class="contrib-fill" style="width: 71%"></div></div>
+        <div class="contrib-delta up">+8ms vs baseline</div>
+      </div>
+      <div class="contrib">
+        <div class="contrib-label">Resting HR</div>
+        <div class="contrib-val">54<span class="contrib-unit">bpm</span></div>
+        <div class="contrib-bar"><div class="contrib-fill ok" style="width: 88%"></div></div>
+        <div class="contrib-delta up">−2 bpm · recovered</div>
+      </div>
+      <div class="contrib">
+        <div class="contrib-label">Training Load</div>
+        <div class="contrib-val">Light<span class="contrib-unit"></span></div>
+        <div class="contrib-bar"><div class="contrib-fill warn" style="width: 34%"></div></div>
+        <div class="contrib-delta down">3-day load: low</div>
+      </div>
+    </div>
+
+    <div class="trend-strip">
+      <div class="trend-strip-head">
+        <div class="trend-strip-title">14-day readiness</div>
+        <div class="trend-avg">avg <strong>68</strong></div>
+      </div>
+      <div class="trend-bars" id="trend-bars"></div>
+    </div>
+
+    <div class="foot-note">
+      <strong>How it's computed</strong>
+      A weighted score (0–100) blending last night's sleep duration & depth, HRV
+      vs your 60-day baseline, resting HR vs baseline, and accumulated training
+      load. Band labels: 85+ Peak · 70–84 Primed · 50–69 Steady · &lt;50 Recover.
+    </div>
+  </section>
+
+  <!-- ============================================
+       VIEW 2 — WHAT CHANGED
+       ============================================ -->
+  <section class="view" id="view-changed">
+    <div class="changed-head">
+      <h1>What <em>changed</em></h1>
+      <div class="changed-dates">
+        This week<br>vs last
+      </div>
+    </div>
+
+    <div class="delta good">
+      <div class="delta-icon">↑</div>
+      <div class="delta-body">
+        <div class="delta-metric">Sleep Duration</div>
+        <div class="delta-vals">
+          6.2h <span class="arrow">→</span> <span class="new good">7.4h</span>
+        </div>
+      </div>
+      <div class="delta-pct good">+19%</div>
+    </div>
+
+    <div class="delta good">
+      <div class="delta-icon">↑</div>
+      <div class="delta-body">
+        <div class="delta-metric">HRV (avg)</div>
+        <div class="delta-vals">
+          48ms <span class="arrow">→</span> <span class="new good">56ms</span>
+        </div>
+      </div>
+      <div class="delta-pct good">+17%</div>
+    </div>
+
+    <div class="delta bad">
+      <div class="delta-icon">↓</div>
+      <div class="delta-body">
+        <div class="delta-metric">Active Energy</div>
+        <div class="delta-vals">
+          2,840 <span class="arrow">→</span> <span class="new bad">2,110 kcal</span>
+        </div>
+      </div>
+      <div class="delta-pct bad">−26%</div>
+    </div>
+
+    <div class="delta good">
+      <div class="delta-icon">↓</div>
+      <div class="delta-body">
+        <div class="delta-metric">Resting HR</div>
+        <div class="delta-vals">
+          58 <span class="arrow">→</span> <span class="new good">54 bpm</span>
+        </div>
+      </div>
+      <div class="delta-pct good">−7%</div>
+    </div>
+
+    <div class="narrative">
+      <div class="narrative-label">The story</div>
+      <p>
+        You slept more and trained less. HRV and resting HR both improved — your
+        body used the lighter week to <em>recover</em>. If this was intentional,
+        it worked. If not, last week's training may have been too heavy.
+      </p>
+    </div>
+
+    <div class="eyebrow">Smaller shifts</div>
+    <div class="minor-deltas">
+      <div class="minor-delta">
+        <span class="minor-metric">Steps (daily avg)</span>
+        <span class="minor-val down">−1,240</span>
+      </div>
+      <div class="minor-delta">
+        <span class="minor-metric">Mood valence</span>
+        <span class="minor-val up">+0.18</span>
+      </div>
+      <div class="minor-delta">
+        <span class="minor-metric">Calories in</span>
+        <span class="minor-val flat">±2%</span>
+      </div>
+      <div class="minor-delta">
+        <span class="minor-metric">Wrist temperature</span>
+        <span class="minor-val down">−0.3°C</span>
+      </div>
+      <div class="minor-delta">
+        <span class="minor-metric">Weight</span>
+        <span class="minor-val flat">−0.2 kg</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================
+       VIEW 3 — ANOMALIES
+       ============================================ -->
+  <section class="view" id="view-anomaly">
+    <div class="anom-head">
+      <h1>3 <em>anomalies</em></h1>
+      <p>Readings that fell outside your normal range over the last 30 days.</p>
+    </div>
+
+    <!-- Anomaly 1 -->
+    <div class="anom-card alert">
+      <div class="anom-top">
+        <span class="anom-tag alert">Elevated</span>
+        <span class="anom-when">Apr 15 · Wed</span>
+      </div>
+      <div class="anom-metric">Resting HR · <em>67 bpm</em></div>
+      <div class="anom-desc">
+        13 bpm above your 30-day average. Started the night after 4h of sleep —
+        could be the cause.
+      </div>
+      <div class="anom-chart">
+        <svg class="anom-svg" viewBox="0 0 300 80" preserveAspectRatio="none">
+          <!-- normal band -->
+          <rect class="anom-band" x="0" y="36" width="300" height="18" />
+          <!-- trend line -->
+          <polyline class="anom-line" points="
+            0,48 20,50 40,47 60,49 80,46 100,48 120,47 140,50 160,48 180,51
+            200,49 220,52 240,15 260,42 280,46 300,48" />
+          <!-- baseline mid line -->
+          <line class="anom-baseline" x1="0" y1="45" x2="300" y2="45" />
+          <!-- anomaly dot -->
+          <circle class="anom-dot alert" cx="240" cy="15" r="5" />
+        </svg>
+      </div>
+      <div class="anom-stats">
+        <div class="anom-stat">
+          <div class="anom-stat-label">Value</div>
+          <div class="anom-stat-val">67 bpm</div>
+        </div>
+        <div class="anom-stat">
+          <div class="anom-stat-label">Baseline</div>
+          <div class="anom-stat-val">54 bpm</div>
+        </div>
+        <div class="anom-stat">
+          <div class="anom-stat-label">Z-score</div>
+          <div class="anom-stat-val">+2.8σ</div>
+        </div>
+      </div>
+      <div class="anom-footer">
+        <span class="anom-footer-text">Correlates with short sleep</span>
+        <button class="anom-action">View day →</button>
+      </div>
+    </div>
+
+    <!-- Anomaly 2 -->
+    <div class="anom-card alert">
+      <div class="anom-top">
+        <span class="anom-tag alert">Dropped</span>
+        <span class="anom-when">Apr 11 · Sat</span>
+      </div>
+      <div class="anom-metric">HRV · <em>28 ms</em></div>
+      <div class="anom-desc">
+        Lowest HRV in 6 weeks. Followed a long run (16.2 km) + late dinner. Body
+        was still in recovery mode overnight.
+      </div>
+      <div class="anom-chart">
+        <svg class="anom-svg" viewBox="0 0 300 80" preserveAspectRatio="none">
+          <rect class="anom-band" x="0" y="30" width="300" height="22" />
+          <polyline class="anom-line" points="
+            0,42 20,40 40,38 60,44 80,41 100,39 120,42 140,38 160,40 180,44
+            200,68 220,55 240,48 260,43 280,41 300,39" />
+          <line class="anom-baseline" x1="0" y1="41" x2="300" y2="41" />
+          <circle class="anom-dot alert" cx="200" cy="68" r="5" />
+        </svg>
+      </div>
+      <div class="anom-stats">
+        <div class="anom-stat">
+          <div class="anom-stat-label">Value</div>
+          <div class="anom-stat-val">28 ms</div>
+        </div>
+        <div class="anom-stat">
+          <div class="anom-stat-label">Baseline</div>
+          <div class="anom-stat-val">52 ms</div>
+        </div>
+        <div class="anom-stat">
+          <div class="anom-stat-label">Z-score</div>
+          <div class="anom-stat-val">−2.4σ</div>
+        </div>
+      </div>
+      <div class="anom-footer">
+        <span class="anom-footer-text">Likely training-related</span>
+        <button class="anom-action">View day →</button>
+      </div>
+    </div>
+
+    <!-- Anomaly 3 (positive) -->
+    <div class="anom-card positive">
+      <div class="anom-top">
+        <span class="anom-tag positive">Personal Best</span>
+        <span class="anom-when">Apr 7 · Tue</span>
+      </div>
+      <div class="anom-metric">Deep Sleep · <em>1h 48m</em></div>
+      <div class="anom-desc">
+        Most deep sleep you've logged since tracking began. Came after a light
+        training day and an early bedtime (22:15).
+      </div>
+      <div class="anom-chart">
+        <svg class="anom-svg" viewBox="0 0 300 80" preserveAspectRatio="none">
+          <rect class="anom-band" x="0" y="40" width="300" height="22" />
+          <polyline class="anom-line" points="
+            0,54 20,58 40,52 60,50 80,55 100,48 120,52 140,55 160,50
+            180,12 200,52 220,48 240,54 260,50 280,53 300,51" />
+          <line class="anom-baseline" x1="0" y1="51" x2="300" y2="51" />
+          <circle class="anom-dot positive" cx="180" cy="12" r="5" />
+        </svg>
+      </div>
+      <div class="anom-stats">
+        <div class="anom-stat">
+          <div class="anom-stat-label">Value</div>
+          <div class="anom-stat-val">108 min</div>
+        </div>
+        <div class="anom-stat">
+          <div class="anom-stat-label">Baseline</div>
+          <div class="anom-stat-val">62 min</div>
+        </div>
+        <div class="anom-stat">
+          <div class="anom-stat-label">Z-score</div>
+          <div class="anom-stat-val">+3.1σ</div>
+        </div>
+      </div>
+      <div class="anom-footer">
+        <span class="anom-footer-text">New all-time high ★</span>
+        <button class="anom-action">View day →</button>
+      </div>
+    </div>
+
+    <div class="foot-note">
+      <strong>How it works</strong>
+      For every numeric metric, Pulse computes a 30-day rolling mean and standard
+      deviation, then flags any reading more than 2σ from the mean. Positive
+      anomalies (PRs) are surfaced alongside alerts. Runs nightly as a background job.
+    </div>
+  </section>
+
+</div>
+
+<script>
+  // Tab switching
+  const tabs = document.querySelectorAll('.tab');
+  const views = document.querySelectorAll('.view');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      views.forEach(v => v.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('view-' + tab.dataset.view).classList.add('active');
+    });
+  });
+
+  // Generate 14-day readiness trend bars
+  (function() {
+    const container = document.getElementById('trend-bars');
+    if (!container) return;
+    const values = [62, 58, 71, 65, 48, 55, 69, 72, 60, 45, 63, 78, 68, 74];
+    values.forEach((v, i) => {
+      const bar = document.createElement('div');
+      bar.className = 'trend-bar';
+      if (i === values.length - 1) bar.classList.add('today');
+      if (v < 55) bar.classList.add('low');
+      bar.style.height = v + '%';
+      bar.title = 'Day ' + (i + 1) + ': ' + v;
+      container.appendChild(bar);
+    });
+  })();
+
+  // Animate readiness ring on load
+  window.addEventListener('load', () => {
+    const ring = document.getElementById('ring-fill');
+    if (ring) {
+      const circumference = 2 * Math.PI * 52; // ≈ 326.7
+      const score = 74;
+      const offset = circumference * (1 - score / 100);
+      setTimeout(() => {
+        ring.setAttribute('stroke-dashoffset', offset);
+      }, 200);
+    }
+  });
+</script>
+
+</body>
+</html>

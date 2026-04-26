@@ -15,6 +15,8 @@ import {
   HeartRateNotification,
   SleepEvent,
   UserPreferences,
+  AnomalyRow,
+  ReadinessRow,
 } from '@/lib/types/database'
 import { format } from 'date-fns'
 
@@ -997,5 +999,112 @@ export async function getHaeFreshness(): Promise<HaeFreshness> {
     }
   } catch {
     return { last_push: null, staleness: null, status: 'OK' }
+  }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Anomalies — populated nightly by detect_anomalies() (Phase 1).
+// ───────────────────────────────────────────────────────────────────────────
+
+function isoDateNDaysAgo(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() - days + 1)
+  return format(d, 'yyyy-MM-dd')
+}
+
+export async function getRecentAnomalies(
+  userId: string,
+  withinDays: number = 30,
+  options: { includeDismissed?: boolean } = {},
+): Promise<AnomalyRow[]> {
+  try {
+    const cutoff = isoDateNDaysAgo(withinDays)
+    let query = getSupabase()
+      .from('anomalies')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('observed_at', cutoff)
+      .order('observed_at', { ascending: false })
+
+    if (!options.includeDismissed) {
+      query = query.is('dismissed_at', null)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+    return (data || []) as AnomalyRow[]
+  } catch (error) {
+    console.error('Error fetching anomalies:', error)
+    return []
+  }
+}
+
+export async function getAnomalyCount(userId: string, withinDays: number = 7): Promise<number> {
+  try {
+    const cutoff = isoDateNDaysAgo(withinDays)
+    const { count, error } = await getSupabase()
+      .from('anomalies')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .is('dismissed_at', null)
+      .gte('observed_at', cutoff)
+
+    if (error) throw error
+    return count ?? 0
+  } catch (error) {
+    console.error('Error counting anomalies:', error)
+    return 0
+  }
+}
+
+export async function dismissAnomaly(id: number): Promise<void> {
+  const { error } = await getSupabase()
+    .from('anomalies')
+    .update({ dismissed_at: new Date().toISOString() })
+    .eq('id', id)
+
+  if (error) throw error
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Readiness scores — populated nightly by compute_readiness_batch() (Phase 2).
+// ───────────────────────────────────────────────────────────────────────────
+
+export async function getLatestReadiness(userId: string): Promise<ReadinessRow | null> {
+  try {
+    const { data, error } = await getSupabase()
+      .from('readiness_scores')
+      .select('*')
+      .eq('user_id', userId)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (error) throw error
+    return (data ?? null) as ReadinessRow | null
+  } catch (error) {
+    console.error('Error fetching latest readiness:', error)
+    return null
+  }
+}
+
+export async function getReadinessHistory(
+  userId: string,
+  days: number = 14,
+): Promise<ReadinessRow[]> {
+  try {
+    const cutoff = isoDateNDaysAgo(days)
+    const { data, error } = await getSupabase()
+      .from('readiness_scores')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', cutoff)
+      .order('date', { ascending: true })
+
+    if (error) throw error
+    return (data ?? []) as ReadinessRow[]
+  } catch (error) {
+    console.error('Error fetching readiness history:', error)
+    return []
   }
 }

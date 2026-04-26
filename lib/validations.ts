@@ -148,6 +148,32 @@ export const AIInsightsResponseSchema = z.object({
   raw: z.any(),
 })
 
+// What Changed narrative — Phase 3 of docs/PRODUCTION_PLAN.md
+export const WhatChangedDeltaSchema = z.object({
+  metric: z.string(),
+  label: z.string(),
+  unit: z.string().optional(),
+  thisValue: z.number().nullable(),
+  lastValue: z.number().nullable(),
+  deltaPct: z.number().nullable(),
+  goodDirection: z.enum(['up', 'down', 'neutral']),
+  goodOrBad: z.enum(['good', 'bad', 'neutral', 'flat']),
+})
+
+export const WhatChangedRequestSchema = z.object({
+  userId: z.string().uuid({ message: 'Invalid UUID' }),
+  windowKey: z.enum(['7', '14', '30']),
+  windowStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  deltas: z.array(WhatChangedDeltaSchema).min(1).max(8),
+})
+
+export const WhatChangedResponseSchema = z.object({
+  narrative: z.string().min(1).max(800),
+  cached: z.boolean(),
+  generated_at: z.string(),
+  model: z.string(),
+})
+
 // Insights table schema
 export const InsightSchema = z.object({
   id: z.string().uuid({ message: 'Invalid UUID' }).optional(),

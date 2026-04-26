@@ -678,6 +678,101 @@ export interface Database {
         }
         Relationships: never[]
       }
+      anomalies: {
+        Row: {
+          id: number
+          user_id: string
+          metric_id: string
+          observed_at: string
+          value: number
+          baseline_mean: number
+          baseline_stddev: number
+          z_score: number
+          direction: 'high' | 'low'
+          kind: 'alert' | 'positive'
+          hint: string | null
+          detected_at: string
+          dismissed_at: string | null
+        }
+        Insert: {
+          id?: number
+          user_id: string
+          metric_id: string
+          observed_at: string
+          value: number
+          baseline_mean: number
+          baseline_stddev: number
+          z_score: number
+          direction: 'high' | 'low'
+          kind: 'alert' | 'positive'
+          hint?: string | null
+          detected_at?: string
+          dismissed_at?: string | null
+        }
+        Update: {
+          dismissed_at?: string | null
+        }
+        Relationships: never[]
+      }
+      readiness_scores: {
+        Row: {
+          id: number
+          user_id: string
+          date: string
+          score: number
+          band: 'peak' | 'primed' | 'steady' | 'recover'
+          caption: string
+          sleep_contribution: number
+          hrv_contribution: number
+          rhr_contribution: number
+          load_contribution: number
+          components: {
+            sleep_hours: number | null
+            hrv: number | null
+            rhr: number | null
+            exercise_minutes: number
+            hrv_baseline_mean: number | null
+            hrv_baseline_stddev: number | null
+            hrv_baseline_n: number
+            rhr_baseline_mean: number | null
+            rhr_baseline_stddev: number | null
+            rhr_baseline_n: number
+            acwr: number | null
+            has_data: boolean
+          }
+          computed_at: string
+        }
+        Insert: never
+        Update: never
+        Relationships: never[]
+      }
+      narrative_cache: {
+        Row: {
+          id: number
+          user_id: string
+          cache_key: string
+          narrative: string
+          inputs: Record<string, unknown>
+          model: string
+          generated_at: string
+        }
+        Insert: {
+          id?: number
+          user_id: string
+          cache_key: string
+          narrative: string
+          inputs: Record<string, unknown>
+          model: string
+          generated_at?: string
+        }
+        Update: {
+          narrative?: string
+          inputs?: Record<string, unknown>
+          model?: string
+          generated_at?: string
+        }
+        Relationships: never[]
+      }
     }
     Views: {
       v_hae_freshness: {
@@ -729,6 +824,18 @@ export interface Database {
         Args: Record<string, never>
         Returns: string
       }
+      detect_anomalies: {
+        Args: Record<string, never>
+        Returns: string
+      }
+      compute_readiness: {
+        Args: { p_user_id: string; p_date: string }
+        Returns: void
+      }
+      compute_readiness_batch: {
+        Args: Record<string, never>
+        Returns: string
+      }
       get_activity_aggregates: {
         Args: {
           p_user_id: string
@@ -775,6 +882,8 @@ export type StateOfMind = Database['public']['Tables']['state_of_mind']['Row']
 export type EcgReading = Database['public']['Tables']['ecg_readings']['Row']
 export type HeartRateNotification = Database['public']['Tables']['heart_rate_notifications']['Row']
 export type SleepEvent = Database['public']['Tables']['sleep_events']['Row']
+export type AnomalyRow = Database['public']['Tables']['anomalies']['Row']
+export type ReadinessRow = Database['public']['Tables']['readiness_scores']['Row']
 
 export type MoodEntryInsert = Database['public']['Tables']['mood_entries']['Insert']
 export type FoodEntryInsert = Database['public']['Tables']['food_entries']['Insert']

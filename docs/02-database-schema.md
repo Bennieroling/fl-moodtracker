@@ -1,6 +1,6 @@
 # Pulse — Database Schema Reference
 
-_Last updated: 2026-04-19_
+_Last updated: 2026-04-26_
 
 Complete reference for every table, view, index, constraint, and RLS
 policy in the `public` schema. For the big-picture data flow, see
@@ -21,11 +21,13 @@ avoid breaking older queries but should not be relied on for new work.
 ## Table of contents
 
 **HAE pipeline — staging** (append-only inbox from Edge Function)
+
 - [`staging_hae_metrics`](#staging_hae_metrics)
 - [`staging_hae_workouts`](#staging_hae_workouts)
 - [`staging_hae_other`](#staging_hae_other)
 
 **HAE pipeline — production** (typed, deduplicated)
+
 - [`health_metrics_daily`](#health_metrics_daily)
 - [`health_metrics_body`](#health_metrics_body)
 - [`exercise_events`](#exercise_events)
@@ -36,27 +38,39 @@ avoid breaking older queries but should not be relied on for new work.
 - [`heart_rate_notifications`](#heart_rate_notifications)
 
 **App features** (user-generated content)
+
 - [`food_entries`](#food_entries)
 - [`mood_entries`](#mood_entries)
 - [`insights`](#insights)
 
+**Derived analytics** (computed from HAE data nightly)
+
+- [`anomalies`](#anomalies)
+- [`readiness_scores`](#readiness_scores)
+- [`narrative_cache`](#narrative_cache)
+
 **App state & settings**
+
 - [`user_preferences`](#user_preferences)
 - [`streaks`](#streaks)
 - [`knowledge_documents`](#knowledge_documents)
 
 **Operational**
+
 - [`sync_log`](#sync_log)
 - [`keep_alive`](#keep_alive)
 
 **Deprecated**
+
 - [`exercise_daily`](#exercise_daily)
 
 **Views**
+
 - [`v_daily_activity`](#v_daily_activity)
 - [`v_day_summary`](#v_day_summary)
 
 **Cross-cutting issues**
+
 - [Schema-wide known issues](#schema-wide-known-issues)
 
 ---
@@ -74,20 +88,21 @@ the sync function uses to skip already-promoted rows. Rows older than
 Every single metric sample (step count, heart rate, active energy, etc.)
 HAE exports lands as one row here.
 
-| # | Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|---|
-| 1 | `id` | `bigint` | NO | autoincrement | PK |
-| 2 | `metric_name` | `text` | NO |  | e.g. `step_count`, `heart_rate`, `weight_body_mass` |
-| 3 | `metric_units` | `text` | YES |  | e.g. `count`, `count/min`, `kJ`, `%` |
-| 4 | `date` | `timestamptz` | NO |  | Sample timestamp (UTC) — despite the column name this is a full timestamp, not a date |
-| 5 | `qty` | `numeric` | YES |  | The measured value |
-| 6 | `raw_payload` | `jsonb` | YES |  | Full HAE JSON for the sample (for debugging) |
-| 7 | `received_at` | `timestamptz` | YES | `now()` | When the Edge Function wrote this row |
-| 8 | `processed_at` | `timestamptz` | YES |  | When `sync_hae_to_production()` promoted this row; NULL = pending |
+| #   | Column         | Type          | Nullable | Default       | Notes                                                                                 |
+| --- | -------------- | ------------- | -------- | ------------- | ------------------------------------------------------------------------------------- |
+| 1   | `id`           | `bigint`      | NO       | autoincrement | PK                                                                                    |
+| 2   | `metric_name`  | `text`        | NO       |               | e.g. `step_count`, `heart_rate`, `weight_body_mass`                                   |
+| 3   | `metric_units` | `text`        | YES      |               | e.g. `count`, `count/min`, `kJ`, `%`                                                  |
+| 4   | `date`         | `timestamptz` | NO       |               | Sample timestamp (UTC) — despite the column name this is a full timestamp, not a date |
+| 5   | `qty`          | `numeric`     | YES      |               | The measured value                                                                    |
+| 6   | `raw_payload`  | `jsonb`       | YES      |               | Full HAE JSON for the sample (for debugging)                                          |
+| 7   | `received_at`  | `timestamptz` | YES      | `now()`       | When the Edge Function wrote this row                                                 |
+| 8   | `processed_at` | `timestamptz` | YES      |               | When `sync_hae_to_production()` promoted this row; NULL = pending                     |
 
 **Primary key:** `(id)`
 **Unique:** `(metric_name, date)` — ⚠️ see known issue below
 **Indexes:**
+
 - `idx_staging_hae_metrics_unprocessed` — partial index on `processed_at WHERE processed_at IS NULL` (makes the sync function's unprocessed-row lookup O(new rows))
 
 **RLS:** none — this is an internal table, only the Edge Function and
@@ -100,7 +115,7 @@ the sync function write/read it via service-role key.
   if two watches ever ran or a manual re-push happened with matching
   timestamps, the second row would be rejected. For a single-user setup
   this hasn't bitten us, but multi-user will need either `(metric_name,
-  date, user_id)` or no constraint at all.
+date, user_id)` or no constraint at all.
 - **No `user_id` column.** All rows are implicitly for the hardcoded
   test user in the sync function. Multi-user requires adding `user_id`
   here and attaching it at ingest time.
@@ -110,26 +125,27 @@ the sync function write/read it via service-role key.
 One row per workout session HAE exports. Large because `raw_payload`
 carries the full GPS route (often thousands of points).
 
-| # | Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|---|
-| 1 | `id` | `bigint` | NO | autoincrement | PK |
-| 2 | `workout_name` | `text` | NO |  | e.g. `Walking`, `Running`, `Functional Strength Training` |
-| 3 | `start_time` | `timestamptz` | NO |  | Workout start |
-| 4 | `end_time` | `timestamptz` | YES |  |  |
-| 5 | `duration_seconds` | `numeric` | YES |  |  |
-| 6 | `active_energy_qty` | `numeric` | YES |  | kJ (converted to kcal by sync function) |
-| 7 | `active_energy_units` | `text` | YES |  |  |
-| 8 | `distance_qty` | `numeric` | YES |  | km |
-| 9 | `distance_units` | `text` | YES |  |  |
-| 10 | `avg_heart_rate` | `numeric` | YES |  |  |
-| 11 | `max_heart_rate` | `numeric` | YES |  |  |
-| 12 | `raw_payload` | `jsonb` | YES |  | Full HAE JSON, including the `route` array |
-| 13 | `received_at` | `timestamptz` | YES | `now()` |  |
-| 14 | `processed_at` | `timestamptz` | YES |  |  |
+| #   | Column                | Type          | Nullable | Default       | Notes                                                     |
+| --- | --------------------- | ------------- | -------- | ------------- | --------------------------------------------------------- |
+| 1   | `id`                  | `bigint`      | NO       | autoincrement | PK                                                        |
+| 2   | `workout_name`        | `text`        | NO       |               | e.g. `Walking`, `Running`, `Functional Strength Training` |
+| 3   | `start_time`          | `timestamptz` | NO       |               | Workout start                                             |
+| 4   | `end_time`            | `timestamptz` | YES      |               |                                                           |
+| 5   | `duration_seconds`    | `numeric`     | YES      |               |                                                           |
+| 6   | `active_energy_qty`   | `numeric`     | YES      |               | kJ (converted to kcal by sync function)                   |
+| 7   | `active_energy_units` | `text`        | YES      |               |                                                           |
+| 8   | `distance_qty`        | `numeric`     | YES      |               | km                                                        |
+| 9   | `distance_units`      | `text`        | YES      |               |                                                           |
+| 10  | `avg_heart_rate`      | `numeric`     | YES      |               |                                                           |
+| 11  | `max_heart_rate`      | `numeric`     | YES      |               |                                                           |
+| 12  | `raw_payload`         | `jsonb`       | YES      |               | Full HAE JSON, including the `route` array                |
+| 13  | `received_at`         | `timestamptz` | YES      | `now()`       |                                                           |
+| 14  | `processed_at`        | `timestamptz` | YES      |               |                                                           |
 
 **Primary key:** `(id)`
 **Unique:** `(workout_name, start_time)`
 **Indexes:**
+
 - `idx_staging_hae_workouts_unprocessed` (partial on `processed_at IS NULL`)
 
 **RLS:** none.
@@ -145,16 +161,17 @@ Catch-all for state of mind, ECG, and heart rate notification pushes.
 Each row carries the raw HAE payload in `raw_payload` with a
 `data_type` discriminator.
 
-| # | Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|---|
-| 1 | `id` | `bigint` | NO | autoincrement | PK |
-| 2 | `data_type` | `text` | NO |  | `stateOfMind` / `ecg` / `heartRateNotification` |
-| 3 | `raw_payload` | `jsonb` | NO |  |  |
-| 4 | `received_at` | `timestamptz` | YES | `now()` |  |
-| 5 | `processed_at` | `timestamptz` | YES |  |  |
+| #   | Column         | Type          | Nullable | Default       | Notes                                           |
+| --- | -------------- | ------------- | -------- | ------------- | ----------------------------------------------- |
+| 1   | `id`           | `bigint`      | NO       | autoincrement | PK                                              |
+| 2   | `data_type`    | `text`        | NO       |               | `stateOfMind` / `ecg` / `heartRateNotification` |
+| 3   | `raw_payload`  | `jsonb`       | NO       |               |                                                 |
+| 4   | `received_at`  | `timestamptz` | YES      | `now()`       |                                                 |
+| 5   | `processed_at` | `timestamptz` | YES      |               |                                                 |
 
 **Primary key:** `(id)`
 **Indexes:**
+
 - `idx_staging_hae_other_unprocessed` (partial on `processed_at IS NULL`)
 
 **RLS:** none.
@@ -173,32 +190,34 @@ One row per user per day. All values are aggregated per user's local
 day (from `user_preferences.timezone`). This is the core dashboard
 table.
 
-| # | Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|---|
-| 1 | `date` | `date` | NO |  | User's local day |
-| 2 | `active_energy_kcal` | `numeric(10,2)` | YES |  |  |
-| 3 | `resting_energy_kcal` | `numeric(10,2)` | YES |  |  |
-| 4 | `total_energy_kcal` | `numeric(10,2)` | YES |  | _(legacy — not written by HAE sync)_ |
-| 5 | `steps` | `numeric` | YES |  |  |
-| 6 | `distance_km` | `numeric` | YES |  | _(legacy)_ |
-| 7 | `exercise_minutes` | `numeric` | YES |  | _(legacy — see exercise_time_minutes)_ |
-| 8 | `stand_hours` | `numeric` | YES |  |  |
-| 9 | `resting_heart_rate` | `numeric` | YES |  |  |
-| 10 | `average_heart_rate` | `numeric` | YES |  | _(legacy)_ |
-| 11 | `vo2max` | `numeric(5,2)` | YES |  | _(legacy — not written by HAE sync)_ |
-| 12 | `source` | `text` | YES | `'healthfit'` | `'health_auto_export'` for HAE-synced rows |
-| 13 | `updated_at` | `timestamptz` | YES | `now()` |  |
-| 14 | `user_id` | `uuid` | YES |  |  |
-| 15 | `hrv` | `numeric(6,2)` | YES |  | ms |
-| 16 | `id` | `uuid` | NO | `gen_random_uuid()` | PK |
-| 17 | `exercise_time_minutes` | `numeric` | YES |  | Written by HAE sync |
+| #   | Column                  | Type            | Nullable | Default             | Notes                                      |
+| --- | ----------------------- | --------------- | -------- | ------------------- | ------------------------------------------ |
+| 1   | `date`                  | `date`          | NO       |                     | User's local day                           |
+| 2   | `active_energy_kcal`    | `numeric(10,2)` | YES      |                     |                                            |
+| 3   | `resting_energy_kcal`   | `numeric(10,2)` | YES      |                     |                                            |
+| 4   | `total_energy_kcal`     | `numeric(10,2)` | YES      |                     | _(legacy — not written by HAE sync)_       |
+| 5   | `steps`                 | `numeric`       | YES      |                     |                                            |
+| 6   | `distance_km`           | `numeric`       | YES      |                     | _(legacy)_                                 |
+| 7   | `exercise_minutes`      | `numeric`       | YES      |                     | _(legacy — see exercise_time_minutes)_     |
+| 8   | `stand_hours`           | `numeric`       | YES      |                     |                                            |
+| 9   | `resting_heart_rate`    | `numeric`       | YES      |                     |                                            |
+| 10  | `average_heart_rate`    | `numeric`       | YES      |                     | _(legacy)_                                 |
+| 11  | `vo2max`                | `numeric(5,2)`  | YES      |                     | _(legacy — not written by HAE sync)_       |
+| 12  | `source`                | `text`          | YES      | `'healthfit'`       | `'health_auto_export'` for HAE-synced rows |
+| 13  | `updated_at`            | `timestamptz`   | YES      | `now()`             |                                            |
+| 14  | `user_id`               | `uuid`          | YES      |                     |                                            |
+| 15  | `hrv`                   | `numeric(6,2)`  | YES      |                     | ms                                         |
+| 16  | `id`                    | `uuid`          | NO       | `gen_random_uuid()` | PK                                         |
+| 17  | `exercise_time_minutes` | `numeric`       | YES      |                     | Written by HAE sync                        |
 
 **Primary key:** `(id)`
 **Unique constraints:**
+
 - `(date)` — ⚠️ **only one row per date globally** (see known issue)
 - `(user_id, date)` — correct form, enforced by several overlapping indexes
 
 **Indexes (redundant — see known issue):**
+
 - `health_metrics_daily_date_idx` on `(date)`
 - `health_metrics_daily_pkey` on `(id)`
 - `health_metrics_daily_unique_date` UNIQUE on `(date)`
@@ -227,16 +246,16 @@ table.
 One row per user per day for weight, BMI, and body fat. Latest reading
 of the day wins if multiple exist.
 
-| # | Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|---|
-| 1 | `id` | `bigint` | NO | autoincrement | PK |
-| 2 | `user_id` | `uuid` | NO |  | FK → `auth.users(id)` |
-| 3 | `date` | `date` | NO |  | User's local day |
-| 4 | `weight_kg` | `numeric` | YES |  |  |
-| 5 | `body_fat_pct` | `numeric` | YES |  | 0–100 scale |
-| 6 | `bmi` | `numeric` | YES |  |  |
-| 7 | `source` | `text` | YES | `'healthfit'` | `'health_auto_export'` for HAE-synced rows |
-| 8 | `updated_at` | `timestamptz` | YES | `now()` |  |
+| #   | Column         | Type          | Nullable | Default       | Notes                                      |
+| --- | -------------- | ------------- | -------- | ------------- | ------------------------------------------ |
+| 1   | `id`           | `bigint`      | NO       | autoincrement | PK                                         |
+| 2   | `user_id`      | `uuid`        | NO       |               | FK → `auth.users(id)`                      |
+| 3   | `date`         | `date`        | NO       |               | User's local day                           |
+| 4   | `weight_kg`    | `numeric`     | YES      |               |                                            |
+| 5   | `body_fat_pct` | `numeric`     | YES      |               | 0–100 scale                                |
+| 6   | `bmi`          | `numeric`     | YES      |               |                                            |
+| 7   | `source`       | `text`        | YES      | `'healthfit'` | `'health_auto_export'` for HAE-synced rows |
+| 8   | `updated_at`   | `timestamptz` | YES      | `now()`       |                                            |
 
 **Primary key:** `(id)`
 **Unique:** `(user_id, date)`
@@ -250,48 +269,50 @@ One row per workout session. **This table is messy** — it accumulated
 columns from the HealthFit/Google Sheets pipeline that are no longer
 populated. See known issues.
 
-| # | Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|---|
-| 1 | `id` | `bigint` | NO | autoincrement | PK |
-| 2 | `user_id` | `uuid` | NO |  |  |
-| 3 | `workout_date` | `date` | NO |  | User's local day |
-| 4 | `started_at` | `timestamptz` | YES |  |  |
-| 5 | `workout_type` | `text` | YES |  | e.g. `Walking`, `Running` |
-| 6 | `total_minutes` | `numeric` | YES |  | _(legacy — use `duration_seconds`)_ |
-| 7 | `move_minutes` | `numeric` | YES |  | _(legacy)_ |
-| 8 | `distance_km` | `numeric` | YES |  |  |
-| 9 | `active_energy_kcal` | `numeric` | YES |  |  |
-| 10 | `avg_hr` | `numeric` | YES |  | _(legacy — use `avg_heart_rate`)_ |
-| 11 | `min_hr` | `numeric` | YES |  | _(legacy)_ |
-| 12 | `max_hr` | `numeric` | YES |  | _(legacy)_ |
-| 13 | `source` | `text` | NO | `'healthfit'` | Set to `'health_auto_export'` by HAE sync |
-| 14 | `sheet_row_number` | `integer` | YES |  | _(legacy — Google Sheets row index)_ |
-| 15 | `updated_at` | `timestamptz` | NO | `now()` |  |
-| 16 | `ended_at` | `timestamptz` | YES |  |  |
-| 17 | `duration_seconds` | `integer` | YES |  | Written by HAE sync |
-| 18 | `elevation_gain_m` | `numeric` | YES |  |  |
-| 19 | `total_energy_kcal` | `numeric` | YES |  | _(legacy)_ |
-| 20 | `avg_heart_rate` | `numeric` | YES |  | Written by HAE sync |
-| 21 | `max_heart_rate` | `numeric` | YES |  | Written by HAE sync |
-| 22 | `hr_zone_type` | `text` | YES |  | _(legacy — HRZ computed by HealthFit)_ |
-| 23-28 | `hrz0_seconds` … `hrz5_seconds` | `integer` | YES | `0` | _(legacy — HR zone durations)_ |
-| 29 | `trimp` | `numeric` | YES |  | _(legacy — training impulse)_ |
-| 30 | `mets` | `numeric` | YES |  | Written by HAE sync (from `intensity`) |
-| 31 | `rpe` | `numeric` | YES |  | _(legacy — rate of perceived exertion)_ |
-| 32 | `temperature` | `numeric` | YES |  |  |
-| 33 | `humidity` | `numeric` | YES |  |  |
-| 34 | `min_heart_rate` | `numeric` | YES |  | Set to NULL by HAE sync (HAE doesn't export it) |
-| 35 | `avg_speed_kmh` | `numeric` | YES |  |  |
-| 36 | `step_count` | `numeric` | YES |  |  |
-| 37 | `step_cadence` | `numeric` | YES |  |  |
-| 38 | `route_data` | `jsonb` | YES |  | Raw HAE route array; used to build `workout_routes` |
+| #     | Column                          | Type          | Nullable | Default       | Notes                                               |
+| ----- | ------------------------------- | ------------- | -------- | ------------- | --------------------------------------------------- |
+| 1     | `id`                            | `bigint`      | NO       | autoincrement | PK                                                  |
+| 2     | `user_id`                       | `uuid`        | NO       |               |                                                     |
+| 3     | `workout_date`                  | `date`        | NO       |               | User's local day                                    |
+| 4     | `started_at`                    | `timestamptz` | YES      |               |                                                     |
+| 5     | `workout_type`                  | `text`        | YES      |               | e.g. `Walking`, `Running`                           |
+| 6     | `total_minutes`                 | `numeric`     | YES      |               | _(legacy — use `duration_seconds`)_                 |
+| 7     | `move_minutes`                  | `numeric`     | YES      |               | _(legacy)_                                          |
+| 8     | `distance_km`                   | `numeric`     | YES      |               |                                                     |
+| 9     | `active_energy_kcal`            | `numeric`     | YES      |               |                                                     |
+| 10    | `avg_hr`                        | `numeric`     | YES      |               | _(legacy — use `avg_heart_rate`)_                   |
+| 11    | `min_hr`                        | `numeric`     | YES      |               | _(legacy)_                                          |
+| 12    | `max_hr`                        | `numeric`     | YES      |               | _(legacy)_                                          |
+| 13    | `source`                        | `text`        | NO       | `'healthfit'` | Set to `'health_auto_export'` by HAE sync           |
+| 14    | `sheet_row_number`              | `integer`     | YES      |               | _(legacy — Google Sheets row index)_                |
+| 15    | `updated_at`                    | `timestamptz` | NO       | `now()`       |                                                     |
+| 16    | `ended_at`                      | `timestamptz` | YES      |               |                                                     |
+| 17    | `duration_seconds`              | `integer`     | YES      |               | Written by HAE sync                                 |
+| 18    | `elevation_gain_m`              | `numeric`     | YES      |               |                                                     |
+| 19    | `total_energy_kcal`             | `numeric`     | YES      |               | _(legacy)_                                          |
+| 20    | `avg_heart_rate`                | `numeric`     | YES      |               | Written by HAE sync                                 |
+| 21    | `max_heart_rate`                | `numeric`     | YES      |               | Written by HAE sync                                 |
+| 22    | `hr_zone_type`                  | `text`        | YES      |               | _(legacy — HRZ computed by HealthFit)_              |
+| 23-28 | `hrz0_seconds` … `hrz5_seconds` | `integer`     | YES      | `0`           | _(legacy — HR zone durations)_                      |
+| 29    | `trimp`                         | `numeric`     | YES      |               | _(legacy — training impulse)_                       |
+| 30    | `mets`                          | `numeric`     | YES      |               | Written by HAE sync (from `intensity`)              |
+| 31    | `rpe`                           | `numeric`     | YES      |               | _(legacy — rate of perceived exertion)_             |
+| 32    | `temperature`                   | `numeric`     | YES      |               |                                                     |
+| 33    | `humidity`                      | `numeric`     | YES      |               |                                                     |
+| 34    | `min_heart_rate`                | `numeric`     | YES      |               | Set to NULL by HAE sync (HAE doesn't export it)     |
+| 35    | `avg_speed_kmh`                 | `numeric`     | YES      |               |                                                     |
+| 36    | `step_count`                    | `numeric`     | YES      |               |                                                     |
+| 37    | `step_cadence`                  | `numeric`     | YES      |               |                                                     |
+| 38    | `route_data`                    | `jsonb`       | YES      |               | Raw HAE route array; used to build `workout_routes` |
 
 **Primary key:** `(id)`
 **Unique:**
+
 - `exercise_events_unique_workout` on `(user_id, workout_date, started_at)` — used by HAE sync's `ON CONFLICT`
 - `uniq_exercise_events_user_row` on `(user_id, sheet_row_number)` — ⚠️ **breaks with HAE data** (see below)
 
 **Indexes (multiple overlapping):**
+
 - `idx_exercise_events_user_date` on `(user_id, workout_date)`
 - `idx_exercise_events_user_started` on `(user_id, started_at)`
 - `idx_exercise_events_user_started_at` on `(user_id, started_at DESC)`
@@ -323,20 +344,21 @@ GPS points for each `exercise_events` row that had route data. Separated
 from `exercise_events` so the main table doesn't carry multi-megabyte
 JSONB columns.
 
-| # | Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|---|
-| 1 | `id` | `bigint` | NO | autoincrement | PK |
-| 2 | `user_id` | `uuid` | NO | hardcoded test user UUID | ⚠️ see known issue |
-| 3 | `exercise_event_id` | `bigint` | YES |  | FK → `exercise_events(id)` |
-| 4 | `route_points` | `jsonb` | NO |  | Array of `{lat, lng, alt, speed, ts}` objects (short keys!) |
-| 5 | `point_count` | `integer` | NO |  |  |
-| 6-9 | `bounds_ne_lat` / `bounds_ne_lng` / `bounds_sw_lat` / `bounds_sw_lng` | `numeric` | YES |  | Precomputed bounding box for fast map fitting |
-| 10 | `source` | `text` | NO | `'health_auto_export'` |  |
-| 11 | `created_at` | `timestamptz` | YES | `now()` |  |
+| #   | Column                                                                | Type          | Nullable | Default                  | Notes                                                       |
+| --- | --------------------------------------------------------------------- | ------------- | -------- | ------------------------ | ----------------------------------------------------------- |
+| 1   | `id`                                                                  | `bigint`      | NO       | autoincrement            | PK                                                          |
+| 2   | `user_id`                                                             | `uuid`        | NO       | hardcoded test user UUID | ⚠️ see known issue                                          |
+| 3   | `exercise_event_id`                                                   | `bigint`      | YES      |                          | FK → `exercise_events(id)`                                  |
+| 4   | `route_points`                                                        | `jsonb`       | NO       |                          | Array of `{lat, lng, alt, speed, ts}` objects (short keys!) |
+| 5   | `point_count`                                                         | `integer`     | NO       |                          |                                                             |
+| 6-9 | `bounds_ne_lat` / `bounds_ne_lng` / `bounds_sw_lat` / `bounds_sw_lng` | `numeric`     | YES      |                          | Precomputed bounding box for fast map fitting               |
+| 10  | `source`                                                              | `text`        | NO       | `'health_auto_export'`   |                                                             |
+| 11  | `created_at`                                                          | `timestamptz` | YES      | `now()`                  |                                                             |
 
 **Primary key:** `(id)`
 **Unique:** `(exercise_event_id)` — one routes row per workout
 **Foreign keys:**
+
 - `exercise_event_id` → `exercise_events(id) ON DELETE CASCADE`
 - `user_id` → `auth.users(id) ON DELETE CASCADE`
 
@@ -355,18 +377,18 @@ JSONB columns.
 One row per user per day. Includes overnight wrist temperature when
 available.
 
-| # | Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|---|
-| 1 | `id` | `bigint` | NO | autoincrement | PK |
-| 2 | `user_id` | `uuid` | NO | hardcoded test user UUID | ⚠️ |
-| 3 | `date` | `date` | NO |  | User's local day |
-| 4 | `total_sleep_hours` | `numeric` | YES |  |  |
-| 5-8 | `rem_hours` / `core_hours` / `deep_hours` / `awake_hours` | `numeric` | YES |  |  |
-| 9-10 | `sleep_start` / `sleep_end` | `timestamptz` | YES |  |  |
-| 11-12 | `in_bed_start` / `in_bed_end` | `timestamptz` | YES |  |  |
-| 13 | `wrist_temperature` | `numeric` | YES |  | °C average over sleep window |
-| 14 | `source` | `text` | YES |  |  |
-| 15 | `created_at` | `timestamptz` | YES | `now()` |  |
+| #     | Column                                                    | Type          | Nullable | Default                  | Notes                        |
+| ----- | --------------------------------------------------------- | ------------- | -------- | ------------------------ | ---------------------------- |
+| 1     | `id`                                                      | `bigint`      | NO       | autoincrement            | PK                           |
+| 2     | `user_id`                                                 | `uuid`        | NO       | hardcoded test user UUID | ⚠️                           |
+| 3     | `date`                                                    | `date`        | NO       |                          | User's local day             |
+| 4     | `total_sleep_hours`                                       | `numeric`     | YES      |                          |                              |
+| 5-8   | `rem_hours` / `core_hours` / `deep_hours` / `awake_hours` | `numeric`     | YES      |                          |                              |
+| 9-10  | `sleep_start` / `sleep_end`                               | `timestamptz` | YES      |                          |                              |
+| 11-12 | `in_bed_start` / `in_bed_end`                             | `timestamptz` | YES      |                          |                              |
+| 13    | `wrist_temperature`                                       | `numeric`     | YES      |                          | °C average over sleep window |
+| 14    | `source`                                                  | `text`        | YES      |                          |                              |
+| 15    | `created_at`                                              | `timestamptz` | YES      | `now()`                  |                              |
 
 **Primary key:** `(id)`
 **Unique:** `(user_id, date)`
@@ -384,19 +406,19 @@ available.
 
 Apple Watch "state of mind" logs (introduced iOS 17).
 
-| # | Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|---|
-| 1 | `id` | `bigint` | NO | autoincrement | PK |
-| 2 | `user_id` | `uuid` | NO | hardcoded test user UUID | ⚠️ |
-| 3 | `recorded_at` | `timestamptz` | NO |  | When the user logged the mood |
-| 4 | `kind` | `text` | YES |  | e.g. `momentary`, `daily` |
-| 5 | `valence` | `numeric` | YES |  | -1.0 to +1.0 |
-| 6 | `valence_classification` | `text` | YES |  | e.g. `Pleasant`, `Unpleasant` |
-| 7 | `labels` | `text[]` | YES |  | User-selected feeling labels |
-| 8 | `associations` | `text[]` | YES |  | User-selected context tags |
-| 9 | `source_id` | `text` | YES |  | HAE's stable ID for dedup |
-| 10 | `raw_payload` | `jsonb` | YES |  |  |
-| 11 | `received_at` | `timestamptz` | YES | `now()` |  |
+| #   | Column                   | Type          | Nullable | Default                  | Notes                         |
+| --- | ------------------------ | ------------- | -------- | ------------------------ | ----------------------------- |
+| 1   | `id`                     | `bigint`      | NO       | autoincrement            | PK                            |
+| 2   | `user_id`                | `uuid`        | NO       | hardcoded test user UUID | ⚠️                            |
+| 3   | `recorded_at`            | `timestamptz` | NO       |                          | When the user logged the mood |
+| 4   | `kind`                   | `text`        | YES      |                          | e.g. `momentary`, `daily`     |
+| 5   | `valence`                | `numeric`     | YES      |                          | -1.0 to +1.0                  |
+| 6   | `valence_classification` | `text`        | YES      |                          | e.g. `Pleasant`, `Unpleasant` |
+| 7   | `labels`                 | `text[]`      | YES      |                          | User-selected feeling labels  |
+| 8   | `associations`           | `text[]`      | YES      |                          | User-selected context tags    |
+| 9   | `source_id`              | `text`        | YES      |                          | HAE's stable ID for dedup     |
+| 10  | `raw_payload`            | `jsonb`       | YES      |                          |                               |
+| 11  | `received_at`            | `timestamptz` | YES      | `now()`                  |                               |
 
 **Primary key:** `(id)`
 **Unique:** `(user_id, recorded_at, source_id)` — three-part key required
@@ -406,17 +428,17 @@ because the same second can contain multiple mood logs
 
 ### `ecg_readings` 🟢
 
-| # | Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|---|
-| 1 | `id` | `bigint` | NO | autoincrement | PK |
-| 2 | `user_id` | `uuid` | NO | hardcoded test user UUID | ⚠️ |
-| 3 | `recorded_at` | `timestamptz` | NO |  |  |
-| 4 | `classification` | `text` | YES |  | e.g. `Sinus Rhythm`, `Atrial Fibrillation` |
-| 5 | `average_heart_rate` | `numeric` | YES |  |  |
-| 6 | `number_of_measurements` | `integer` | YES |  |  |
-| 7 | `sampling_frequency` | `numeric` | YES |  | Hz |
-| 8 | `source` | `text` | YES |  |  |
-| 9 | `received_at` | `timestamptz` | YES | `now()` |  |
+| #   | Column                   | Type          | Nullable | Default                  | Notes                                      |
+| --- | ------------------------ | ------------- | -------- | ------------------------ | ------------------------------------------ |
+| 1   | `id`                     | `bigint`      | NO       | autoincrement            | PK                                         |
+| 2   | `user_id`                | `uuid`        | NO       | hardcoded test user UUID | ⚠️                                         |
+| 3   | `recorded_at`            | `timestamptz` | NO       |                          |                                            |
+| 4   | `classification`         | `text`        | YES      |                          | e.g. `Sinus Rhythm`, `Atrial Fibrillation` |
+| 5   | `average_heart_rate`     | `numeric`     | YES      |                          |                                            |
+| 6   | `number_of_measurements` | `integer`     | YES      |                          |                                            |
+| 7   | `sampling_frequency`     | `numeric`     | YES      |                          | Hz                                         |
+| 8   | `source`                 | `text`        | YES      |                          |                                            |
+| 9   | `received_at`            | `timestamptz` | YES      | `now()`                  |                                            |
 
 **Primary key:** `(id)`
 **Unique:** `(user_id, recorded_at)`
@@ -427,16 +449,16 @@ because the same second can contain multiple mood logs
 
 Apple Watch high/low/irregular HR alerts.
 
-| # | Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|---|
-| 1 | `id` | `bigint` | NO | autoincrement | PK |
-| 2 | `user_id` | `uuid` | NO | hardcoded test user UUID | ⚠️ |
-| 3 | `recorded_at` | `timestamptz` | NO |  |  |
-| 4 | `notification_type` | `text` | YES |  |  |
-| 5 | `heart_rate` | `numeric` | YES |  |  |
-| 6 | `threshold` | `numeric` | YES |  |  |
-| 7 | `raw_payload` | `jsonb` | YES |  |  |
-| 8 | `received_at` | `timestamptz` | YES | `now()` |  |
+| #   | Column              | Type          | Nullable | Default                  | Notes |
+| --- | ------------------- | ------------- | -------- | ------------------------ | ----- |
+| 1   | `id`                | `bigint`      | NO       | autoincrement            | PK    |
+| 2   | `user_id`           | `uuid`        | NO       | hardcoded test user UUID | ⚠️    |
+| 3   | `recorded_at`       | `timestamptz` | NO       |                          |       |
+| 4   | `notification_type` | `text`        | YES      |                          |       |
+| 5   | `heart_rate`        | `numeric`     | YES      |                          |       |
+| 6   | `threshold`         | `numeric`     | YES      |                          |       |
+| 7   | `raw_payload`       | `jsonb`       | YES      |                          |       |
+| 8   | `received_at`       | `timestamptz` | YES      | `now()`                  |       |
 
 **Primary key:** `(id)`
 **Unique:** `(user_id, recorded_at)`
@@ -451,27 +473,28 @@ Apple Watch high/low/irregular HR alerts.
 
 Meal logs with photo/voice/AI-parsed nutrition data.
 
-| # | Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|---|
-| 1 | `id` | `uuid` | NO | `gen_random_uuid()` | PK |
-| 2 | `user_id` | `uuid` | NO |  |  |
-| 3 | `date` | `date` | NO |  |  |
-| 4 | `meal` | enum | NO |  | Custom enum type — see check via `\d` in psql |
-| 5 | `photo_url` | `text` | YES |  |  |
-| 6 | `voice_url` | `text` | YES |  |  |
-| 7 | `food_labels` | `text[]` | YES |  |  |
-| 8 | `calories` | `numeric` | YES |  |  |
-| 9 | `macros` | `jsonb` | YES |  | `{protein, carbs, fat}` structure |
-| 10 | `ai_raw` | `jsonb` | YES |  | Full LLM output for debugging |
-| 11 | `note` | `text` | YES |  |  |
-| 12 | `journal_mode` | `boolean` | NO | `false` | Excluded from `v_day_summary` calorie totals when true |
-| 13 | `created_at` | `timestamptz` | NO | `now()` |  |
-| 14 | `updated_at` | `timestamptz` | NO | `now()` |  |
+| #   | Column         | Type          | Nullable | Default             | Notes                                                  |
+| --- | -------------- | ------------- | -------- | ------------------- | ------------------------------------------------------ |
+| 1   | `id`           | `uuid`        | NO       | `gen_random_uuid()` | PK                                                     |
+| 2   | `user_id`      | `uuid`        | NO       |                     |                                                        |
+| 3   | `date`         | `date`        | NO       |                     |                                                        |
+| 4   | `meal`         | enum          | NO       |                     | Custom enum type — see check via `\d` in psql          |
+| 5   | `photo_url`    | `text`        | YES      |                     |                                                        |
+| 6   | `voice_url`    | `text`        | YES      |                     |                                                        |
+| 7   | `food_labels`  | `text[]`      | YES      |                     |                                                        |
+| 8   | `calories`     | `numeric`     | YES      |                     |                                                        |
+| 9   | `macros`       | `jsonb`       | YES      |                     | `{protein, carbs, fat}` structure                      |
+| 10  | `ai_raw`       | `jsonb`       | YES      |                     | Full LLM output for debugging                          |
+| 11  | `note`         | `text`        | YES      |                     |                                                        |
+| 12  | `journal_mode` | `boolean`     | NO       | `false`             | Excluded from `v_day_summary` calorie totals when true |
+| 13  | `created_at`   | `timestamptz` | NO       | `now()`             |                                                        |
+| 14  | `updated_at`   | `timestamptz` | NO       | `now()`             |                                                        |
 
 **Primary key:** `(id)`
 **Foreign key:** `user_id` → `auth.users(id) ON DELETE CASCADE`
 
 **Indexes (redundant):**
+
 - `idx_food_entries_meal` on `(meal)`
 - `idx_food_entries_user_date`, `idx_food_entries_user_date_desc`, `idx_food_user_date` — three overlapping indexes on `(user_id, date)`
 - `idx_food_user_meal` on `(user_id, meal)`
@@ -479,9 +502,11 @@ Meal logs with photo/voice/AI-parsed nutrition data.
 **RLS:** **highly redundant (11 policies — see known issue)**
 
 Intended production policies:
+
 - `food_select_own` / `food_insert_own` / `food_update_own` / `food_delete_own` — `user_id = auth.uid()`
 
 Leftover/debug policies:
+
 - `Users can view/insert/update their own food entries` — same as above, older naming
 - `Allow anon read` — `SELECT` for anon, predicate `true` (⚠️ open read)
 - `anon_can_read_food_entries` — duplicate of the above
@@ -502,16 +527,16 @@ Leftover/debug policies:
 
 Simple daily mood tracking.
 
-| # | Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|---|
-| 1 | `id` | `uuid` | NO | `gen_random_uuid()` | PK |
-| 2 | `user_id` | `uuid` | NO |  |  |
-| 3 | `date` | `date` | NO |  |  |
-| 4 | `mood_score` | `integer` | NO |  | 1–5, CHECK enforced |
-| 5 | `note` | `text` | YES |  |  |
-| 6 | `journal_mode` | `boolean` | NO | `false` |  |
-| 7 | `created_at` | `timestamptz` | NO | `now()` |  |
-| 8 | `updated_at` | `timestamptz` | NO | `now()` |  |
+| #   | Column         | Type          | Nullable | Default             | Notes               |
+| --- | -------------- | ------------- | -------- | ------------------- | ------------------- |
+| 1   | `id`           | `uuid`        | NO       | `gen_random_uuid()` | PK                  |
+| 2   | `user_id`      | `uuid`        | NO       |                     |                     |
+| 3   | `date`         | `date`        | NO       |                     |                     |
+| 4   | `mood_score`   | `integer`     | NO       |                     | 1–5, CHECK enforced |
+| 5   | `note`         | `text`        | YES      |                     |                     |
+| 6   | `journal_mode` | `boolean`     | NO       | `false`             |                     |
+| 7   | `created_at`   | `timestamptz` | NO       | `now()`             |                     |
+| 8   | `updated_at`   | `timestamptz` | NO       | `now()`             |                     |
 
 **Primary key:** `(id)`
 **Unique:** `(user_id, date)` — one mood per user per day
@@ -527,17 +552,17 @@ legacy debug/test policies referencing `97c22f4c-...`. Needs cleanup.
 
 AI-generated weekly/monthly summaries.
 
-| # | Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|---|
-| 1 | `id` | `uuid` | NO | `gen_random_uuid()` | PK |
-| 2 | `user_id` | `uuid` | NO |  |  |
-| 3 | `period_start` | `date` | NO |  |  |
-| 4 | `period_end` | `date` | NO |  |  |
-| 5 | `summary_md` | `text` | YES |  | Markdown body |
-| 6 | `tips_md` | `text` | YES |  |  |
-| 7 | `metrics` | `jsonb` | YES |  | Snapshot of underlying data used to generate the insight |
-| 8 | `created_at` | `timestamptz` | NO | `now()` |  |
-| 9 | `updated_at` | `timestamptz` | NO | `now()` |  |
+| #   | Column         | Type          | Nullable | Default             | Notes                                                    |
+| --- | -------------- | ------------- | -------- | ------------------- | -------------------------------------------------------- |
+| 1   | `id`           | `uuid`        | NO       | `gen_random_uuid()` | PK                                                       |
+| 2   | `user_id`      | `uuid`        | NO       |                     |                                                          |
+| 3   | `period_start` | `date`        | NO       |                     |                                                          |
+| 4   | `period_end`   | `date`        | NO       |                     |                                                          |
+| 5   | `summary_md`   | `text`        | YES      |                     | Markdown body                                            |
+| 6   | `tips_md`      | `text`        | YES      |                     |                                                          |
+| 7   | `metrics`      | `jsonb`       | YES      |                     | Snapshot of underlying data used to generate the insight |
+| 8   | `created_at`   | `timestamptz` | NO       | `now()`             |                                                          |
+| 9   | `updated_at`   | `timestamptz` | NO       | `now()`             |                                                          |
 
 **Primary key:** `(id)`
 **Unique:** `(user_id, period_start, period_end)`
@@ -547,28 +572,131 @@ AI-generated weekly/monthly summaries.
 
 ---
 
+## Derived analytics
+
+These three tables are written by nightly PL/pgSQL jobs (see
+`03-functions-and-cron.md`) and read by the UI surfaces under `/preview`
+and the Dashboard hero/badge. They contain no information that isn't
+recomputable from the source tables — drop and rebuild via cron is safe.
+
+### `anomalies` 🟢
+
+Statistical outliers (|z| ≥ 2 vs a 30-day rolling baseline) for HRV,
+resting HR, sleep duration, and deep sleep. Populated by
+`detect_anomalies()`.
+
+| #   | Column            | Type          | Nullable | Default  | Notes                                                                               |
+| --- | ----------------- | ------------- | -------- | -------- | ----------------------------------------------------------------------------------- |
+| 1   | `id`              | `bigint`      | NO       | identity | PK                                                                                  |
+| 2   | `user_id`         | `uuid`        | NO       |          | FK → `auth.users(id)` ON DELETE CASCADE                                             |
+| 3   | `metric_id`       | `text`        | NO       |          | `'hrv'`, `'rhr'`, `'sleep'`, `'deep_sleep'`                                         |
+| 4   | `observed_at`     | `date`        | NO       |          | The day the outlier reading occurred                                                |
+| 5   | `value`           | `numeric`     | NO       |          | The actual reading                                                                  |
+| 6   | `baseline_mean`   | `numeric`     | NO       |          | 30-day leave-one-out mean                                                           |
+| 7   | `baseline_stddev` | `numeric`     | NO       |          | 30-day leave-one-out σ                                                              |
+| 8   | `z_score`         | `numeric`     | NO       |          | `(value − mean) / σ`                                                                |
+| 9   | `direction`       | `text`        | NO       |          | `'high'` or `'low'` (CHECK enforced)                                                |
+| 10  | `kind`            | `text`        | NO       |          | `'alert'` or `'positive'` (CHECK enforced)                                          |
+| 11  | `hint`            | `text`        | YES      |          | Rule-based context line ("Correlates with short sleep" etc.); NULL if no rule fired |
+| 12  | `detected_at`     | `timestamptz` | NO       | `now()`  | When the cron job last upserted this row                                            |
+| 13  | `dismissed_at`    | `timestamptz` | YES      |          | Set when the user clicks the dismiss X in the UI                                    |
+
+**Primary key:** `(id)`
+**Unique:** `(user_id, metric_id, observed_at)` — re-runs are idempotent
+**Indexes:**
+
+- `(user_id, detected_at DESC)`
+- `(user_id, observed_at DESC) WHERE dismissed_at IS NULL` — partial index used by the Dashboard badge count
+
+**RLS:** single policy `FOR ALL USING (auth.uid() = user_id)`. Grants:
+`SELECT, UPDATE` to `authenticated` (write of `dismissed_at` only —
+the cron writes via `SECURITY DEFINER`).
+
+**Refresh cadence:** nightly at 03:30 UTC via `detect-anomalies` cron.
+
+### `readiness_scores` 🟢
+
+Daily 0–100 readiness score per user, with sub-score breakdown and a
+JSONB snapshot of inputs. Populated by `compute_readiness_batch()`.
+
+| #   | Column               | Type          | Nullable | Default  | Notes                                                                                    |
+| --- | -------------------- | ------------- | -------- | -------- | ---------------------------------------------------------------------------------------- |
+| 1   | `id`                 | `bigint`      | NO       | identity | PK                                                                                       |
+| 2   | `user_id`            | `uuid`        | NO       |          | FK → `auth.users(id)` ON DELETE CASCADE                                                  |
+| 3   | `date`               | `date`        | NO       |          | User-local day the score is for                                                          |
+| 4   | `score`              | `int`         | NO       |          | 0–100 (CHECK enforced)                                                                   |
+| 5   | `band`               | `text`        | NO       |          | `'peak'`/`'primed'`/`'steady'`/`'recover'` (CHECK enforced)                              |
+| 6   | `caption`            | `text`        | NO       |          | One-line auto-generated summary                                                          |
+| 7   | `sleep_contribution` | `int`         | NO       |          | 0–100 sub-score (sleep duration vs 8h target)                                            |
+| 8   | `hrv_contribution`   | `int`         | NO       |          | 0–100 sub-score (z-score vs 60d baseline)                                                |
+| 9   | `rhr_contribution`   | `int`         | NO       |          | 0–100 sub-score (z-score vs 60d baseline, inverted)                                      |
+| 10  | `load_contribution`  | `int`         | NO       |          | 0–100 sub-score (3d/14d ACWR)                                                            |
+| 11  | `components`         | `jsonb`       | NO       |          | Full input snapshot — sleep_hours, hrv, rhr, exercise_minutes, baselines, acwr, has_data |
+| 12  | `computed_at`        | `timestamptz` | NO       | `now()`  |                                                                                          |
+
+**Primary key:** `(id)`
+**Unique:** `(user_id, date)` — one score per user per day
+**Indexes:** `(user_id, date DESC)`
+
+**RLS:** read-only — single policy `FOR SELECT USING (auth.uid() =
+user_id)`. Grants: `SELECT` to `authenticated`. Writes happen via the
+`SECURITY DEFINER` cron function.
+
+**Refresh cadence:** nightly at 04:30 UTC via `compute-readiness` cron.
+Initial 30-day backfill done manually on first deploy.
+
+### `narrative_cache` 🟢
+
+LLM-generated narratives keyed by `(user_id, cache_key)`. The
+`/api/ai/what-changed` route checks this table before calling OpenAI
+or Gemini.
+
+| #   | Column         | Type          | Nullable | Default  | Notes                                                          |
+| --- | -------------- | ------------- | -------- | -------- | -------------------------------------------------------------- |
+| 1   | `id`           | `bigint`      | NO       | identity | PK                                                             |
+| 2   | `user_id`      | `uuid`        | NO       |          | FK → `auth.users(id)` ON DELETE CASCADE                        |
+| 3   | `cache_key`    | `text`        | NO       |          | e.g. `what-changed:7d:2026-04-20`                              |
+| 4   | `narrative`    | `text`        | NO       |          | LLM output (≤ 800 chars)                                       |
+| 5   | `inputs`       | `jsonb`       | NO       |          | Deltas payload sent to the LLM — kept for audit / regeneration |
+| 6   | `model`        | `text`        | NO       |          | e.g. `gpt-4o-mini`, `gemini-1.5-flash`                         |
+| 7   | `generated_at` | `timestamptz` | NO       | `now()`  |                                                                |
+
+**Primary key:** `(id)`
+**Unique:** `(user_id, cache_key)`
+**Indexes:** `(user_id, generated_at DESC)`
+
+**RLS:** three policies (SELECT/INSERT/UPDATE), all gated on
+`auth.uid() = user_id`. Grants: `SELECT, INSERT, UPDATE` to
+`authenticated` plus sequence usage on the id sequence — the API route
+uses the user-scoped Supabase client to write.
+
+**Refresh cadence:** on demand (lazy from the UI). No expiry — keys
+encode the date so they naturally roll forward.
+
+---
+
 ## App state & settings
 
 ### `user_preferences` 🟢
 
 User-level settings. One row per user.
 
-| # | Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|---|
-| 1 | `id` | `uuid` | NO | `gen_random_uuid()` | PK |
-| 2 | `user_id` | `uuid` | NO |  | FK → `auth.users(id)` |
-| 3 | `units` | `text` | YES | `'metric'` | `'metric'` or `'imperial'` (CHECK enforced) |
-| 4 | `reminder_enabled` | `boolean` | YES | `true` |  |
-| 5 | `reminder_time` | `time` | YES | `09:00:00` |  |
-| 6 | `journal_mode_default` | `boolean` | YES | `false` |  |
-| 7 | `notifications_enabled` | `boolean` | YES | `true` |  |
-| 8 | `created_at` | `timestamptz` | YES | `now()` |  |
-| 9 | `updated_at` | `timestamptz` | YES | `now()` |  |
-| 10 | `onboarding_completed` | `boolean` | NO | `false` |  |
-| 11 | `onboarding_preferred_method` | `text` | YES |  | CHECK: `photo`/`voice`/`text`/`manual` |
-| 12 | `onboarding_completed_at` | `timestamptz` | YES |  |  |
-| 13 | `daily_targets` | `jsonb` | YES | `{"steps": 10000, "active_energy": 600, "calorie_intake": 2000, "exercise_minutes": 30}` | User-configurable goal targets |
-| 14 | `timezone` | `text` | NO | `'UTC'` | IANA zone, e.g. `Europe/Madrid`. Read by `sync_hae_to_production()` for date bucketing. |
+| #   | Column                        | Type          | Nullable | Default                                                                                  | Notes                                                                                   |
+| --- | ----------------------------- | ------------- | -------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| 1   | `id`                          | `uuid`        | NO       | `gen_random_uuid()`                                                                      | PK                                                                                      |
+| 2   | `user_id`                     | `uuid`        | NO       |                                                                                          | FK → `auth.users(id)`                                                                   |
+| 3   | `units`                       | `text`        | YES      | `'metric'`                                                                               | `'metric'` or `'imperial'` (CHECK enforced)                                             |
+| 4   | `reminder_enabled`            | `boolean`     | YES      | `true`                                                                                   |                                                                                         |
+| 5   | `reminder_time`               | `time`        | YES      | `09:00:00`                                                                               |                                                                                         |
+| 6   | `journal_mode_default`        | `boolean`     | YES      | `false`                                                                                  |                                                                                         |
+| 7   | `notifications_enabled`       | `boolean`     | YES      | `true`                                                                                   |                                                                                         |
+| 8   | `created_at`                  | `timestamptz` | YES      | `now()`                                                                                  |                                                                                         |
+| 9   | `updated_at`                  | `timestamptz` | YES      | `now()`                                                                                  |                                                                                         |
+| 10  | `onboarding_completed`        | `boolean`     | NO       | `false`                                                                                  |                                                                                         |
+| 11  | `onboarding_preferred_method` | `text`        | YES      |                                                                                          | CHECK: `photo`/`voice`/`text`/`manual`                                                  |
+| 12  | `onboarding_completed_at`     | `timestamptz` | YES      |                                                                                          |                                                                                         |
+| 13  | `daily_targets`               | `jsonb`       | YES      | `{"steps": 10000, "active_energy": 600, "calorie_intake": 2000, "exercise_minutes": 30}` | User-configurable goal targets                                                          |
+| 14  | `timezone`                    | `text`        | NO       | `'UTC'`                                                                                  | IANA zone, e.g. `Europe/Madrid`. Read by `sync_hae_to_production()` for date bucketing. |
 
 **Primary key:** `(id)`
 **Unique:** `(user_id)`
@@ -580,14 +708,14 @@ User-level settings. One row per user.
 
 Gamification — consecutive-day tracking for mood/food logging.
 
-| # | Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|---|
-| 1 | `id` | `uuid` | NO | `gen_random_uuid()` | PK |
-| 2 | `user_id` | `uuid` | NO |  |  |
-| 3 | `current_streak` | `integer` | NO | `0` |  |
-| 4 | `longest_streak` | `integer` | NO | `0` |  |
-| 5 | `updated_at` | `timestamptz` | NO | `now()` |  |
-| 6 | `last_entry_date` | `date` | YES |  |  |
+| #   | Column            | Type          | Nullable | Default             | Notes |
+| --- | ----------------- | ------------- | -------- | ------------------- | ----- |
+| 1   | `id`              | `uuid`        | NO       | `gen_random_uuid()` | PK    |
+| 2   | `user_id`         | `uuid`        | NO       |                     |       |
+| 3   | `current_streak`  | `integer`     | NO       | `0`                 |       |
+| 4   | `longest_streak`  | `integer`     | NO       | `0`                 |       |
+| 5   | `updated_at`      | `timestamptz` | NO       | `now()`             |       |
+| 6   | `last_entry_date` | `date`        | YES      |                     |       |
 
 **Primary key:** `(id)`
 **Unique:** `(user_id)` — one streak row per user
@@ -599,16 +727,17 @@ Gamification — consecutive-day tracking for mood/food logging.
 pgvector embeddings for RAG (retrieval-augmented generation). Used by
 the AI insights feature to ground responses.
 
-| # | Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|---|
-| 1 | `id` | `uuid` | NO | `gen_random_uuid()` | PK |
-| 2 | `content` | `text` | NO |  | Document chunk |
-| 3 | `embedding` | `vector` | NO |  | pgvector embedding |
-| 4 | `metadata` | `jsonb` | NO | `{}` |  |
-| 5 | `created_at` | `timestamptz` | NO | `now()` |  |
+| #   | Column       | Type          | Nullable | Default             | Notes              |
+| --- | ------------ | ------------- | -------- | ------------------- | ------------------ |
+| 1   | `id`         | `uuid`        | NO       | `gen_random_uuid()` | PK                 |
+| 2   | `content`    | `text`        | NO       |                     | Document chunk     |
+| 3   | `embedding`  | `vector`      | NO       |                     | pgvector embedding |
+| 4   | `metadata`   | `jsonb`       | NO       | `{}`                |                    |
+| 5   | `created_at` | `timestamptz` | NO       | `now()`             |                    |
 
 **Primary key:** `(id)`
 **Indexes:**
+
 - `knowledge_documents_embedding_idx` — IVFFlat on `embedding` using `vector_cosine_ops`, 100 lists
 - `knowledge_documents_metadata_idx` — GIN on `metadata` for JSONB containment queries
 
@@ -625,15 +754,15 @@ via service role.
 the current HAE sync (which logs via the function's `RETURN` text
 instead).
 
-| # | Column | Type | Nullable | Default |
-|---|---|---|---|---|
-| 1 | `id` | `bigint` | NO | autoincrement |
-| 2 | `run_at` | `timestamptz` | YES | `now()` |
-| 3 | `sheet_name` | `text` | NO |  |
-| 4 | `rows_fetched` | `integer` | YES | `0` |
-| 5 | `rows_upserted` | `integer` | YES | `0` |
-| 6 | `error_message` | `text` | YES |  |
-| 7 | `duration_ms` | `integer` | YES |  |
+| #   | Column          | Type          | Nullable | Default       |
+| --- | --------------- | ------------- | -------- | ------------- |
+| 1   | `id`            | `bigint`      | NO       | autoincrement |
+| 2   | `run_at`        | `timestamptz` | YES      | `now()`       |
+| 3   | `sheet_name`    | `text`        | NO       |               |
+| 4   | `rows_fetched`  | `integer`     | YES      | `0`           |
+| 5   | `rows_upserted` | `integer`     | YES      | `0`           |
+| 6   | `error_message` | `text`        | YES      |               |
+| 7   | `duration_ms`   | `integer`     | YES      |               |
 
 **Primary key:** `(id)`
 
@@ -644,11 +773,11 @@ or repurposing as a general sync audit log (would need schema changes).
 
 Pinged periodically to prevent Supabase free-tier pausing.
 
-| # | Column | Type | Nullable | Default |
-|---|---|---|---|---|
-| 1 | `id` | `uuid` | NO | `gen_random_uuid()` |
-| 2 | `pinged_at` | `timestamptz` | YES | `now()` |
-| 3 | `timestamp` | `timestamptz` | YES | `now()` |
+| #   | Column      | Type          | Nullable | Default             |
+| --- | ----------- | ------------- | -------- | ------------------- |
+| 1   | `id`        | `uuid`        | NO       | `gen_random_uuid()` |
+| 2   | `pinged_at` | `timestamptz` | YES      | `now()`             |
+| 3   | `timestamp` | `timestamptz` | YES      | `now()`             |
 
 **Primary key:** `(id)`
 
@@ -669,18 +798,18 @@ HealthFit pipeline. **Empty** (0 rows) and not written by the current
 HAE sync — the frontend aggregates on the fly from `exercise_events`
 instead.
 
-| # | Column | Type | Nullable | Default |
-|---|---|---|---|---|
-| 1 | `date` | `date` | NO |  |
-| 2 | `move_time_minutes` | `numeric` | YES |  |
-| 3 | `exercise_time_minutes` | `numeric` | YES |  |
-| 4 | `stand_time_minutes` | `numeric` | YES |  |
-| 5 | `active_energy_kcal` | `numeric` | YES |  |
-| 6 | `distance_km` | `numeric` | YES |  |
-| 7 | `source` | `text` | YES | `'healthfit'` |
-| 8 | `updated_at` | `timestamptz` | YES | `now()` |
-| 9 | `user_id` | `uuid` | YES |  |
-| 10 | `workouts` | `integer` | NO | `0` |
+| #   | Column                  | Type          | Nullable | Default       |
+| --- | ----------------------- | ------------- | -------- | ------------- |
+| 1   | `date`                  | `date`        | NO       |               |
+| 2   | `move_time_minutes`     | `numeric`     | YES      |               |
+| 3   | `exercise_time_minutes` | `numeric`     | YES      |               |
+| 4   | `stand_time_minutes`    | `numeric`     | YES      |               |
+| 5   | `active_energy_kcal`    | `numeric`     | YES      |               |
+| 6   | `distance_km`           | `numeric`     | YES      |               |
+| 7   | `source`                | `text`        | YES      | `'healthfit'` |
+| 8   | `updated_at`            | `timestamptz` | YES      | `now()`       |
+| 9   | `user_id`               | `uuid`        | YES      |               |
+| 10  | `workouts`              | `integer`     | NO       | `0`           |
 
 **Primary key:** `(date)` (⚠️ single-user bottleneck even if it were used)
 **Constraints:** 4 separate UNIQUE indexes all on `(user_id, date)` — piled
@@ -710,6 +839,7 @@ dashboard-relevant activity stats. Used by the frontend's dashboard,
 calendar, and history views.
 
 **Key behavior:**
+
 - Groups `exercise_events` by `(user_id, workout_date)` summing
   duration, distance, and kcal
 - `COALESCE`s `exercise_time_minutes` between HMD and computed ex
@@ -759,6 +889,7 @@ Per-user-per-day food/mood summary. Used by the dashboard's daily
 cards.
 
 **Key behavior:**
+
 - Sums `calories` and macros from `food_entries`, **excluding rows with
   `journal_mode = true`** (those are private notes, not counted)
 - Joins in the day's `mood_score` via correlated subquery
@@ -819,6 +950,7 @@ Safe today, foot-gun for multi-user. Remove the defaults when adding
 ### 3. Overlapping / redundant indexes
 
 Tables with the worst cases:
+
 - `health_metrics_daily` — 5 identical indexes on `(user_id, date)`
 - `exercise_events` — 4 overlapping indexes on `user_id + date/started_at`
 - `exercise_daily` — 5 overlapping indexes on an empty table
@@ -830,6 +962,7 @@ index costs ~2× per write.
 ### 4. Legacy columns from HealthFit era
 
 Tables with stale columns:
+
 - `health_metrics_daily`: `exercise_minutes`, `total_energy_kcal`, `average_heart_rate`, `vo2max`, `distance_km`
 - `exercise_events`: `total_minutes`, `move_minutes`, `avg_hr`, `min_hr`, `max_hr`, `sheet_row_number`, `total_energy_kcal`, `hr_zone_type`, `hrz0_seconds`…`hrz5_seconds`, `trimp`, `rpe`
 - `keep_alive`: `timestamp` (duplicate of `pinged_at`)
@@ -842,6 +975,7 @@ needed before actually dropping.
 
 Multiple tables (`food_entries`, `mood_entries`, `insights`, `streaks`)
 have legacy policies that either:
+
 - Grant anon role unrestricted read access (e.g. `anon_can_read_food_entries`
   with predicate `true`)
 - Reference the second test user UUID

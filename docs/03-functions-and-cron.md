@@ -1,6 +1,6 @@
 # Pulse — Database Functions, Triggers & Cron
 
-_Last updated: 2026-04-19_
+_Last updated: 2026-04-26_
 
 Complete reference for every PL/pgSQL function, trigger, and scheduled
 cron job in the Pulse database. Excludes pgvector extension functions
@@ -22,39 +22,54 @@ For the surrounding tables and data flow, see `01-architecture.md` and
 ## Table of contents
 
 **Core HAE pipeline**
+
 - [`sync_hae_to_production()`](#sync_hae_to_production)
 - [`purge_old_staging_rows()`](#purge_old_staging_rows)
 
 **User lifecycle**
+
 - [`create_user_preferences()`](#create_user_preferences) (trigger fn)
 - [`ensure_user_preferences(uuid)`](#ensure_user_preferences)
 
 **App feature helpers**
+
 - [`add_food_entry(...)`](#add_food_entry)
 - [`upsert_mood(...)`](#upsert_mood)
 - [`insert_knowledge_document(...)`](#insert_knowledge_document)
 
 **Aggregates & queries**
+
 - [`get_activity_aggregates(...)`](#get_activity_aggregates)
 - [`calculate_weekly_metrics(...)`](#calculate_weekly_metrics)
 - [`get_latest_health_date(uuid)`](#get_latest_health_date)
 - [`get_latest_exercise_date(uuid)`](#get_latest_exercise_date) 🔴
 
 **Streaks (duplicated logic — see known issue)**
+
 - [`update_streaks_on_entry()`](#update_streaks_on_entry) (trigger fn)
 - [`recalc_streaks(uuid)`](#recalc_streaks)
 
+**Derived analytics**
+
+- [`detect_anomalies()`](#detect_anomalies)
+- [`compute_readiness(uuid, date)`](#compute_readiness)
+- [`compute_readiness_batch()`](#compute_readiness_batch)
+
 **Small utilities**
+
 - [`touch_updated_at()`](#touch_updated_at) (trigger fn)
 - [`try_cast_double(text)`](#try_cast_double)
 
 **Triggers**
+
 - [Trigger inventory](#triggers)
 
 **Scheduled jobs**
+
 - [Cron jobs](#cron-jobs)
 
 **Cross-cutting issues**
+
 - [Function-level known issues](#function-level-known-issues)
 
 ---
@@ -68,6 +83,7 @@ three staging tables, transforms them, and upserts into production
 tables. Runs every 15 minutes via pg_cron.
 
 **Signature:**
+
 ```
 sync_hae_to_production() RETURNS text
 ```
@@ -153,6 +169,7 @@ rows where `processed_at IS NULL`.
 03:00 UTC via pg_cron.
 
 **Signature:**
+
 ```
 purge_old_staging_rows() RETURNS text
 ```
@@ -164,6 +181,7 @@ purge_old_staging_rows() RETURNS text
 literal inside the function.
 
 **Safety guarantees:**
+
 - Only deletes rows the sync function has already promoted (where
   `processed_at IS NOT NULL`).
 - Unprocessed rows are preserved regardless of age — safety net
@@ -252,6 +270,7 @@ casts to pgvector `vector` type before insert.
 frontend's weekly/monthly charts.
 
 **Parameters:**
+
 - `p_user_id` — target user
 - `p_period` — a `date_trunc` unit: `'week'`, `'month'`, etc.
 - `p_start_date` / `p_end_date` — inclusive range
@@ -267,6 +286,7 @@ aggregate for distance and workout count. Returns ordered DESC.
 ### `calculate_weekly_metrics(user_uuid, start_date, end_date)` 🟢
 
 Returns a `jsonb` summary for a date range:
+
 ```json
 {
   "avgMood": 3.4,
@@ -308,6 +328,7 @@ they should be consolidated. See [known issues](#function-level-known-issues).
 `trg_update_streaks_mood`).
 
 **Logic:** Incremental — on each new entry:
+
 - If `last_entry_date = NEW.date` → same-day entry, current_streak unchanged
 - If `last_entry_date = NEW.date - 1 day` → consecutive, current_streak + 1
 - Otherwise → streak resets to 1
@@ -315,6 +336,7 @@ they should be consolidated. See [known issues](#function-level-known-issues).
 Updates `longest_streak` with `GREATEST`.
 
 **⚠️ Edge cases the incremental logic doesn't handle:**
+
 - Out-of-order inserts (backfilling an older date)
 - Deletions (decrements won't happen; streak silently becomes incorrect)
 - Missing days discovered retroactively
@@ -325,6 +347,7 @@ Updates `longest_streak` with `GREATEST`.
 today.
 
 **Algorithm:**
+
 ```
 d := today
 cur := 0
@@ -339,6 +362,143 @@ backfills.
 
 **Not currently wired to anything automatic** — must be called
 manually.
+
+---
+
+## Derived analytics
+
+These functions compute the rows in `anomalies`, `readiness_scores`, and
+`narrative_cache`. They run via pg_cron (see the schedule table below)
+or on-demand from the API. All are `SECURITY DEFINER` because the cron
+context is the `postgres` role; user-scoped access is gated by RLS on
+the destination tables.
+
+### `detect_anomalies()` 🟢
+
+**Purpose.** Statistical outlier detection over a 30-day rolling
+window for HRV, resting HR, total sleep, and deep sleep. Computed
+client-side until 2026-04-26; now runs nightly.
+
+**Signature:**
+
+```
+detect_anomalies() RETURNS text
+```
+
+**Returns:** A status string like
+`detect_anomalies: window=2026-03-28..2026-04-26 rows_upserted=6`.
+
+**Math.** For each `(user, metric)` with ≥14 days of data in the window:
+
+- Precomputes per-window `sum`, `sum²`, `n` via window functions.
+- Per row, derives leave-one-out mean μᵢ = (Σ−xᵢ)/(n−1) and population
+  variance over the n−1 sample (matches the reference implementation
+  formerly at `lib/anomalies.ts`).
+- Flags any row with |z| ≥ 2.
+
+**Output table.** Upserts into `anomalies` keyed by
+`(user_id, metric_id, observed_at)`. Re-runs are idempotent. The
+`ON CONFLICT DO UPDATE` clause includes
+`WHERE anomalies.dismissed_at IS NULL` so user dismissals are
+preserved across re-runs.
+
+**Hint logic.** Inline CASE expression mirrors the client-side
+`pickHint`:
+
+- RHR + that-night sleep < 6h → "Correlates with short sleep"
+- HRV + previous-day exercise > 60min → "Likely training-related"
+- Deep sleep → "Came after a quiet day" _(applies to alerts and
+  positives — known cosmetic bug, see follow-up below)_
+- Sleep + value > 8.5h → "Long night — protect tomorrow"
+
+**Cron.** `detect-anomalies` at 03:30 UTC.
+
+**Source.** `supabase/migrations/20260426000016_anomalies_detection.sql`.
+
+### `compute_readiness(p_user_id uuid, p_date date)` 🟢
+
+**Purpose.** Computes the day's readiness score for one user/day and
+upserts a row into `readiness_scores`. Pure function; safe to call
+manually for backfills.
+
+**Signature:**
+
+```
+compute_readiness(p_user_id uuid, p_date date) RETURNS void
+```
+
+**Math.** Weighted score (0–100):
+
+- **Sleep (35 %)** — `min(100, hours/8 × 100)`, defaults to 20 if
+  missing.
+- **HRV (30 %)** — z-score vs 60-day baseline (excluding target day).
+  +1σ → 100, mean → 50, −2σ → 0, linear in between. Falls back to
+  40 if value missing, 50 if baseline insufficient (<5 samples).
+- **Resting HR (20 %)** — same shape as HRV but inverted (low = good).
+- **Training load (15 %)** — Acute:Chronic Workload Ratio (3-day
+  acute / 14-day chronic on exercise minutes). Optimal band 0.8–1.3 →
+  100; below 0.5 or above 1.6 → low score; linear in between. Returns
+  60 if there's <14 days of history.
+
+**Bands.** ≥85 = peak · ≥70 = primed · ≥50 = steady · else recover.
+
+**Captions.** ~10 templates inline in the function, picked by
+dominant + weakest sub-score. Edit them in the SQL, not the client.
+
+**Components blob.** Stores the input snapshot in `components` jsonb
+for replay/debugging: `sleep_hours`, `hrv`, `rhr`, `exercise_minutes`,
+`hrv_baseline_mean`/`stddev`/`n`, `rhr_baseline_mean`/`stddev`/`n`,
+`acwr`, `has_data`.
+
+**Source.** `supabase/migrations/20260426000018_compute_readiness_function.sql`.
+
+### `compute_readiness_batch()` 🟢
+
+**Purpose.** Wrapper that calls `compute_readiness(user, yesterday)`
+for every user with ≥1 row in `health_metrics_daily` over the last 14
+days. Cron entry point.
+
+**Signature:**
+
+```
+compute_readiness_batch() RETURNS text
+```
+
+**Returns:** `compute_readiness_batch: date=2026-04-25 users_processed=1`.
+
+**Cron.** `compute-readiness` at 04:30 UTC. Sits after
+`recalc-streaks-nightly` (04:00) and HAE sync (every 15 min).
+
+**Source.** Same migration as `compute_readiness`.
+
+### Backfill recipe
+
+After applying the migrations, seed the last 30 days of
+`readiness_scores` for the active user (one-shot, runs in <5s):
+
+```sql
+DO $$
+DECLARE
+  uid uuid;
+  d   date;
+BEGIN
+  SELECT user_id INTO uid
+  FROM public.health_metrics_daily
+  WHERE date >= current_date - 14
+  GROUP BY user_id
+  ORDER BY count(*) DESC
+  LIMIT 1;
+
+  FOR d IN
+    SELECT generate_series(current_date - 30, current_date - 1, '1 day'::interval)::date
+  LOOP
+    PERFORM public.compute_readiness(uid, d);
+  END LOOP;
+END $$;
+```
+
+`detect_anomalies()` doesn't need a backfill — it scans the trailing
+30 days every night, so the first cron run populates the table.
 
 ---
 
@@ -367,14 +527,14 @@ All triggers live on `public`-schema tables. (One additional trigger
 likely exists on `auth.users` calling `create_user_preferences()` — see
 that function's entry.)
 
-| Table | Trigger | Timing | Event | Calls | Purpose |
-|---|---|---|---|---|---|
-| `food_entries` | `trg_touch_food` | BEFORE | UPDATE | `touch_updated_at()` | Maintain `updated_at` |
-| `food_entries` | `trg_update_streaks_food` | AFTER | INSERT | `update_streaks_on_entry()` | Increment streak |
-| `mood_entries` | `trg_touch_mood` | BEFORE | UPDATE | `touch_updated_at()` | Maintain `updated_at` |
-| `mood_entries` | `trg_update_streaks_mood` | AFTER | INSERT | `update_streaks_on_entry()` | Increment streak |
-| `insights` | `trg_touch_ins` | BEFORE | UPDATE | `touch_updated_at()` | Maintain `updated_at` |
-| `streaks` | `trg_touch_str` | BEFORE | UPDATE | `touch_updated_at()` | Maintain `updated_at` |
+| Table          | Trigger                   | Timing | Event  | Calls                       | Purpose               |
+| -------------- | ------------------------- | ------ | ------ | --------------------------- | --------------------- |
+| `food_entries` | `trg_touch_food`          | BEFORE | UPDATE | `touch_updated_at()`        | Maintain `updated_at` |
+| `food_entries` | `trg_update_streaks_food` | AFTER  | INSERT | `update_streaks_on_entry()` | Increment streak      |
+| `mood_entries` | `trg_touch_mood`          | BEFORE | UPDATE | `touch_updated_at()`        | Maintain `updated_at` |
+| `mood_entries` | `trg_update_streaks_mood` | AFTER  | INSERT | `update_streaks_on_entry()` | Increment streak      |
+| `insights`     | `trg_touch_ins`           | BEFORE | UPDATE | `touch_updated_at()`        | Maintain `updated_at` |
+| `streaks`      | `trg_touch_str`           | BEFORE | UPDATE | `touch_updated_at()`        | Maintain `updated_at` |
 
 ---
 
@@ -392,10 +552,13 @@ To unschedule / reschedule a job, use the
 functions — these don't require the elevated privileges needed to
 `UPDATE cron.job` directly.
 
-| jobid | jobname | schedule | Command | Purpose |
-|---|---|---|---|---|
-| 5 | `sync-hae-to-production` | `*/15 * * * *` | `SELECT sync_hae_to_production();` | Promote new staging rows to production |
-| 6 | `purge-old-staging-rows` | `0 3 * * *` | `SELECT purge_old_staging_rows();` | Clean up staging rows older than 30 days |
+| jobname                  | schedule       | Command                                                 | Purpose                                                 |
+| ------------------------ | -------------- | ------------------------------------------------------- | ------------------------------------------------------- | --- | -------------------------------------- |
+| `sync-hae-to-production` | `*/15 * * * *` | `SELECT sync_hae_to_production();`                      | Promote new staging rows to production                  |
+| `purge-old-staging-rows` | `0 3 * * *`    | `SELECT purge_old_staging_rows();`                      | Clean up staging rows older than 30 days                |
+| `recalc-streaks-nightly` | `0 4 * * *`    | `SELECT recalc_streaks(user_id) FROM user_preferences;` | Rebuild streak counts every morning                     |
+| `detect-anomalies`       | `30 3 * * *`   | `SELECT detect_anomalies();`                            | Flag                                                    | z   | ≥ 2 outliers over the trailing 30 days |
+| `compute-readiness`      | `30 4 * * *`   | `SELECT compute_readiness_batch();`                     | Write yesterday's readiness score for every active user |
 
 Cron runs are logged in `cron.job_run_details` — useful for
 debugging. Job_pid, status, return_message, and duration are captured.
@@ -406,10 +569,21 @@ debugging. Job_pid, status, return_message, and duration are captured.
   jobid 4 (by previous setup). Unscheduled and re-created as jobid 5
   during the April 19 function-rewrite session.
 - **April 19, 2026** — `purge-old-staging-rows` created as jobid 6.
+- **April 26, 2026** — `detect-anomalies` and `compute-readiness`
+  added as part of the production migration of the `/preview`
+  features (see `PRODUCTION_PLAN.md`).
 
 ---
 
 ## Function-level known issues
+
+### 0. Deep-sleep alerts get a positive-toned hint
+
+The `hint` CASE in `detect_anomalies()` returns "Came after a quiet
+day" for **any** deep-sleep anomaly, including low-deep-sleep alerts.
+The copy reads as praise on alert rows. Fix: branch on `direction`
+(`'high'` only) or rephrase. Carried over verbatim from the
+client-side reference implementation; harmless but cosmetic.
 
 ### 1. Duplicate streak implementations
 
@@ -450,6 +624,7 @@ active monitoring.
 The function definitions in the live database are the source of
 truth. The repo's migration files (`/supabase/migrations/`) may be
 out of sync:
+
 - `sync_hae_to_production` has been rewritten repeatedly in the SQL
   editor (body metrics block added April 19, 2026; timezone support
   added April 19, 2026; sleep DISTINCT ON fix April 19, 2026).
