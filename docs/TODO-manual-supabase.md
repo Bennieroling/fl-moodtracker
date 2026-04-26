@@ -1602,7 +1602,9 @@ FROM sync_audit_log
 ORDER BY run_at DESC LIMIT 10;
 ```
 
-☐ Done
+✅ Done — `sync_audit_log` table and inserts were created during the C4
+session as part of the multi-user sync rewrite. `sync_hae_to_production()`
+already writes a row per run. E2 decision was to drop `sync_log` (done).
 
 ---
 
