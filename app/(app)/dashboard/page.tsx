@@ -317,7 +317,7 @@ export default function DashboardPage() {
         ai_raw: result,
       })
 
-      setSelectedMeal(result.meal as MealType)
+      setSelectedMeal(null)
 
       toast.success('Food logged successfully!', {
         description: `${result.foods.map((f) => f.label).join(', ')} (${result.nutrition.calories} cal)`,
@@ -419,6 +419,8 @@ export default function DashboardPage() {
         macros: result.nutrition.macros,
         ai_raw: result,
       })
+
+      setSelectedMeal(null)
 
       toast.success('Meal logged!', {
         description: `${result.foods.map((f) => f.label).join(', ')} (${result.nutrition.calories} cal)`,

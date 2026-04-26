@@ -152,7 +152,7 @@ export function LogFoodCard({
             ) : null}
 
             <Tabs defaultValue="photo" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="photo">Photo</TabsTrigger>
                 <TabsTrigger value="voice">Voice</TabsTrigger>
                 <TabsTrigger value="text">Text</TabsTrigger>
