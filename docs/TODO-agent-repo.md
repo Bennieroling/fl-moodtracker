@@ -1505,7 +1505,16 @@ supabase db reset
 # Should reproduce the live schema without errors
 ```
 
-☐ Done
+**Status (2026-04-26):** ✅ Done.
+Created three migration files from the SQL snapshot queries run in F3:
+
+- `supabase/migrations/009_sleep_events.sql` — CREATE TABLE with all 15 columns, UNIQUE (user_id, date), RLS enabled, four policies, GRANT SELECT TO authenticated.
+- `supabase/migrations/010_sync_functions_snapshot.sql` — verbatim bodies of `sync_hae_to_production()`, `purge_old_staging_rows()`, and `recalc_streaks(uuid)` from pg_get_functiondef output.
+- `supabase/migrations/011_cron_jobs.sql` — three `cron.schedule()` calls matching the live pg_cron jobs (sync every 15 min, purge daily 03:00 UTC, recalc-streaks 04:00 UTC).
+
+Note: these are snapshot files for documentation and replay; `supabase db reset` on a fresh project would require the pg_cron extension enabled and the `sleep_events_id_seq` sequence pre-existing (or the sequence created in the migration). In practice the live DB already has these objects — the files capture their current state.
+
+✅ Done
 
 ---
 
