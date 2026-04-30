@@ -45,6 +45,7 @@ describe('POST /api/sync', () => {
     const res = await POST()
     expect(res.status).toBe(500)
     const body = await res.json()
-    expect(body.error).toBe('internal_error')
+    expect(body.error).toBe('sync_failed')
+    expect(body.detail).toBe('db error')
   })
 })
