@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { CategoryHeader, MotionFade } from '@/components/health'
+import { useReadiness } from '@/hooks/useReadiness'
 import { usePreviewData } from '@/hooks/usePreviewData'
 import { ReadinessView } from './_components/readiness-view'
 import { WhatChangedView } from './_components/what-changed-view'
@@ -41,18 +43,21 @@ function PreviewContent() {
   }
 
   const { data, loading, error } = usePreviewData()
+  const { latest: latestReadiness } = useReadiness(0)
 
   return (
-    <div className="space-y-6 px-4 md:px-0">
-      <div className="space-y-1">
-        <p className="text-caption">Insights</p>
-        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-          Readiness, anomalies, and what changed
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Your daily readiness, the outliers we flagged, and what shifted over the chosen window.
-        </p>
-      </div>
+    <MotionFade className="space-y-6 px-4 md:px-0">
+      <CategoryHeader
+        category="readiness"
+        title="Insights"
+        primary={{
+          value:
+            latestReadiness?.score != null ? Math.round(latestReadiness.score).toString() : '—',
+          unit: latestReadiness?.score != null ? 'readiness' : undefined,
+        }}
+        description="Your daily readiness, the outliers we flagged, and what shifted over the chosen window."
+        back={{ href: '/dashboard' }}
+      />
 
       <Tabs value={tab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="w-full">
@@ -89,7 +94,7 @@ function PreviewContent() {
           )}
         </div>
       </Tabs>
-    </div>
+    </MotionFade>
   )
 }
 

@@ -23,7 +23,7 @@ import { SummarySkeleton } from '@/components/skeletons/summary-skeleton'
 import { InsightsChartsSkeleton } from '@/components/skeletons/insights-charts-skeleton'
 import { useAuth } from '@/lib/auth-context'
 import { defaultInsightsData, useInsightsData } from '@/hooks/useInsightsData'
-import { PageHeader } from '@/components/page-header'
+import { CategoryHeader, HighlightCard, MotionFade, RangeTabs } from '@/components/health'
 import { RangeControls } from '@/components/range-controls'
 import { StandardCardHeader } from '@/components/ui/standard-card-header'
 
@@ -107,107 +107,98 @@ export default function InsightsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
+    <MotionFade className="space-y-6">
+      <CategoryHeader
+        category="mood"
         title="Insights"
+        primary={{
+          value: weeklyMetrics.avgMood ? weeklyMetrics.avgMood.toFixed(1) : '—',
+          unit: weeklyMetrics.avgMood ? '/5 mood' : undefined,
+        }}
         description={`Analytics for ${rangeLabel}`}
+        back={{ href: '/dashboard' }}
         action={
-          <Button onClick={generateAIInsights} disabled={generatingInsights || !user}>
+          <Button onClick={generateAIInsights} disabled={generatingInsights || !user} size="sm">
             {generatingInsights ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
                 Generating...
               </>
             ) : (
               <>
                 <Sparkles className="mr-2 h-4 w-4" />
-                Generate AI Insights
+                Generate
               </>
             )}
           </Button>
         }
       />
 
-      <RangeControls
+      <RangeTabs
         mode={range.mode}
-        anchorDate={range.anchorDate}
-        rangeLabel={rangeLabel}
-        rangeStartDate={startDate}
-        rangeEndDate={endDate}
         onModeChange={setRangeMode}
-        onAnchorDateChange={setAnchorDate}
+        rangeLabel={rangeLabel}
         onShift={shiftRange}
-        description="Choose the date granularity and anchor date for analytics."
       />
+
+      <details className="group">
+        <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+          Custom range
+        </summary>
+        <div className="mt-3">
+          <RangeControls
+            mode={range.mode}
+            anchorDate={range.anchorDate}
+            rangeLabel={rangeLabel}
+            rangeStartDate={startDate}
+            rangeEndDate={endDate}
+            onModeChange={setRangeMode}
+            onAnchorDateChange={setAnchorDate}
+            onShift={shiftRange}
+            description="Choose the date granularity and anchor date for analytics."
+          />
+        </div>
+      </details>
 
       {/* Summary Cards */}
       {loading ? (
         <SummarySkeleton cards={4} className="grid-cols-1 md:grid-cols-4" />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="border-l-4 border-l-blue-500">
-            <StandardCardHeader
-              title="Average Mood"
-              description="Mood average"
-              action={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
-              className="pb-2"
-            />
-            <CardContent>
-              <div className="text-4xl font-bold">
-                {weeklyMetrics.avgMood.toFixed(1)}
-                <span className="text-base text-muted-foreground">/5</span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                From {weeklyMetrics.moodEntries} logged moods
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-l-4 border-l-emerald-500">
-            <StandardCardHeader
-              title="Total Calories"
-              description="Intake total"
-              action={<Calendar className="h-4 w-4 text-muted-foreground" />}
-              className="pb-2"
-            />
-            <CardContent>
-              <div className="text-4xl font-bold">{weeklyMetrics.kcalTotal.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">
-                Avg {Math.round(weeklyMetrics.kcalTotal / Math.max(dayCount, 1))} kcal per day
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-l-4 border-l-orange-500">
-            <StandardCardHeader
-              title="Meals Logged"
-              description="Meal count"
-              action={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
-              className="pb-2"
-            />
-            <CardContent>
-              <div className="text-4xl font-bold">{weeklyMetrics.foodEntries}</div>
-              <p className="text-xs text-muted-foreground">
-                {(
-                  Math.round((weeklyMetrics.foodEntries / Math.max(dayCount, 1)) * 10) / 10
-                ).toFixed(1)}{' '}
-                meals/day
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-l-4 border-l-violet-500">
-            <StandardCardHeader
-              title="Top Foods"
-              description="Most frequent items logged"
-              action={<Brain className="h-4 w-4 text-muted-foreground" />}
-              className="pb-2"
-            />
-            <CardContent>
-              <div className="text-4xl font-bold">{weeklyMetrics.topFoods.length}</div>
-              <p className="text-xs text-muted-foreground">Distinct frequent foods this period</p>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <HighlightCard
+            title="Average Mood"
+            category="mood"
+            icon={<TrendingUp className="h-4 w-4" />}
+            primary={{ value: weeklyMetrics.avgMood.toFixed(1), unit: '/5' }}
+            secondary={{ value: `From ${weeklyMetrics.moodEntries} logged moods` }}
+          />
+          <HighlightCard
+            title="Total Calories"
+            category="nutrition"
+            icon={<Calendar className="h-4 w-4" />}
+            primary={{ value: weeklyMetrics.kcalTotal.toLocaleString() }}
+            secondary={{
+              value: `Avg ${Math.round(weeklyMetrics.kcalTotal / Math.max(dayCount, 1))} kcal/day`,
+            }}
+          />
+          <HighlightCard
+            title="Meals Logged"
+            category="nutrition"
+            icon={<BarChart3 className="h-4 w-4" />}
+            primary={{ value: weeklyMetrics.foodEntries }}
+            secondary={{
+              value: `${(
+                Math.round((weeklyMetrics.foodEntries / Math.max(dayCount, 1)) * 10) / 10
+              ).toFixed(1)} meals/day`,
+            }}
+          />
+          <HighlightCard
+            title="Top Foods"
+            category="mood"
+            icon={<Brain className="h-4 w-4" />}
+            primary={{ value: weeklyMetrics.topFoods.length }}
+            secondary={{ value: 'Distinct frequent foods this period' }}
+          />
         </div>
       )}
 
@@ -433,7 +424,7 @@ export default function InsightsPage() {
       {(aiReport || aiSummary || aiTips) && (
         <div className="space-y-4">
           {aiReport && (
-            <Card className="border-l-4 border-l-primary">
+            <Card>
               <StandardCardHeader
                 title={
                   <span className="flex items-center gap-2">
@@ -459,7 +450,7 @@ export default function InsightsPage() {
           )}
 
           {aiSummary && (
-            <Card className="border-l-4 border-l-primary">
+            <Card>
               <StandardCardHeader
                 title={
                   <span className="flex items-center gap-2">
@@ -485,7 +476,7 @@ export default function InsightsPage() {
           )}
 
           {aiTips && (
-            <Card className="border-l-4 border-l-primary">
+            <Card>
               <StandardCardHeader
                 title={
                   <span className="flex items-center gap-2">
@@ -504,6 +495,6 @@ export default function InsightsPage() {
           )}
         </div>
       )}
-    </div>
+    </MotionFade>
   )
 }

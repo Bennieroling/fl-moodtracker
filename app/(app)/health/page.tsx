@@ -34,7 +34,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { BodyStatTile } from '@/components/body-stat-tile'
 import { EmptyState } from '@/components/empty-state'
-import { PageHeader } from '@/components/page-header'
+import { CategoryHeader, MotionFade, RangeTabs } from '@/components/health'
 import { RangeControls } from '@/components/range-controls'
 
 export default function HealthPage() {
@@ -85,24 +85,52 @@ export default function HealthPage() {
   const hasHrData = hrHrvSeries.some((d) => d.resting_heart_rate != null)
   const hasHrvData = hrHrvSeries.some((d) => d.hrv != null)
 
-  return (
-    <div className="space-y-6">
-      <PageHeader title="Health" description="Your vitals, recovery, and body trends." />
+  const sleepHours =
+    latestSleep?.total_sleep_hours != null ? Number(latestSleep.total_sleep_hours) : null
+  const sleepPrimary =
+    sleepHours != null ? `${Math.floor(sleepHours)}h ${Math.round((sleepHours % 1) * 60)}m` : '—'
 
-      <RangeControls
-        mode={range.mode}
-        anchorDate={range.anchorDate}
-        rangeLabel={range.label}
-        rangeStartDate={range.startDate}
-        rangeEndDate={range.endDate}
-        onModeChange={setRangeMode}
-        onAnchorDateChange={setAnchorDate}
-        onShift={shiftRange}
-        description="Choose the date granularity and anchor date for health metrics."
+  return (
+    <MotionFade className="space-y-6">
+      <CategoryHeader
+        category="sleep"
+        title="Health"
+        primary={{
+          value: sleepPrimary,
+          unit: sleepHours != null ? 'last night' : undefined,
+        }}
+        description="Sleep, body, vitals — your recovery story across the chosen window."
+        back={{ href: '/dashboard' }}
       />
 
+      <RangeTabs
+        mode={range.mode}
+        onModeChange={setRangeMode}
+        rangeLabel={range.label}
+        onShift={shiftRange}
+      />
+
+      <details className="group">
+        <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+          Custom range
+        </summary>
+        <div className="mt-3">
+          <RangeControls
+            mode={range.mode}
+            anchorDate={range.anchorDate}
+            rangeLabel={range.label}
+            rangeStartDate={range.startDate}
+            rangeEndDate={range.endDate}
+            onModeChange={setRangeMode}
+            onAnchorDateChange={setAnchorDate}
+            onShift={shiftRange}
+            description="Choose the date granularity and anchor date for health metrics."
+          />
+        </div>
+      </details>
+
       {/* Sleep */}
-      <Card>
+      <Card id="sleep" className="scroll-mt-32">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Moon className="h-5 w-5" />
@@ -176,7 +204,7 @@ export default function HealthPage() {
       </Card>
 
       {/* Body */}
-      <Card>
+      <Card id="body" className="scroll-mt-32">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Scale className="h-5 w-5" />
@@ -277,7 +305,7 @@ export default function HealthPage() {
       </Card>
 
       {/* Heart Rate */}
-      <Card>
+      <Card id="heart-rate" className="scroll-mt-32">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <HeartPulse className="h-5 w-5" />
@@ -354,7 +382,7 @@ export default function HealthPage() {
       </Card>
 
       {/* HRV */}
-      <Card>
+      <Card id="hrv" className="scroll-mt-32">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
@@ -403,7 +431,7 @@ export default function HealthPage() {
       </Card>
 
       {/* ECG */}
-      <Card>
+      <Card id="ecg" className="scroll-mt-32">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <HeartPulse className="h-5 w-5" />
@@ -481,7 +509,7 @@ export default function HealthPage() {
       </Card>
 
       {/* Wrist Temperature */}
-      <Card>
+      <Card id="wrist-temp" className="scroll-mt-32">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Thermometer className="h-5 w-5" />
@@ -525,6 +553,6 @@ export default function HealthPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </MotionFade>
   )
 }
