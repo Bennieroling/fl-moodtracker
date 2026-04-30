@@ -22,6 +22,7 @@ import {
   Apple,
   Dumbbell,
   HeartPulse,
+  PlusSquare,
   Sparkles,
   UtensilsCrossed,
 } from 'lucide-react'
@@ -32,6 +33,7 @@ import { BottomNav } from '@/components/bottom-nav'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Apple },
+  { name: 'Log', href: '/log', icon: PlusSquare },
   { name: 'Exercise', href: '/exercise', icon: Dumbbell },
   { name: 'Health', href: '/health', icon: HeartPulse },
   { name: 'Calendar', href: '/calendar', icon: Calendar },
@@ -136,6 +138,18 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/calendar">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    <span>Calendar</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/charts">
+                    <BarChart3 className="mr-2 h-4 w-4" />
+                    <span>Charts</span>
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/profile">
                     <Settings className="mr-2 h-4 w-4" />

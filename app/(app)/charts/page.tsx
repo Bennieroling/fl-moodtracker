@@ -268,7 +268,7 @@ export default function InsightsPage() {
               <div className="text-center text-muted-foreground py-16 space-y-3">
                 <p>No data available for this period</p>
                 <Button asChild size="sm" variant="outline">
-                  <Link href="/dashboard">Log a meal</Link>
+                  <Link href="/log">Log a meal</Link>
                 </Button>
               </div>
             )}
@@ -323,7 +323,7 @@ export default function InsightsPage() {
               <div className="text-center text-muted-foreground py-16 space-y-3">
                 <p>No food data available for this period</p>
                 <Button asChild size="sm" variant="outline">
-                  <Link href="/dashboard">Log your first meal</Link>
+                  <Link href="/log">Log your first meal</Link>
                 </Button>
               </div>
             )}
