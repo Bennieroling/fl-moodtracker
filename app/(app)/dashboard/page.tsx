@@ -33,6 +33,7 @@ import { PageHeader } from '@/components/page-header'
 import { MacroDisplay } from '@/components/macro-display'
 import { ReadinessHero } from '@/components/dashboard/readiness-hero'
 import { AnomalyBadge } from '@/components/dashboard/anomaly-badge'
+import { LogFab } from '@/components/dashboard/log-fab'
 import { Activity, AlertTriangle, Footprints, TrendingDown, TrendingUp, Minus } from 'lucide-react'
 
 const valenceColor = (classification: string) => {
@@ -835,6 +836,8 @@ export default function DashboardPage() {
         onSave={handleSaveEdit}
         onClose={() => setEditingEntry(null)}
       />
+
+      <LogFab />
     </div>
   )
 }
