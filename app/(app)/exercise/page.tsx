@@ -8,10 +8,10 @@ import {
   Check,
   ChevronDown,
   Flame,
-  Footprints,
   HeartPulse,
   TrendingUp,
 } from 'lucide-react'
+import { CategoryHeader, MotionFade, RangeTabs } from '@/components/health'
 import {
   Area,
   AreaChart,
@@ -40,7 +40,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { PageHeader } from '@/components/page-header'
 import { RangeControls } from '@/components/range-controls'
 import { MetricTile } from '@/components/metric-tile'
 import { EmptyState as EmptyStateComponent } from '@/components/empty-state'
@@ -67,7 +66,6 @@ export default function ExercisePage() {
   } = useExerciseData()
   const [aggregateView, setAggregateView] = useState<AggregateView>('week')
   const [ecgExpanded, setEcgExpanded] = useState(false)
-  const [metricsExpanded, setMetricsExpanded] = useState(false)
   const rangeStartDate = range.startDate
   const rangeEndDate = range.endDate
   const rangeLabel = range.label
@@ -104,120 +102,133 @@ export default function ExercisePage() {
     )
   }
 
-  return (
-    <div className="space-y-6">
-      <PageHeader title="Exercise" description="Your activity and workout data" />
+  const stepsValue = healthSummary.steps
+  const exerciseValue = healthSummary.exerciseMinutes || exerciseSummary.minutes
+  const distanceDelta =
+    exerciseSummary.distance != null ? Number(exerciseSummary.distance).toFixed(1) : null
 
-      <RangeControls
-        mode={range.mode}
-        anchorDate={range.anchorDate}
-        rangeLabel={rangeLabel}
-        rangeStartDate={rangeStartDate}
-        rangeEndDate={rangeEndDate}
-        onModeChange={setRangeMode}
-        onAnchorDateChange={setAnchorDate}
-        onShift={shiftRange}
-        description="Choose the date granularity and anchor date for the dashboard."
+  return (
+    <MotionFade className="space-y-6">
+      <CategoryHeader
+        category="activity"
+        title="Activity"
+        primary={{
+          value: stepsValue != null ? Number(stepsValue).toLocaleString() : '—',
+          unit: stepsValue != null ? 'steps' : undefined,
+        }}
+        description={
+          exerciseValue != null
+            ? `${Math.round(Number(exerciseValue))} min exercise${distanceDelta ? ` · ${distanceDelta} km moved` : ''}`
+            : 'Workouts and trends across the chosen window.'
+        }
+        back={{ href: '/dashboard' }}
       />
 
-      {/* Hero Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricTile
-          label="Steps"
-          value={healthSummary.steps}
-          icon={<Footprints className="h-4 w-4" />}
-          size="lg"
-          pending={healthPending && !healthSummary.steps}
-        />
-        <MetricTile
-          label="Exercise"
-          value={healthSummary.exerciseMinutes || exerciseSummary.minutes}
-          unit="min"
-          icon={<Activity className="h-4 w-4" />}
-          size="lg"
-        />
-        <MetricTile
-          label="Active Calories"
-          value={healthSummary.activeEnergy || exerciseSummary.activeEnergy}
-          unit="kcal"
-          icon={<Flame className="h-4 w-4" />}
-          size="lg"
-        />
-        <MetricTile
-          label="Resting HR"
-          value={healthSummary.restingHeartRateAvg}
-          unit="bpm"
-          icon={<HeartPulse className="h-4 w-4" />}
-          size="lg"
-          pending={healthPending && healthSummary.restingHeartRateAvg === null}
-        />
-      </div>
+      <RangeTabs
+        mode={range.mode}
+        onModeChange={setRangeMode}
+        rangeLabel={rangeLabel}
+        onShift={shiftRange}
+      />
 
-      {/* Collapsible More Metrics */}
-      <div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setMetricsExpanded(!metricsExpanded)}
-          className="w-full justify-between text-muted-foreground"
-        >
-          <span>{metricsExpanded ? 'Hide metrics' : 'Show more metrics'}</span>
-          <ChevronDown
-            className={`h-4 w-4 transition-transform ${metricsExpanded ? 'rotate-180' : ''}`}
+      <details className="group">
+        <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+          Custom range
+        </summary>
+        <div className="mt-3">
+          <RangeControls
+            mode={range.mode}
+            anchorDate={range.anchorDate}
+            rangeLabel={rangeLabel}
+            rangeStartDate={rangeStartDate}
+            rangeEndDate={rangeEndDate}
+            onModeChange={setRangeMode}
+            onAnchorDateChange={setAnchorDate}
+            onShift={shiftRange}
+            description="Choose the date granularity and anchor date for the dashboard."
           />
-        </Button>
-        {metricsExpanded && (
-          <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricTile
-              label="HRV"
-              value={healthSummary.hrvAvg}
-              unit="ms"
-              size="sm"
-              pending={healthPending && healthSummary.hrvAvg === null}
-            />
-            <MetricTile
-              label="VO2 Max"
-              value={
-                healthSummary.vo2maxAvg != null ? Number(healthSummary.vo2maxAvg).toFixed(1) : null
-              }
-              unit="ml/kg/min"
-              size="sm"
-              pending={healthPending && healthSummary.vo2maxAvg === null}
-            />
-            <MetricTile
-              label="Distance"
-              value={
-                exerciseSummary.distance != null
-                  ? Number(exerciseSummary.distance).toFixed(2)
-                  : null
-              }
-              unit="km"
-              size="sm"
-            />
-            <MetricTile
-              label="Stand Hours"
-              value={
-                healthSummary.standHoursAvg != null
-                  ? Number(healthSummary.standHoursAvg).toFixed(1)
-                  : null
-              }
-              unit="hr/day"
-              size="sm"
-              pending={healthPending && healthSummary.standHoursAvg === null}
-            />
-            <MetricTile
-              label="Move Minutes"
-              value={exerciseSummary.moveMinutes}
-              unit="min"
-              size="sm"
-            />
-            <MetricTile label="Elevation" value={exerciseSummary.elevation} unit="m" size="sm" />
-            <MetricTile label="Training Load" value={exerciseSummary.trimp} size="sm" />
-          </div>
-        )}
+        </div>
+      </details>
+
+      {/* Metrics row — all surfaced inline, no toggle. Horizontal scroll on small screens. */}
+      <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+        <div className="flex gap-3 md:grid md:grid-cols-4">
+          <MetricTile
+            label="Exercise"
+            value={exerciseValue}
+            unit="min"
+            icon={<Activity className="h-4 w-4" />}
+            size="md"
+            className="min-w-40 md:min-w-0"
+          />
+          <MetricTile
+            label="Active Calories"
+            value={healthSummary.activeEnergy || exerciseSummary.activeEnergy}
+            unit="kcal"
+            icon={<Flame className="h-4 w-4" />}
+            size="md"
+            className="min-w-40 md:min-w-0"
+          />
+          <MetricTile
+            label="Resting HR"
+            value={healthSummary.restingHeartRateAvg}
+            unit="bpm"
+            icon={<HeartPulse className="h-4 w-4" />}
+            size="md"
+            pending={healthPending && healthSummary.restingHeartRateAvg === null}
+            className="min-w-40 md:min-w-0"
+          />
+          <MetricTile
+            label="HRV"
+            value={healthSummary.hrvAvg}
+            unit="ms"
+            size="md"
+            pending={healthPending && healthSummary.hrvAvg === null}
+            className="min-w-40 md:min-w-0"
+          />
+        </div>
+        <div className="mt-3 flex gap-3 md:grid md:grid-cols-4">
+          <MetricTile
+            label="VO2 Max"
+            value={
+              healthSummary.vo2maxAvg != null ? Number(healthSummary.vo2maxAvg).toFixed(1) : null
+            }
+            unit="ml/kg/min"
+            size="sm"
+            pending={healthPending && healthSummary.vo2maxAvg === null}
+            className="min-w-40 md:min-w-0"
+          />
+          <MetricTile
+            label="Distance"
+            value={
+              exerciseSummary.distance != null ? Number(exerciseSummary.distance).toFixed(2) : null
+            }
+            unit="km"
+            size="sm"
+            className="min-w-40 md:min-w-0"
+          />
+          <MetricTile
+            label="Stand Hours"
+            value={
+              healthSummary.standHoursAvg != null
+                ? Number(healthSummary.standHoursAvg).toFixed(1)
+                : null
+            }
+            unit="hr/day"
+            size="sm"
+            pending={healthPending && healthSummary.standHoursAvg === null}
+            className="min-w-40 md:min-w-0"
+          />
+          <MetricTile
+            label="Training Load"
+            value={exerciseSummary.trimp}
+            size="sm"
+            className="min-w-40 md:min-w-0"
+          />
+        </div>
       </div>
 
-      <Card>
+      <Card id="workouts" className="scroll-mt-32">
         <CardHeader>
           <CardTitle>Workouts in Range</CardTitle>
           <CardDescription>
@@ -244,7 +255,7 @@ export default function ExercisePage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div id="trends" className="scroll-mt-32 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -342,7 +353,7 @@ export default function ExercisePage() {
         </Card>
       </div>
 
-      <Card>
+      <Card id="hr" className="scroll-mt-32">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <HeartPulse className="h-5 w-5" />
@@ -399,7 +410,7 @@ export default function ExercisePage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="aggregates" className="scroll-mt-32">
         <CardContent className="pt-6">
           <Tabs
             value={aggregateView}
@@ -453,7 +464,7 @@ export default function ExercisePage() {
       )}
 
       {ecgReadings.length > 0 && (
-        <Card>
+        <Card id="ecg" className="scroll-mt-32">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <HeartPulse className="h-5 w-5" />
@@ -527,7 +538,7 @@ export default function ExercisePage() {
           </CardContent>
         </Card>
       )}
-    </div>
+    </MotionFade>
   )
 }
 
