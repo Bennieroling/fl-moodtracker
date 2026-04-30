@@ -233,3 +233,14 @@
   letter-spacing: 0.05em;
   color: var(--muted-foreground);
 }
+
+/* Desaturate OSM tiles inside workout route maps to keep the Apple-Health-Light
+ * aesthetic. Routes (polylines and circle markers) sit on top of the tile pane
+ * and stay full-color because we only target .leaflet-tile. */
+.leaflet-route-map .leaflet-tile {
+  filter: grayscale(0.85) brightness(1.05) contrast(0.95);
+}
+
+.dark .leaflet-route-map .leaflet-tile {
+  filter: grayscale(0.85) brightness(0.55) contrast(1.05) invert(0.92) hue-rotate(180deg);
+}
